@@ -583,7 +583,18 @@ app.put('/api/auth/users/role', (req, res) => {
 
 // 2. TEST PAPERS & PYQ VAULT (Subject + Year + Question PDF + Answer Key PDF)
 app.get('/api/test-papers', (req, res) => {
-  const testPapers = readJsonFile('test-papers.json', initialTestPapers);
+  let testPapers = readJsonFile('test-papers.json', initialTestPapers);
+  if (!testPapers || testPapers.length <= 2) {
+    const catalogPath = path.join(__dirname, '../src/data/catalog.json');
+    if (fs.existsSync(catalogPath)) {
+      try {
+        const cat = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+        if (cat.testPapers && Array.isArray(cat.testPapers) && cat.testPapers.length > 0) {
+          testPapers = cat.testPapers;
+        }
+      } catch (e) {}
+    }
+  }
   res.json(testPapers);
 });
 
@@ -858,6 +869,17 @@ app.post('/api/subjects', (req, res) => {
 app.get('/api/documents', (req, res) => {
   const { standard } = req.query;
   let docs = readJsonFile('documents.json', []);
+  if (!docs || docs.length === 0) {
+    const catalogPath = path.join(__dirname, '../src/data/catalog.json');
+    if (fs.existsSync(catalogPath)) {
+      try {
+        const cat = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+        if (cat.documents && Array.isArray(cat.documents) && cat.documents.length > 0) {
+          docs = cat.documents;
+        }
+      } catch (e) {}
+    }
+  }
 
   // Compute upload frequency for each unique file
   const nameCounts = {};

@@ -89,34 +89,24 @@ export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false 
 
         {/* Header Right Actions */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
-          {/* Super Admin Grade Preview Switcher */}
-          {isAuthenticated && isSuperAdmin && (
-            <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/60 text-xs font-semibold text-purple-900 dark:text-purple-200 shadow-xs">
-              <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase tracking-wider hidden sm:inline">
-                Viewing:
-              </span>
-              <select
-                value={activeStandard}
-                onChange={(e) => setActiveStandard(e.target.value)}
-                className="bg-transparent font-bold text-xs outline-none cursor-pointer text-purple-900 dark:text-purple-100"
-                title="Switch Standard Preview"
-              >
-                <option value="12" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 12 (HSC)</option>
-                <option value="10" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 10 (SSC)</option>
-                <option value="11" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 11 (FYJC)</option>
-                <option value="9" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 9 (Found.)</option>
-                <option value="ALL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All Classes</option>
-              </select>
-            </div>
-          )}
-
-          {/* Enrolled Standard Badge for Students */}
-          {isAuthenticated && !isSuperAdmin && (
-            <div className="hidden sm:flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-xs">
-              <span className="text-brand-600 dark:text-brand-400">Class</span>
-              <span>{activeStandard}</span>
-            </div>
-          )}
+          {/* Universal Grade Switcher (Available to All Students, Admins & Guests) */}
+          <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/60 text-xs font-semibold text-purple-900 dark:text-purple-200 shadow-xs">
+            <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase tracking-wider hidden sm:inline">
+              Class:
+            </span>
+            <select
+              value={activeStandard}
+              onChange={(e) => setActiveStandard(e.target.value)}
+              className="bg-transparent font-bold text-xs outline-none cursor-pointer text-purple-900 dark:text-purple-100"
+              title="Switch Grade / Standard"
+            >
+              <option value="12" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 12 (HSC)</option>
+              <option value="11" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 11 (FYJC)</option>
+              <option value="ALL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All Classes (11 + 12)</option>
+              <option value="10" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 10 (SSC)</option>
+              <option value="9" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 9 (Found.)</option>
+            </select>
+          </div>
 
           {/* User Sign In / Profile / Dedicated Log Out Control */}
           {isAuthenticated ? (

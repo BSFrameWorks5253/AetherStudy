@@ -18,10 +18,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Atom,
-  FlaskConical,
   Calculator,
-  Dna,
   Globe,
   Sparkles,
   Layers,
@@ -269,42 +266,58 @@ const DEFAULT_STANDARD_SUBJECTS: Record<string, SubjectMeta[]> = {
   ],
   '11': [
     {
-      name: 'English',
-      code: 'ENG-XI',
-      description: 'FYJC Foundation in English Composition & Critical Reading',
-      icon: BookOpen,
-      colorGradient: 'from-blue-600 to-indigo-700',
-      badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-    },
-    {
-      name: 'Physics',
-      code: 'PHY-XI',
-      description: 'Units & Measurements, Laws of Motion & Thermodynamics',
-      icon: Atom,
-      colorGradient: 'from-purple-600 to-violet-700',
-      badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-    },
-    {
-      name: 'Chemistry',
-      code: 'CHEM-XI',
-      description: 'Atomic Structure, Chemical Bonding & Hydrocarbons',
-      icon: FlaskConical,
+      name: 'Book-Keeping & Accountancy (Accounts)',
+      code: 'BK-XI',
+      description: 'Introduction to Book Keeping, Meaning & Fundamentals of Double Entry, Journal, Ledger & Subsidiary Books',
+      icon: Calculator,
       colorGradient: 'from-emerald-600 to-teal-700',
       badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
     },
     {
-      name: 'Mathematics',
+      name: 'Organization of Commerce & Management (OCM)',
+      code: 'OCM-XI',
+      description: 'Introduction to Business, Forms of Business Organization, Private & Public Sector Enterprises',
+      icon: Briefcase,
+      colorGradient: 'from-blue-600 to-indigo-700',
+      badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+    },
+    {
+      name: 'Economics (ECO)',
+      code: 'ECO-XI',
+      description: 'Basic Concepts of Economics, Money, Partition Values, Economy of Maharashtra, Rural Development',
+      icon: TrendingUp,
+      colorGradient: 'from-purple-600 to-violet-700',
+      badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    },
+    {
+      name: 'Mathematics & Statistics (Commerce)',
       code: 'MATH-XI',
-      description: 'Trigonometry, Functions, Complex Numbers & Limits',
+      description: 'Part 1 (Sets, Complex Numbers, Functions, Limits) & Part 2 (Partition Values, Dispersion, Skewness, Correlation)',
       icon: Calculator,
       colorGradient: 'from-amber-600 to-orange-700',
       badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800',
     },
     {
-      name: 'Biology',
-      code: 'BIO-XI',
-      description: 'Living World, Cell Structure & Biomolecules',
-      icon: Dna,
+      name: 'Information Technology (IT)',
+      code: 'IT-XI',
+      description: 'Basics of Information Technology, Introduction to DBMS, Cyber Law & Web Designing with HTML',
+      icon: Laptop,
+      colorGradient: 'from-cyan-600 to-blue-700',
+      badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
+    },
+    {
+      name: 'English (Yuvakbharati)',
+      code: 'ENG-XI',
+      description: 'FYJC Foundation in English Composition, Prose, Poetry, Writing Skills & Drama Appreciation',
+      icon: BookOpen,
+      colorGradient: 'from-sky-600 to-cyan-700',
+      badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+    },
+    {
+      name: 'Secretarial Practice (SP)',
+      code: 'SP-XI',
+      description: 'Secretary Fundamentals, Joint Stock Company, Promotion & Documents of a Company, Directors and KMP',
+      icon: FileText,
       colorGradient: 'from-rose-600 to-pink-700',
       badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800',
     },
@@ -389,7 +402,7 @@ export const SubjectRooms: React.FC = () => {
   const loadContent = async () => {
     try {
       const [docs, subjs] = await Promise.all([
-        api.getDocuments(isSuperAdmin ? undefined : activeStandard),
+        api.getDocuments(),
         api.getSubjects(),
       ]);
       setDocuments(docs);
@@ -442,22 +455,27 @@ export const SubjectRooms: React.FC = () => {
     return [...baseList, ...customList];
   }, [activeStandard, serverSubjects]);
 
-  // Filter documents by active standard
+  // Filter documents by active standard (Available for ALL user IDs, not just super admin)
   const standardFilteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
-      if (isSuperAdmin && activeStandard === 'ALL') return true;
+      if (!activeStandard || activeStandard === 'ALL') return true;
       if (!doc.standard || doc.standard === 'ALL') return true;
       return doc.standard === activeStandard;
     });
-  }, [documents, activeStandard, isSuperAdmin]);
+  }, [documents, activeStandard]);
 
   // Documents inside the selected room (flexible matching for BK, Accounts, OCM, ECO, Maths, etc.)
   const roomDocuments = useMemo(() => {
     if (!activeRoom) return [];
-    return standardFilteredDocuments.filter(
+    const directMatches = standardFilteredDocuments.filter(
       (doc) => matchSubjectDoc(activeRoom, doc.subject || '')
     );
-  }, [standardFilteredDocuments, activeRoom]);
+    // If documents exist for active standard, display them
+    if (directMatches.length > 0) return directMatches;
+    // Resilient Fallback: If 0 documents exist for active standard (e.g. FYJC / Class 11 notes for Accounts/IT),
+    // display all available documents for this subject room so students and other IDs always see their study files!
+    return documents.filter((doc) => matchSubjectDoc(activeRoom, doc.subject || ''));
+  }, [standardFilteredDocuments, documents, activeRoom]);
 
   // Deep Link URL sync logic
   const syncWithUrl = () => {
@@ -518,6 +536,19 @@ export const SubjectRooms: React.FC = () => {
   const handleSelectRoom = (subjectName: string) => {
     setActiveRoom(subjectName);
     setReadingDoc(null);
+
+    // Auto-select the tab with content so students immediately see their PDFs
+    const roomDocs = documents.filter((doc) => matchSubjectDoc(subjectName, doc.subject || ''));
+    const hasTextbooks = roomDocs.some((d) => d.category === 'textbook');
+    const hasNotes = roomDocs.some((d) => d.category !== 'textbook');
+    if (hasNotes && !hasTextbooks) {
+      setActiveCategoryTab('notes');
+    } else if (hasTextbooks) {
+      setActiveCategoryTab('textbooks');
+    } else {
+      setActiveCategoryTab('notes');
+    }
+
     const slug = getSubjectSlug(subjectName);
     const targetUrl = `/studyroom/${slug}`;
     if (window.location.pathname !== targetUrl) {
@@ -1217,6 +1248,17 @@ export const SubjectRooms: React.FC = () => {
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                     Official curriculum textbooks and reference guides for {activeRoom} (Class {activeStandard}) will appear here.
                   </p>
+                  {notesDocs.length > 0 && (
+                    <div className="pt-2">
+                      <button
+                        onClick={() => setActiveCategoryTab('notes')}
+                        className="px-4 py-2 bg-brand-50 hover:bg-brand-100 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 dark:hover:bg-brand-900/60 text-xs font-bold rounded-xl border border-brand-200 dark:border-brand-800 transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                        <span>View {notesDocs.length} Study Notes & Chapter PDFs for {activeRoom}</span>
+                      </button>
+                    </div>
+                  )}
                   {canUpload && (
                     <button
                       onClick={() => {

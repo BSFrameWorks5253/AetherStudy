@@ -314,40 +314,43 @@ export const api = {
       console.warn('[Documents API] Server documents endpoint unreachable, reading local vault:', err);
     }
 
-    // Merge server documents with client cached documents
     const localDocs = api.getLocalDocuments();
     const docMap = new Map<string, ServerDocument>();
 
-    serverDocs.forEach((d) => {
-      if (d.id) docMap.set(d.id, d);
-    });
+    // 1. Seed from catalog.json as base catalog
+    try {
+      const catalog = await import('../data/catalog.json');
+      if (catalog && Array.isArray(catalog.documents)) {
+        catalog.documents.forEach((d: any) => {
+          if (d && d.id) docMap.set(d.id, d as ServerDocument);
+        });
+      }
+    } catch {}
 
+    // 2. Overlay client cached documents
     localDocs.forEach((d) => {
-      if (d.id && !docMap.has(d.id)) {
+      if (d.id) {
         docMap.set(d.id, d);
       }
     });
 
-    let merged = Array.from(docMap.values());
+    // 3. Overlay server documents
+    serverDocs.forEach((d) => {
+      if (d.id) docMap.set(d.id, d);
+    });
+
+    const allDocs = Array.from(docMap.values());
+
+    // Update local cache with complete merged list (NEVER save a standard-filtered subset)
+    if (allDocs.length > 0) {
+      api.saveLocalDocuments(allDocs);
+    }
+
     if (standard && standard !== 'ALL') {
-      merged = merged.filter((d) => !d.standard || d.standard === 'ALL' || d.standard === standard);
+      return allDocs.filter((d) => !d.standard || d.standard === 'ALL' || d.standard === standard);
     }
 
-    if (merged.length === 0) {
-      try {
-        const catalog = await import('../data/catalog.json');
-        if (catalog && Array.isArray(catalog.documents) && catalog.documents.length > 0) {
-          merged = catalog.documents as ServerDocument[];
-          if (standard && standard !== 'ALL') {
-            merged = merged.filter((d) => !d.standard || d.standard === 'ALL' || d.standard === standard);
-          }
-        }
-      } catch {}
-    }
-
-    // Update local cache with merged list
-    api.saveLocalDocuments(merged);
-    return merged;
+    return allDocs;
   },
 
   async uploadDocument(
