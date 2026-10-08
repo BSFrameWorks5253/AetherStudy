@@ -88,12 +88,62 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  return jsonResponse({
-    success: true,
-    service: "AetherStudy Google Drive Bridge",
-    status: "online",
-    timestamp: new Date().toISOString()
-  });
+  try {
+    var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : "";
+    var fileName = (e && e.parameter && e.parameter.fileName) ? e.parameter.fileName : "";
+
+    // Action 1: Find recently uploaded file by name
+    if (action === "find" && fileName) {
+      var files = DriveApp.getFilesByName(fileName);
+      if (files.hasNext()) {
+        var file = files.next();
+        var fId = file.getId();
+        var sUrl = "https://drive.google.com/file/d/" + fId + "/preview";
+        return jsonResponse({
+          success: true,
+          id: fId,
+          name: file.getName(),
+          streamUrl: sUrl,
+          url: sUrl,
+          sizeBytes: file.getSize(),
+          uploadedAt: file.getDateCreated().toISOString()
+        });
+      }
+      return jsonResponse({ success: false, error: "File not found yet." });
+    }
+
+    // Action 2: Get recent uploaded files
+    if (action === "latest") {
+      var recent = [];
+      var iter = DriveApp.getFiles();
+      var max = 15;
+      while (iter.hasNext() && recent.length < max) {
+        var f = iter.next();
+        var id = f.getId();
+        recent.push({
+          id: id,
+          name: f.getName(),
+          streamUrl: "https://drive.google.com/file/d/" + id + "/preview",
+          sizeBytes: f.getSize(),
+          uploadedAt: f.getDateCreated().toISOString()
+        });
+      }
+      return jsonResponse({ success: true, files: recent });
+    }
+
+    // Default status ping
+    return jsonResponse({
+      success: true,
+      service: "AetherStudy Google Drive Bridge",
+      status: "online",
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    return jsonResponse({
+      success: false,
+      error: err.toString()
+    });
+  }
 }
 
 function jsonResponse(data) {
