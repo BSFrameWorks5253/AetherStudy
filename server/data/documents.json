@@ -1,0 +1,22 @@
+[
+  {
+    "id": "doc-1791446263176",
+    "name": "1791446263162-354412-summary_ch_1_1_to_1_8.pdf",
+    "originalName": "summary_ch_1_1_to_1_8.pdf",
+    "serverUrl": "/uploads/1791446263162-354412-summary_ch_1_1_to_1_8.pdf",
+    "mimeType": "application/pdf",
+    "sizeBytes": 37075,
+    "uploadedAt": "2026-10-08T07:57:43.176Z",
+    "category": "Academic"
+  },
+  {
+    "id": "doc-raft-1",
+    "name": "MIT_6.824_Distributed_Systems_Raft_Core.html",
+    "originalName": "MIT 6.824: Replicated State Machines & Consensus.pdf",
+    "serverUrl": "/uploads/MIT_6.824_Distributed_Systems_Raft_Core.html",
+    "mimeType": "application/pdf",
+    "sizeBytes": 1048576,
+    "uploadedAt": "2026-10-08T07:56:57.108Z",
+    "category": "Distributed Systems"
+  }
+]

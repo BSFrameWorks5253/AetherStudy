@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MIT 6.824: In Search of an Understandable Consensus Algorithm (Raft)</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      margin: 0; padding: 48px; max-width: 840px; margin: 0 auto;
+      background: #0b0f19; color: #e2e8f0; line-height: 1.7;
+    }
+    h1 { color: #818cf8; font-size: 26px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; }
+    h2 { color: #38bdf8; font-size: 19px; margin-top: 36px; }
+    p { font-size: 14px; color: #94a3b8; }
+    .badge { display: inline-block; background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 16px; }
+    .callout { background: rgba(30,41,59,0.7); border-left: 3px solid #818cf8; border-radius: 8px; padding: 16px; margin: 20px 0; font-size: 13.5px; }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; color: #38bdf8; font-size: 13px; }
+    pre { background: #070a12; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 14px; overflow-x: auto; color: #cbd5e1; font-size: 13px; }
+    ul { padding-left: 20px; font-size: 14px; color: #94a3b8; }
+    li { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="badge">Advanced Distributed Systems • Lecture Monograph 04</div>
+  <h1>Consensus in Fault-Tolerant Replicated State Machines</h1>
+  
+  <div class="callout">
+    <strong>Fundamental Problem:</strong> How do distributed nodes agree on a deterministic sequence of state machine operations across unreliable network partitions and crash-stop failures?
+  </div>
+
+  <h2>1. The Replicated State Machine Architecture</h2>
+  <p>Replicated state machines are typically implemented using a replicated log. Each server stores a log containing a series of commands, which its state machine executes in identical order. Consensus algorithms keep the replicated log consistent.</p>
+
+  <h2>2. Raft Leader Election State Invariants</h2>
+  <p>At any given time each server is in one of three states:</p>
+  <ul>
+    <li><code>Leader</code>: Handles all client requests, replicates log entries to followers.</li>
+    <li><code>Follower</code>: Completely passive; responds only to incoming RPCs from candidate and leader nodes.</li>
+    <li><code>Candidate</code>: Used to elect a new leader when election timeout ticks without hearing heartbeat.</li>
+  </ul>
+
+  <h2>3. Log Matching Property Theorem</h2>
+  <div class="callout">
+    If two entries in different logs have the same index and term, then they store the same command, and their logs are completely identical in all preceding entries.
+  </div>
+
+  <pre><code>// Invariant Verification: AppendEntries RPC Structure
+type AppendEntriesArgs struct {
+    Term         int        // Leader's current epoch term
+    LeaderId     int        // So follower can redirect clients
+    PrevLogIndex int        // Index of log entry immediately preceding new ones
+    PrevLogTerm  int        // Term of prevLogIndex entry
+    Entries      []LogEntry // Log entries to store (empty for heartbeat)
+    LeaderCommit int        // Leader's commitIndex
+}</code></pre>
+</body>
+</html>
