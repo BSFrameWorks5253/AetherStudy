@@ -16,7 +16,7 @@ import {
   Plus,
   BookOpen,
   Filter,
-  Lock,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -151,6 +151,19 @@ export const DocumentViewer: React.FC = () => {
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 15, 50));
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
 
+  const getDownloadUrl = (doc: ServerDocument) => {
+    if (doc.streamUrl && doc.streamUrl.includes('drive.google.com/file/d/')) {
+      const match = doc.streamUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+      }
+    }
+    if (doc.id && !doc.id.startsWith('doc-') && !doc.id.startsWith('local-')) {
+      return `https://drive.google.com/uc?export=download&id=${doc.id}`;
+    }
+    return doc.serverUrl || doc.streamUrl;
+  };
+
   const filteredDocuments = documents.filter(
     (d) => selectedSubjectFilter === 'All' || d.subject === selectedSubjectFilter
   );
@@ -227,28 +240,45 @@ export const DocumentViewer: React.FC = () => {
                         </div>
                       </div>
 
-                      <button
-                        onClick={(e) => handleDeleteDoc(doc.id, e)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors ml-2"
-                        title="Delete from server"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center space-x-1 shrink-0 ml-2">
+                        <a
+                          href={getDownloadUrl(doc)}
+                          target="_blank"
+                          rel="noreferrer"
+                          download={doc.originalName || doc.name}
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1 rounded-lg text-slate-400 hover:text-brand-500 hover:bg-brand-500/10 transition-colors"
+                          title="Download document"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                        {canUpload && (
+                          <button
+                            onClick={(e) => handleDeleteDoc(doc.id, e)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                            title="Delete from server"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
 
-                <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/10 flex justify-end">
-                  <button
-                    onClick={() => {
-                      setShowDocMenu(false);
-                      setShowUploadModal(true);
-                    }}
-                    className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Upload Document to Subject
-                  </button>
-                </div>
+                {canUpload && (
+                  <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/10 flex justify-end">
+                    <button
+                      onClick={() => {
+                        setShowDocMenu(false);
+                        setShowUploadModal(true);
+                      }}
+                      className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Upload Document to Subject
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -257,60 +287,67 @@ export const DocumentViewer: React.FC = () => {
         {/* Zoom & Action Controls */}
         <div className="flex items-center space-x-1.5">
           {activeDoc && (
-            <div className="flex items-center space-x-1 px-2 py-1 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/50 dark:border-white/10 text-xs shadow-sm">
-              <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 px-1">{zoom}%</span>
-              <button
-                onClick={handleZoomOut}
-                className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
-                title="Zoom Out"
+            <>
+              {/* Zoom Controls */}
+              <div className="flex items-center space-x-1 px-2 py-1 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/50 dark:border-white/10 text-xs shadow-sm">
+                <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 px-1">{zoom}%</span>
+                <button
+                  onClick={handleZoomOut}
+                  className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={handleZoomIn}
+                  className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={handleRotate}
+                  className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
+                  title="Rotate 90°"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Direct Download Button (Available for all students) */}
+              <a
+                href={getDownloadUrl(activeDoc)}
+                target="_blank"
+                rel="noreferrer"
+                download={activeDoc.originalName || activeDoc.name}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white/40 dark:bg-slate-800/60 hover:bg-brand-600 hover:text-white border border-white/50 dark:border-white/10 text-brand-600 dark:text-brand-300 shadow-sm transition-all"
+                title="Download PDF to device"
               >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={handleZoomIn}
-                className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
-                title="Zoom In"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={handleRotate}
-                className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
-                title="Rotate 90°"
-              >
-                <RotateCw className="w-3.5 h-3.5" />
-              </button>
-            </div>
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Download PDF</span>
+              </a>
+            </>
           )}
 
-          <button
-            onClick={() => {
-              if (!canUpload) {
-                alert('Uploading documents is restricted to administrators and the account owner.');
-                return;
-              }
-              setShowUploadModal(true);
-            }}
-            disabled={isUploading}
-            className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md ${
-              canUpload
-                ? 'bg-brand-600 hover:bg-brand-500 text-white shadow-brand-500/20 glass-pill'
-                : 'liquid-glass-subtle text-slate-400 cursor-not-allowed'
-            }`}
-          >
-            {isUploading ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            ) : uploadSuccess ? (
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
-            ) : canUpload ? (
-              <Upload className="w-3.5 h-3.5" />
-            ) : (
-              <Lock className="w-3.5 h-3.5" />
-            )}
-            <span className="hidden sm:inline">
-              {isUploading ? 'Uploading...' : 'Upload PDF'}
-            </span>
-          </button>
+          {/* Upload Button: Strictly Super Admin Only */}
+          {canUpload && (
+            <button
+              onClick={() => setShowUploadModal(true)}
+              disabled={isUploading}
+              className="flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md bg-brand-600 hover:bg-brand-500 text-white shadow-brand-500/20 glass-pill"
+            >
+              {isUploading ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : uploadSuccess ? (
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-300" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              <span className="hidden sm:inline">
+                {isUploading ? 'Uploading...' : 'Upload PDF'}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -334,17 +371,28 @@ export const DocumentViewer: React.FC = () => {
               <Upload className="w-8 h-8" />
             </div>
             <h3 className="text-lg font-black text-slate-800 dark:text-white mb-1">
-              Add Subject Study Materials
+              {canUpload ? 'Add Subject Study Materials' : 'Curated Study Materials Vault'}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 max-w-sm leading-relaxed">
-              Upload PDF textbooks, slides, or monographs and link them to their academic subject for instant offline and mobile access.
+              {canUpload
+                ? 'Upload PDF textbooks, slides, or monographs and link them to their academic subject for students to access.'
+                : 'Select an academic subject from the menu above to stream textbooks or download them directly to your device.'}
             </p>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/30 transition-all active:scale-95 glass-pill"
-            >
-              Upload Document to Subject
-            </button>
+            {canUpload ? (
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/30 transition-all active:scale-95 glass-pill"
+              >
+                Upload Document to Subject
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowDocMenu(true)}
+                className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/30 transition-all active:scale-95 glass-pill"
+              >
+                Browse Study Materials
+              </button>
+            )}
           </div>
         ) : (
           <div
@@ -372,14 +420,25 @@ export const DocumentViewer: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
             <span className="truncate">Subject: <strong className="text-slate-700 dark:text-slate-200">{activeDoc.subject}</strong></span>
           </div>
-          <a
-            href={activeDoc.serverUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-brand-500 flex items-center gap-1 transition-colors shrink-0 font-semibold"
-          >
-            Standalone <ExternalLink className="w-3 h-3" />
-          </a>
+          <div className="flex items-center space-x-3">
+            <a
+              href={getDownloadUrl(activeDoc)}
+              target="_blank"
+              rel="noreferrer"
+              download={activeDoc.originalName || activeDoc.name}
+              className="hover:text-brand-500 flex items-center gap-1 transition-colors shrink-0 font-semibold text-brand-600 dark:text-brand-400"
+            >
+              <Download className="w-3 h-3" /> Download PDF
+            </a>
+            <a
+              href={activeDoc.streamUrl || activeDoc.serverUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-brand-500 flex items-center gap-1 transition-colors shrink-0 font-semibold"
+            >
+              Standalone <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
       )}
 

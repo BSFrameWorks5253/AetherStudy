@@ -11,6 +11,7 @@ import {
   Columns,
   ExternalLink,
   Lock,
+  Download,
 } from 'lucide-react';
 
 export const TestPapers: React.FC = () => {
@@ -334,14 +335,25 @@ export const TestPapers: React.FC = () => {
                         <FileText className="w-3.5 h-3.5" />
                         {activePaper.questionPdfName}
                       </span>
-                      <a
-                        href={activePaper.questionPdfUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:underline flex items-center gap-1 text-[11px]"
-                      >
-                        Popout <ExternalLink className="w-3 h-3" />
-                      </a>
+                      <div className="flex items-center space-x-2">
+                        <a
+                          href={activePaper.questionPdfUrl}
+                          download={activePaper.questionPdfName}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:underline flex items-center gap-1 text-[11px] text-brand-600 dark:text-brand-300"
+                        >
+                          <Download className="w-3 h-3" /> Download
+                        </a>
+                        <a
+                          href={activePaper.questionPdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:underline flex items-center gap-1 text-[11px] text-slate-500"
+                        >
+                          Popout <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
                     </div>
                     <iframe
                       src={activePaper.questionPdfUrl}
@@ -359,18 +371,29 @@ export const TestPapers: React.FC = () => {
                     }`}
                   >
                     <div className="px-3 py-1.5 bg-emerald-500/10 border-b border-emerald-500/20 flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                      <span className="flex items-center gap-1.5">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Official Solutions & Rubric: {activePaper.answerKeyPdfName}
+                      <span className="flex items-center gap-1.5 truncate mr-2">
+                        <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Solutions: {activePaper.answerKeyPdfName}</span>
                       </span>
-                      <a
-                        href={activePaper.answerKeyPdfUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:underline flex items-center gap-1 text-[11px]"
-                      >
-                        Popout <ExternalLink className="w-3 h-3" />
-                      </a>
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <a
+                          href={activePaper.answerKeyPdfUrl}
+                          download={activePaper.answerKeyPdfName}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:underline flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-300"
+                        >
+                          <Download className="w-3 h-3" /> Download
+                        </a>
+                        <a
+                          href={activePaper.answerKeyPdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:underline flex items-center gap-1 text-[11px] text-slate-500"
+                        >
+                          Popout <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
                     </div>
                     <iframe
                       src={activePaper.answerKeyPdfUrl}

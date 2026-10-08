@@ -33,7 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const isAdmin = currentUser?.role === 'ADMIN' || isSuperAdmin;
-  const canUpload = isAdmin;
+  const canUpload = isSuperAdmin; // Strictly Super Admin only
 
   const sendOtp = async (email: string) => {
     const res = await api.generateOtp(email);
