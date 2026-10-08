@@ -1,0 +1,12 @@
+[
+  {
+    "email": "bs.framework5253@gmail.com",
+    "role": "SUPER_ADMIN",
+    "lastLogin": "2026-10-08T10:07:14.126Z"
+  },
+  {
+    "email": "test@example.com",
+    "role": "USER",
+    "lastLogin": "2026-10-08T09:15:23.276Z"
+  }
+]

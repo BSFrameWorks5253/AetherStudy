@@ -21,6 +21,24 @@ const UPLOADS_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.joi
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
+// Seed /tmp/data from bundled seed files on cold boot if in serverless
+if (process.env.VERCEL) {
+  try {
+    const seedDir = path.join(__dirname, 'data');
+    if (fs.existsSync(seedDir)) {
+      const seedFiles = fs.readdirSync(seedDir);
+      for (const file of seedFiles) {
+        const dest = path.join(DATA_DIR, file);
+        if (!fs.existsSync(dest) || fs.statSync(dest).size === 0) {
+          fs.copyFileSync(path.join(seedDir, file), dest);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Vercel Seed Init] Error syncing seed data:', err);
+  }
+}
+
 // Security Headers via Helmet
 app.use(
   helmet({
@@ -116,11 +134,18 @@ function readJsonFile(filename, defaultValue) {
   const filePath = path.join(DATA_DIR, filename);
   try {
     if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      const content = fs.readFileSync(filePath, 'utf8').trim();
+      if (content) return JSON.parse(content);
     }
     const seedPath = path.join(__dirname, 'data', filename);
     if (fs.existsSync(seedPath)) {
-      return JSON.parse(fs.readFileSync(seedPath, 'utf8'));
+      const content = fs.readFileSync(seedPath, 'utf8').trim();
+      if (content) {
+        try {
+          fs.writeFileSync(filePath, content, 'utf8');
+        } catch {}
+        return JSON.parse(content);
+      }
     }
   } catch (err) {
     console.error(`Error reading ${filename}:`, err);

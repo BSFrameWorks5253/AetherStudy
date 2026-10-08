@@ -1,0 +1,372 @@
+[
+  {
+    "id": "top-bk-1",
+    "subject": "Accounts",
+    "title": "Partnership Accounting & Foundations",
+    "isExpanded": true,
+    "chapters": [
+      {
+        "id": "ch-bk-1",
+        "title": "Chapter 1: Introduction to Partnership & Partnership Final Accounts",
+        "isCompleted": true
+      },
+      {
+        "id": "ch-bk-2",
+        "title": "Chapter 2: Accounts of 'Not for Profit' Concerns",
+        "isCompleted": true
+      },
+      {
+        "id": "ch-bk-3",
+        "title": "Chapter 3: Reconstitution of Partnership (Admission of Partner)",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-bk-4",
+        "title": "Chapter 4: Reconstitution of Partnership (Retirement of Partner)",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-bk-5",
+        "title": "Chapter 5: Reconstitution of Partnership (Death of Partner)",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-bk-6",
+        "title": "Chapter 6: Dissolution of Partnership Firm",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-bk-2",
+    "subject": "Accounts",
+    "title": "Negotiable Instruments & Corporate Accounting",
+    "isExpanded": false,
+    "chapters": [
+      {
+        "id": "ch-bk-7",
+        "title": "Chapter 7: Bills of Exchange",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-bk-8",
+        "title": "Chapter 8: Company Accounts – Issue of Shares",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-bk-9",
+        "title": "Chapter 9: Analysis of Financial Statements",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-bk-10",
+        "title": "Chapter 10: Computer in Accounting",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-math-1",
+    "subject": "Mathematics",
+    "title": "Mathematics Part 1 (Logic, Matrices & Calculus)",
+    "isExpanded": true,
+    "chapters": [
+      {
+        "id": "ch-m1-1",
+        "title": "Chapter 1: Mathematical Logic",
+        "isCompleted": true
+      },
+      {
+        "id": "ch-m1-2",
+        "title": "Chapter 2: Matrices",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m1-3",
+        "title": "Chapter 3: Differentiation",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m1-4",
+        "title": "Chapter 4: Applications of Derivatives",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m1-5",
+        "title": "Chapter 5: Integration",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m1-6",
+        "title": "Chapter 6: Definite Integration",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m1-7",
+        "title": "Chapter 7: Applications of Definite Integration",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m1-8",
+        "title": "Chapter 8: Differential Equations and Applications",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-math-2",
+    "subject": "Mathematics",
+    "title": "Mathematics Part 2 (Commercial Math & Statistics)",
+    "isExpanded": false,
+    "chapters": [
+      {
+        "id": "ch-m2-1",
+        "title": "Chapter 1: Commission, Brokerage, and Discount",
+        "isCompleted": true
+      },
+      {
+        "id": "ch-m2-2",
+        "title": "Chapter 2: Insurance and Annuity",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m2-3",
+        "title": "Chapter 3: Linear Regression",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m2-4",
+        "title": "Chapter 4: Time Series",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m2-5",
+        "title": "Chapter 5: Index Numbers",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m2-6",
+        "title": "Chapter 6: Linear Programming",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m2-7",
+        "title": "Chapter 7: Assignment Problem and Sequencing",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-m2-8",
+        "title": "Chapter 8: Probability Distributions",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-eco-1",
+    "subject": "Economics",
+    "title": "Micro-Economics & Market Structures",
+    "isExpanded": true,
+    "chapters": [
+      {
+        "id": "ch-eco-1",
+        "title": "Chapter 1: Introduction to Micro-economics and Macro-economics",
+        "isCompleted": true
+      },
+      {
+        "id": "ch-eco-2",
+        "title": "Chapter 2: Utility Analysis",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eco-3a",
+        "title": "Chapter 3A: Demand Analysis",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eco-3b",
+        "title": "Chapter 3B: Elasticity of Demand",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eco-4",
+        "title": "Chapter 4: Supply Analysis",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eco-5",
+        "title": "Chapter 5: Forms of Market",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-eco-2",
+    "subject": "Economics",
+    "title": "Macro-Economics & Public Finance",
+    "isExpanded": false,
+    "chapters": [
+      {
+        "id": "ch-eco-6",
+        "title": "Chapter 6: Index Numbers",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eco-7",
+        "title": "Chapter 7: National Income",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eco-8",
+        "title": "Chapter 8: Public Finance in India",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eco-9",
+        "title": "Chapter 9: Money Market and Capital Market in India",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eco-10",
+        "title": "Chapter 10: Foreign Trade of India",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-ocm-1",
+    "subject": "OCM",
+    "title": "Principles, Functions & Enterprise",
+    "isExpanded": true,
+    "chapters": [
+      {
+        "id": "ch-ocm-1",
+        "title": "Chapter 1: Principles of Management",
+        "isCompleted": true
+      },
+      {
+        "id": "ch-ocm-2",
+        "title": "Chapter 2: Functions of Management",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-ocm-3",
+        "title": "Chapter 3: Entrepreneurship Development",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-ocm-4",
+        "title": "Chapter 4: Business Services",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-ocm-2",
+    "subject": "OCM",
+    "title": "Modern Commerce, Consumer Rights & Marketing",
+    "isExpanded": false,
+    "chapters": [
+      {
+        "id": "ch-ocm-5",
+        "title": "Chapter 5: Emerging Modes of Business",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-ocm-6",
+        "title": "Chapter 6: Social Responsibilities of Business",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-ocm-7",
+        "title": "Chapter 7: Consumer Protection",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-ocm-8",
+        "title": "Chapter 8: Marketing",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-it-1",
+    "subject": "IT",
+    "title": "Advanced Web, E-Commerce & Database Systems",
+    "isExpanded": true,
+    "chapters": [
+      {
+        "id": "ch-it-1",
+        "title": "Chapter 1: Advanced Web Designing",
+        "isCompleted": true
+      },
+      {
+        "id": "ch-it-2",
+        "title": "Chapter 2: Digital Marketing",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-it-3",
+        "title": "Chapter 3: Computerised Accounting with GST",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-it-4",
+        "title": "Chapter 4: E-Commerce and E-Governance",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-it-5",
+        "title": "Chapter 5: Database Concepts using Libre Office Base",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-it-6",
+        "title": "Chapter 6: Enterprise Resource Planning (ERP)",
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "id": "top-eng-1",
+    "subject": "English",
+    "title": "Section I & II: Prose & Poetry",
+    "isExpanded": false,
+    "chapters": [
+      {
+        "id": "ch-eng-1",
+        "title": "1.1 An Astrologer’s Day — R. K. Narayan",
+        "isCompleted": true
+      },
+      {
+        "id": "ch-eng-2",
+        "title": "1.2 On Saying “Please” — A. G. Gardiner",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eng-3",
+        "title": "1.3 The Cop and the Anthem — O. Henry",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eng-4",
+        "title": "1.4 Big Data - Big Insights",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eng-5",
+        "title": "1.5 The New Dress — Virginia Woolf",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eng-6",
+        "title": "2.1 Cherry Tree — Ruskin Bond",
+        "isCompleted": false
+      },
+      {
+        "id": "ch-eng-7",
+        "title": "2.2 Indian Weavers — Sarojini Naidu",
+        "isCompleted": false
+      }
+    ]
+  }
+]

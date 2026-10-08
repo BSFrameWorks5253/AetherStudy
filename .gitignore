@@ -18,8 +18,7 @@ build/
 .env.*.local
 *.env
 
-# Local Runtime Storage & User Uploads
-server/data/
+# Local Runtime Storage & User Uploads (keep raw binary uploads local, track data seed in git)
 server/uploads/
 
 # Root staging folders (synced directly into public/Material and public/data for web deployment)

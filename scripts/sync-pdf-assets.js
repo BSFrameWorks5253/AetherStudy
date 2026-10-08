@@ -53,4 +53,46 @@ if (fs.existsSync(path.join(rootDir, 'dist'))) {
   }
 }
 
+// 4. Sync server/data documents and test papers into src/data/catalog.json
+try {
+  const serverDocsPath = path.join(rootDir, 'server', 'data', 'documents.json');
+  const serverPapersPath = path.join(rootDir, 'server', 'data', 'test-papers.json');
+  const catalogPath = path.join(rootDir, 'src', 'data', 'catalog.json');
+  
+  let catalog = {};
+  if (fs.existsSync(catalogPath)) {
+    try {
+      catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+    } catch {}
+  }
+  
+  let changed = false;
+  if (fs.existsSync(serverDocsPath)) {
+    try {
+      const docs = JSON.parse(fs.readFileSync(serverDocsPath, 'utf8'));
+      if (Array.isArray(docs) && docs.length > 0) {
+        catalog.documents = docs;
+        changed = true;
+      }
+    } catch {}
+  }
+  if (fs.existsSync(serverPapersPath)) {
+    try {
+      const papers = JSON.parse(fs.readFileSync(serverPapersPath, 'utf8'));
+      if (Array.isArray(papers) && papers.length > 0) {
+        catalog.testPapers = papers;
+        changed = true;
+      }
+    } catch {}
+  }
+  
+  if (changed) {
+    fs.mkdirSync(path.dirname(catalogPath), { recursive: true });
+    fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2), 'utf8');
+    console.log(`  -> Catalog updated with ${catalog.documents?.length || 0} docs and ${catalog.testPapers?.length || 0} papers.`);
+  }
+} catch (err) {
+  console.warn('  -> Could not sync catalog.json:', err.message);
+}
+
 console.log('✅ PDF Material & PYQ Data sync complete!');

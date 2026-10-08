@@ -237,7 +237,14 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to upload test paper');
     }
-    return res.json();
+    const created: TestPaper = await res.json();
+    try {
+      const cached = localStorage.getItem('aether_cached_test_papers');
+      const list: TestPaper[] = cached ? JSON.parse(cached) : [];
+      const updated = [created, ...list.filter((p) => p.id !== created.id)];
+      localStorage.setItem('aether_cached_test_papers', JSON.stringify(updated));
+    } catch {}
+    return created;
   },
 
   async deleteTestPaper(id: string, requesterEmail: string): Promise<boolean> {
@@ -246,6 +253,15 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requesterEmail }),
     });
+    if (res.ok) {
+      try {
+        const cached = localStorage.getItem('aether_cached_test_papers');
+        if (cached) {
+          const list: TestPaper[] = JSON.parse(cached);
+          localStorage.setItem('aether_cached_test_papers', JSON.stringify(list.filter((p) => p.id !== id)));
+        }
+      } catch {}
+    }
     return res.ok;
   },
 
@@ -456,70 +472,139 @@ export const api = {
 
   // 5. Notes Storage API
   async getNotes(): Promise<{ content: string; updatedAt: string }> {
-    const res = await fetch(`${API_BASE}/notes`);
-    if (!res.ok) throw new Error('Failed to fetch notes from server');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/notes`);
+      if (res.ok) {
+        const data = await res.json();
+        try {
+          localStorage.setItem('aether_user_notes', JSON.stringify(data));
+        } catch {}
+        return data;
+      }
+    } catch {}
+    try {
+      const cached = localStorage.getItem('aether_user_notes');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return { content: '', updatedAt: new Date().toISOString() };
   },
 
   async saveNotes(content: string): Promise<{ success: boolean; updatedAt: string }> {
-    const res = await fetch(`${API_BASE}/notes`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    });
-    if (!res.ok) throw new Error('Failed to save notes to server');
-    return res.json();
+    const updatedAt = new Date().toISOString();
+    try {
+      localStorage.setItem('aether_user_notes', JSON.stringify({ content, updatedAt }));
+    } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (res.ok) return res.json();
+    } catch {}
+    return { success: true, updatedAt };
   },
 
   // 6. Syllabus Storage API
   async getSyllabus<T>(): Promise<T> {
-    const res = await fetch(`${API_BASE}/syllabus`);
-    if (!res.ok) throw new Error('Failed to fetch syllabus from server');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/syllabus`);
+      if (res.ok) {
+        const data = await res.json();
+        try {
+          localStorage.setItem('aether_user_syllabus', JSON.stringify(data));
+        } catch {}
+        return data;
+      }
+    } catch {}
+    try {
+      const cached = localStorage.getItem('aether_user_syllabus');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [] as unknown as T;
   },
 
   async saveSyllabus<T>(topics: T): Promise<{ success: boolean; count: number }> {
-    const res = await fetch(`${API_BASE}/syllabus`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topics }),
-    });
-    if (!res.ok) throw new Error('Failed to save syllabus to server');
-    return res.json();
+    try {
+      localStorage.setItem('aether_user_syllabus', JSON.stringify(topics));
+    } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/syllabus`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topics }),
+      });
+      if (res.ok) return res.json();
+    } catch {}
+    return { success: true, count: Array.isArray(topics) ? topics.length : 0 };
   },
 
   // 7. Timetable Storage API
   async getTimetable<T>(): Promise<T> {
-    const res = await fetch(`${API_BASE}/timetable`);
-    if (!res.ok) throw new Error('Failed to fetch timetable from server');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/timetable`);
+      if (res.ok) {
+        const data = await res.json();
+        try {
+          localStorage.setItem('aether_user_timetable', JSON.stringify(data));
+        } catch {}
+        return data;
+      }
+    } catch {}
+    try {
+      const cached = localStorage.getItem('aether_user_timetable');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [] as unknown as T;
   },
 
   async saveTimetable<T>(slots: T): Promise<{ success: boolean; count: number }> {
-    const res = await fetch(`${API_BASE}/timetable`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slots }),
-    });
-    if (!res.ok) throw new Error('Failed to save timetable to server');
-    return res.json();
+    try {
+      localStorage.setItem('aether_user_timetable', JSON.stringify(slots));
+    } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/timetable`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slots }),
+      });
+      if (res.ok) return res.json();
+    } catch {}
+    return { success: true, count: Array.isArray(slots) ? slots.length : 0 };
   },
 
   // 8. Pomodoro Storage API
   async getPomodoro<T>(): Promise<T> {
-    const res = await fetch(`${API_BASE}/pomodoro`);
-    if (!res.ok) throw new Error('Failed to fetch pomodoro from server');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/pomodoro`);
+      if (res.ok) {
+        const data = await res.json();
+        try {
+          localStorage.setItem('aether_user_pomodoro', JSON.stringify(data));
+        } catch {}
+        return data;
+      }
+    } catch {}
+    try {
+      const cached = localStorage.getItem('aether_user_pomodoro');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return {} as unknown as T;
   },
 
   async savePomodoro<T>(payload: T): Promise<T> {
-    const res = await fetch(`${API_BASE}/pomodoro`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error('Failed to save pomodoro to server');
-    return res.json();
+    try {
+      localStorage.setItem('aether_user_pomodoro', JSON.stringify(payload));
+    } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/pomodoro`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) return res.json();
+    } catch {}
+    return payload;
   },
 
   // 9. Zero-Cost Hidden GitHub Database Sync API
