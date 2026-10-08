@@ -172,6 +172,142 @@ export const COMMERCE_STD12_CHAPTERS: Record<string, ChapterItem[]> = {
   ],
 };
 
+export const COMMERCE_STD11_CHAPTERS: Record<string, ChapterItem[]> = {
+  accounts: [
+    { number: 'Chapter 1', title: 'Introduction to Book-keeping and Accountancy', keyTopics: 'Meaning, Definition, Objectives, Importance, Accounting Concepts, Conventions & Principles' },
+    { number: 'Chapter 2', title: 'Meaning and Fundamental of Double Entry Book-keeping', keyTopics: 'Classification of Accounts, Golden Rules of Debit and Credit, Accounting Equation' },
+    { number: 'Chapter 3', title: 'Source Documents and Journal', keyTopics: 'Cash Memo, Invoice, Receipts, Cheques, Journal Entries, Compound Entries, GST on Purchases/Sales' },
+    { number: 'Chapter 4', title: 'Ledger', keyTopics: 'Posting from Journal to Ledger, Balancing of Ledger Accounts, Trial Balance' },
+    { number: 'Chapter 5', title: 'Subsidiary Books', keyTopics: 'Simple Cash Book, Petty Cash Book (Analytical), Purchase Book, Sales Book, Return Books' },
+    { number: 'Chapter 6', title: 'Bank Reconciliation Statement', keyTopics: 'Pass Book vs Cash Book Differences, Timing Differences, Preparation of BRS' },
+    { number: 'Chapter 7', title: 'Depreciation', keyTopics: 'Causes of Depreciation, Straight Line Method (SLM), Written Down Value (WDV) Method' },
+    { number: 'Chapter 8', title: 'Rectification of Errors', keyTopics: 'Errors of Omission, Commission, Principle, Suspense Account' },
+    { number: 'Chapter 9', title: 'Final Accounts of a Proprietary Concern', keyTopics: 'Trading Account, Profit & Loss Account, Balance Sheet, Adjustments (Closing Stock, Outstanding)' },
+    { number: 'Chapter 10', title: 'Single Entry System', keyTopics: 'Statement of Affairs Method, Calculation of Profit or Loss, Conversion Basics' },
+  ],
+  ocm: [
+    { number: 'Chapter 1', title: 'Introduction of Commerce and Business', keyTopics: 'Economic & Non-economic Activities, Industry Types, Commerce, Auxiliaries to Trade' },
+    { number: 'Chapter 2', title: 'Trade', keyTopics: 'Internal Trade (Wholesale, Retail), International Trade (Import, Export, Entrepot), WTO, Incoterms' },
+    { number: 'Chapter 3', title: 'Small Scale Industry and Business', keyTopics: 'Meaning, Definition, Importance, Problems & Government Initiatives for SSI / MSME' },
+    { number: 'Chapter 4', title: 'Forms of Business Organisation - I', keyTopics: 'Sole Trading Concern, Joint Hindu Family Business, Partnership Firm, Limited Liability Partnership' },
+    { number: 'Chapter 5', title: 'Forms of Business Organisation - II', keyTopics: 'Co-operative Society, Joint Stock Company, Multinational Corporations (MNCs)' },
+    { number: 'Chapter 6', title: 'Institutes Supporting Business', keyTopics: 'SIDBI, NABARD, KVIC, Mahila Bachat Gat, District Industries Centre (DIC)' },
+    { number: 'Chapter 7', title: 'Business Environment', keyTopics: 'Economic, Social, Political, Legal, Technological Environment & Impact of LPG Policy' },
+    { number: 'Chapter 8', title: 'Introduction to Management', keyTopics: 'Characteristics, Levels of Management (Top, Middle, Lower), Management as Art, Science & Profession' },
+  ],
+  eco: [
+    { number: 'Chapter 1', title: 'Basic Concepts in Economics', keyTopics: 'Wants, Goods & Services, Utility, Value, Wealth, National Income, Branches of Economics' },
+    { number: 'Chapter 2', title: 'Money', keyTopics: 'Barter System & Difficulties, Evolution of Money, Types of Money, Qualities of Good Money, Inflation' },
+    { number: 'Chapter 3', title: 'Partition Values', keyTopics: 'Quartiles, Deciles, Percentiles for Raw Data, Ungrouped & Grouped Frequency Distributions' },
+    { number: 'Chapter 4', title: 'The Economy of Maharashtra', keyTopics: 'Administrative Divisions, Agriculture, Industry, Infrastructure & Tourism in Maharashtra' },
+    { number: 'Chapter 5', title: 'Rural Development in India', keyTopics: 'Agricultural Credit, Non-Agricultural Credit, Rural Infrastructure, NABARD, Microfinance' },
+    { number: 'Chapter 6', title: 'Population in India', keyTopics: 'Trends in Population Growth, Causes of High Birth Rate, Family Planning & National Population Policy' },
+    { number: 'Chapter 7', title: 'Unemployment in India', keyTopics: 'Types of Unemployment (Disguised, Seasonal, Educated, Structural), Causes & Employment Schemes' },
+    { number: 'Chapter 8', title: 'Poverty in India', keyTopics: 'Absolute vs Relative Poverty, Poverty Line, Causes of Poverty & Government Poverty Alleviation Schemes' },
+    { number: 'Chapter 9', title: 'Economic Policy of India since 1991', keyTopics: 'Liberalisation, Privatisation, Globalisation (LPG), Foreign Direct Investment, WTO Impact' },
+    { number: 'Chapter 10', title: 'Economic Planning in India', keyTopics: 'Planning Commission vs NITI Aayog, Five-Year Plans, Sustainable Development Goals' },
+  ],
+  maths: [
+    // Part 1
+    { number: 'Part 1 • 1', title: 'Sets and Relations', part: 'Part 1', keyTopics: 'Types of Sets, Venn Diagrams, Algebra of Sets, Cartesian Product, Types of Relations' },
+    { number: 'Part 1 • 2', title: 'Functions', part: 'Part 1', keyTopics: 'Domain, Co-domain, Range, One-one, Onto Functions, Inverse & Composite Functions' },
+    { number: 'Part 1 • 3', title: 'Complex Numbers', part: 'Part 1', keyTopics: 'Algebra of Complex Numbers, Conjugate, Modulus, Argument & Polar Representation' },
+    { number: 'Part 1 • 4', title: 'Sequences and Series', part: 'Part 1', keyTopics: 'Arithmetic Progression (AP), Geometric Progression (GP), Harmonic Progression (HP), Sum to n terms' },
+    { number: 'Part 1 • 5', title: 'Locus and Straight Line', part: 'Part 1', keyTopics: 'Equation of Locus, Slope of a Line, Various Forms of Equations of Straight Lines' },
+    { number: 'Part 1 • 6', title: 'Determinants', part: 'Part 1', keyTopics: 'Determinants of Order 2 and 3, Properties of Determinants, Cramers Rule for 3 variables' },
+    { number: 'Part 1 • 7', title: 'Limits', part: 'Part 1', keyTopics: 'Definition of Limits, Standard Limits (Algebraic, Trigonometric, Exponential & Logarithmic)' },
+    { number: 'Part 1 • 8', title: 'Continuity', part: 'Part 1', keyTopics: 'Continuity of a Function at a Point and in an Interval, Removable & Jump Discontinuities' },
+    { number: 'Part 1 • 9', title: 'Differentiation', part: 'Part 1', keyTopics: 'Derivative as Rate Measure, Derivatives of Standard Functions by First Principle, Product & Quotient Rules' },
+    // Part 2
+    { number: 'Part 2 • 1', title: 'Partition Values', part: 'Part 2', keyTopics: 'Quartiles (Q1, Q2, Q3), Deciles and Percentiles for Grouped & Ungrouped Data' },
+    { number: 'Part 2 • 2', title: 'Measures of Dispersion', part: 'Part 2', keyTopics: 'Range, Quartile Deviation, Mean Deviation, Standard Deviation & Variance, Coefficient of Variation' },
+    { number: 'Part 2 • 3', title: 'Skewness', part: 'Part 2', keyTopics: 'Karl Pearsons Coefficient of Skewness, Bowleys Coefficient of Skewness, Symmetrical Distributions' },
+    { number: 'Part 2 • 4', title: 'Bivariate Frequency Distribution and Chi Square', part: 'Part 2', keyTopics: 'Marginal & Conditional Distributions, Chi-Square Test of Independence' },
+    { number: 'Part 2 • 5', title: 'Correlation', part: 'Part 2', keyTopics: 'Scatter Diagram, Karl Pearsons Correlation Coefficient (r), Spearmans Rank Correlation' },
+    { number: 'Part 2 • 6', title: 'Permutations and Combinations', part: 'Part 2', keyTopics: 'Fundamental Principle of Counting, nPr & nCr formulas and Real-World Applications' },
+    { number: 'Part 2 • 7', title: 'Mathematical Induction and Binomial Theorem', part: 'Part 2', keyTopics: 'Principle of Mathematical Induction, Binomial Expansion, General & Middle Terms' },
+    { number: 'Part 2 • 8', title: 'Linear Inequations', part: 'Part 2', keyTopics: 'Linear Inequations in One & Two Variables, Graphical Solutions and Feasible Region' },
+    { number: 'Part 2 • 9', title: 'Commercial Mathematics', part: 'Part 2', keyTopics: 'Simple Interest, Compound Interest, Annuities, Amortization & Sinking Fund' },
+  ],
+  it: [
+    { number: 'Chapter 1', title: 'Basics of Information Technology', keyTopics: 'Computer Fundamentals, Hardware, Software, Operating Systems, Linux Open Source' },
+    { number: 'Chapter 2', title: 'Introduction to DBMS', keyTopics: 'Data vs Information, Relational Database Model, LibreOffice Base, Tables, Queries, Primary Key' },
+    { number: 'Chapter 3', title: 'Cyber Law', keyTopics: 'IT Act 2000, Cyber Crimes (Hacking, Phishing, Identity Theft), Software Piracy, Digital Signatures' },
+    { number: 'Chapter 4', title: 'Web Designing with HTML5 & CSS', keyTopics: 'HTML Structure, Semantic Tags, Tables, Lists, Inline/Internal/External CSS, Selectors' },
+    { number: 'Chapter 5', title: 'Server Technologies', keyTopics: 'Web Servers, Client-Server Architecture, Cloud Hosting, DNS, IP Protocols' },
+    { number: 'Chapter 6', title: 'Cloud Computing', keyTopics: 'IaaS, PaaS, SaaS, Public/Private Cloud, Security in Cloud Storage' },
+  ],
+  english: [
+    { number: 'Unit 1', title: 'Prose & Short Stories', keyTopics: 'Being Neighborly, On To The Summit, Call of the Soil, Pillars of Democracy, Mrs. Adis' },
+    { number: 'Unit 2', title: 'Poetry & Appreciation', keyTopics: 'Cherry Tree, The Sower, There is Another Sky, Upon Westminster Bridge, Indian Weavers' },
+    { number: 'Unit 3', title: 'Writing Skills & Composition', keyTopics: 'Expansion of Ideas, Blog Writing, Emails, Interview Questions, Film Review, Script Writing' },
+    { number: 'Unit 4', title: 'Drama Appreciation', keyTopics: 'History of English Drama, The Rising of the Moon, A Midsummer Night’s Dream' },
+  ],
+  sp: [
+    { number: 'Chapter 1', title: 'Secretary', keyTopics: 'Origin, Meaning, Definition, Features, Types of Secretaries (Personal, Association, Company)' },
+    { number: 'Chapter 2', title: 'Joint Stock Company', keyTopics: 'Evolution of Business, Definition, Features, Types of Companies (Private, Public, OPC)' },
+    { number: 'Chapter 3', title: 'Formation of a Company', keyTopics: 'Promotion Stage, Incorporation / Registration, Commencement of Business, Promoters' },
+    { number: 'Chapter 4', title: 'Documents Related to Formation of a Company', keyTopics: 'Memorandum of Association (MoA Clauses), Articles of Association (AoA), Prospectus' },
+    { number: 'Chapter 5', title: 'Members of a Company', keyTopics: 'Acquisition of Membership, Rights, Duties, Liabilities & Termination of Membership' },
+    { number: 'Chapter 6', title: 'Directors and Key Managerial Personnel', keyTopics: 'Board of Directors, Managing Director, Company Secretary Qualifications, Role & Responsibilities' },
+    { number: 'Chapter 7', title: 'Company Meetings - I', keyTopics: 'Essentials of a Valid Meeting (Notice, Agenda, Quorum, Chairman, Proxy, Voting, Resolutions)' },
+    { number: 'Chapter 8', title: 'Company Meetings - II', keyTopics: 'Annual General Meeting (AGM), Extra-Ordinary General Meeting (EGM), Board Meetings' },
+    { number: 'Chapter 9', title: 'Business Communication Skills of Secretary', keyTopics: 'Layout of Business Letters, Essentials of Good Correspondence, Electronic Communication' },
+    { number: 'Chapter 10', title: 'Correspondence with Directors', keyTopics: 'Notice of Board Meeting, Reminding of Decisions, Sending Draft Minutes' },
+    { number: 'Chapter 11', title: 'Correspondence with Banks', keyTopics: 'Opening Current Account, Requesting Overdraft, Stop Payment of Cheque' },
+    { number: 'Chapter 12', title: 'Correspondence with Statutory Authorities', keyTopics: 'Letters to Registrar of Companies (ROC), Ministry of Corporate Affairs, Tax Authorities' },
+  ],
+};
+
+export const ALL_SYLLABUS_CHAPTERS: Record<string, Record<string, ChapterItem[]>> = {
+  '12': COMMERCE_STD12_CHAPTERS,
+  '11': COMMERCE_STD11_CHAPTERS,
+};
+
+// Match uploaded study documents to specific chapters
+export const getDocsForChapter = (ch: ChapterItem, docs: ServerDocument[]): ServerDocument[] => {
+  if (!docs || docs.length === 0) return [];
+  const numDigits = ch.number.match(/\d+/)?.[0];
+
+  return docs.filter((d) => {
+    const dName = (d.originalName || d.name || '').toLowerCase();
+
+    // Check part discrimination for subjects with multiple parts (like Maths Part 1 & 2)
+    if (ch.part) {
+      const p = String(ch.part).toLowerCase();
+      if (p.includes('1') && (dName.includes('part 2') || dName.includes('pt 2') || dName.includes('part-2') || dName.includes('maths 2') || dName.includes('maths-2'))) return false;
+      if (p.includes('2') && (dName.includes('part 1') || dName.includes('pt 1') || dName.includes('part-1') || dName.includes('maths 1') || dName.includes('maths-1'))) return false;
+    }
+
+    // 1. Exact "Chapter X" / "Chp X" / "Ch X" matching
+    if (numDigits) {
+      const chRegex = new RegExp(`(?:chapter|chpt|chp|ch|unit)\\s*[-_.]?\\s*0?${numDigits}(?:[^0-9]|$)`, 'i');
+      if (chRegex.test(dName)) return true;
+
+      // Leading number e.g. "1- B.K Chapter 1..." or "01 - ..."
+      const leadRegex = new RegExp(`^0?${numDigits}\\s*[-_.]`, 'i');
+      if (leadRegex.test(dName)) return true;
+    }
+
+    // 2. Direct topic keyword matching
+    const titleLower = ch.title.toLowerCase();
+    if (titleLower.includes('partition') && dName.includes('partition')) return true;
+    if (titleLower.includes('dispersion') && dName.includes('dispersion')) return true;
+    if (titleLower.includes('skewness') && dName.includes('skewness')) return true;
+    if (titleLower.includes('bivariate') && dName.includes('bivariate')) return true;
+    if (titleLower.includes('correlation') && (dName.includes('correlation') || dName.includes('coorelation'))) return true;
+    if (titleLower.includes('money') && dName.includes('money')) return true;
+    if (titleLower.includes('cyber') && dName.includes('cyber')) return true;
+    if (titleLower.includes('grammar') && dName.includes('grammar')) return true;
+    if (titleLower.includes('novel') && (dName.includes('novel') || dName.includes('drama'))) return true;
+    if (titleLower.includes('poem') && (dName.includes('poem') || dName.includes('poetry'))) return true;
+    if (titleLower.includes('prose') && dName.includes('prose')) return true;
+    if (titleLower.includes('writing') && dName.includes('writing')) return true;
+
+    return false;
+  });
+};
+
 const DEFAULT_STANDARD_SUBJECTS: Record<string, SubjectMeta[]> = {
   // Hardcoded Standard 12 Commerce Subjects
   '12': [
@@ -705,8 +841,63 @@ export const SubjectRooms: React.FC = () => {
 
   const activeRoomChapters: ChapterItem[] = useMemo(() => {
     if (!activeSubjectSlug) return [];
-    return COMMERCE_STD12_CHAPTERS[activeSubjectSlug] || [];
-  }, [activeSubjectSlug]);
+    const stdKey = activeStandard === 'ALL' ? '12' : activeStandard;
+    const stdDict = ALL_SYLLABUS_CHAPTERS[stdKey] || ALL_SYLLABUS_CHAPTERS['12'];
+    const standardChapters = stdDict?.[activeSubjectSlug];
+    if (standardChapters && standardChapters.length > 0) {
+      return standardChapters;
+    }
+    // Fallback across other standards (e.g. if room is in Class 11, check 11 then 12)
+    for (const key of ['11', '12']) {
+      const match = ALL_SYLLABUS_CHAPTERS[key]?.[activeSubjectSlug];
+      if (match && match.length > 0) return match;
+    }
+
+    // Dynamic chapter synthesis: Extract chapters from uploaded document names
+    const synthesizedMap = new Map<string, ChapterItem>();
+    roomDocuments.forEach((doc) => {
+      const dName = doc.originalName || doc.name;
+      const chMatch = dName.match(/(?:chapter|chpt|chp|ch)\s*[-_.]?\s*0?(\d+)/i);
+      if (chMatch) {
+        const num = `Chapter ${chMatch[1]}`;
+        if (!synthesizedMap.has(num)) {
+          synthesizedMap.set(num, {
+            number: num,
+            title: dName.replace(/\.pdf$/i, '').replace(/^[0-9\s_-]+/, '').trim() || `${num} Topics`,
+            keyTopics: 'Curriculum topics from uploaded study document',
+          });
+        }
+      }
+    });
+
+    if (synthesizedMap.size > 0) {
+      return Array.from(synthesizedMap.values()).sort((a, b) => {
+        const numA = parseInt(a.number.replace(/\D/g, '') || '0', 10);
+        const numB = parseInt(b.number.replace(/\D/g, '') || '0', 10);
+        return numA - numB;
+      });
+    }
+
+    return [];
+  }, [activeSubjectSlug, activeStandard, roomDocuments]);
+
+  // Selected Chapter filter for Notes and Textbooks tabs
+  const [selectedChapterFilter, setSelectedChapterFilter] = useState<string>('All');
+
+  // Filter documents by selected chapter
+  const filteredNotesDocs = useMemo(() => {
+    if (selectedChapterFilter === 'All') return notesDocs;
+    const targetChapter = activeRoomChapters.find((ch) => ch.number === selectedChapterFilter);
+    if (!targetChapter) return notesDocs;
+    return notesDocs.filter((d) => getDocsForChapter(targetChapter, [d]).length > 0);
+  }, [notesDocs, selectedChapterFilter, activeRoomChapters]);
+
+  const filteredTextbookDocs = useMemo(() => {
+    if (selectedChapterFilter === 'All') return textbookDocs;
+    const targetChapter = activeRoomChapters.find((ch) => ch.number === selectedChapterFilter);
+    if (!targetChapter) return textbookDocs;
+    return textbookDocs.filter((d) => getDocsForChapter(targetChapter, [d]).length > 0);
+  }, [textbookDocs, selectedChapterFilter, activeRoomChapters]);
 
   const chaptersMasteredCount = useMemo(() => {
     return activeRoomChapters.filter(
@@ -1285,12 +1476,12 @@ export const SubjectRooms: React.FC = () => {
                     {activeRoomChapters.map((ch) => {
                       const chapterKey = `${activeSubjectSlug}-${ch.number}`;
                       const isCompleted = !!completedChapters[chapterKey];
+                      const chapterDocs = getDocsForChapter(ch, roomDocuments);
 
                       return (
                         <div
                           key={ch.number + ch.title}
-                          onClick={() => toggleChapter(chapterKey)}
-                          className={`p-5 rounded-2xl border transition-all cursor-pointer group flex flex-col justify-between ${
+                          className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
                             isCompleted
                               ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
                               : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-md'
@@ -1315,22 +1506,19 @@ export const SubjectRooms: React.FC = () => {
                               )}
 
                               <div className="ml-auto">
-                                <span
-                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                <button
+                                  type="button"
+                                  onClick={() => toggleChapter(chapterKey)}
+                                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 transition-all ${
                                     isCompleted
-                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                      : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                                      ? 'bg-emerald-600 text-white shadow-xs'
+                                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
                                   }`}
+                                  title="Click to toggle mastery status"
                                 >
-                                  {isCompleted ? (
-                                    <>
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                                      Mastered
-                                    </>
-                                  ) : (
-                                    'Pending'
-                                  )}
-                                </span>
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span>{isCompleted ? 'Mastered' : 'Mark Done'}</span>
+                                </button>
                               </div>
                             </div>
 
@@ -1338,39 +1526,91 @@ export const SubjectRooms: React.FC = () => {
                               className={`text-sm font-bold leading-snug transition-colors ${
                                 isCompleted
                                   ? 'text-emerald-950 dark:text-emerald-100 line-through decoration-emerald-500/40'
-                                  : 'text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400'
+                                  : 'text-slate-900 dark:text-white'
                               }`}
                             >
                               {ch.title}
                             </h4>
 
                             {ch.keyTopics && (
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
-                                <span className="font-semibold text-slate-600 dark:text-slate-300">Key topics:</span>{' '}
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                                <span className="font-semibold text-slate-600 dark:text-slate-300">Topics:</span>{' '}
                                 {ch.keyTopics}
                               </p>
                             )}
-                          </div>
 
-                          <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                              HSC Board Portion
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleChapter(chapterKey);
-                              }}
-                              className={`text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${
-                                isCompleted
-                                  ? 'bg-emerald-600 text-white shadow-xs'
-                                  : 'bg-slate-100 dark:bg-slate-800 hover:bg-brand-500 hover:text-white dark:hover:bg-brand-600 text-slate-700 dark:text-slate-200'
-                              }`}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>{isCompleted ? 'Mastered' : 'Mark Done'}</span>
-                            </button>
+                            {/* Connected Chapter PDF Documents & Notes */}
+                            <div className="pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                                  <FileText className="w-3 h-3 text-brand-500" />
+                                  <span>Chapter Study PDFs:</span>
+                                </span>
+                                <span
+                                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                    chapterDocs.length > 0
+                                      ? 'bg-brand-50 text-brand-700 dark:bg-brand-950/70 dark:text-brand-300 border border-brand-200 dark:border-brand-800'
+                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                  }`}
+                                >
+                                  {chapterDocs.length > 0
+                                    ? `${chapterDocs.length} PDF${chapterDocs.length === 1 ? '' : 's'}`
+                                    : '0 PDFs'}
+                                </span>
+                              </div>
+
+                              {chapterDocs.length > 0 ? (
+                                <div className="space-y-1.5">
+                                  {chapterDocs.slice(0, 2).map((doc) => (
+                                    <div
+                                      key={doc.id}
+                                      onClick={() => handleOpenDoc(doc)}
+                                      className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-brand-50 dark:bg-slate-800/60 dark:hover:bg-brand-950/40 border border-slate-200 dark:border-slate-700/60 transition-colors cursor-pointer group/doc"
+                                      title={`Read ${doc.originalName || doc.name}`}
+                                    >
+                                      <div className="flex items-center space-x-2 truncate mr-2">
+                                        <BookOpen className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
+                                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover/doc:text-brand-600 dark:group-hover/doc:text-brand-400 truncate">
+                                          {doc.originalName || doc.name}
+                                        </span>
+                                      </div>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white shrink-0 shadow-xs flex items-center gap-1">
+                                        <Eye className="w-3 h-3" /> Read
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {chapterDocs.length > 2 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedChapterFilter(ch.number);
+                                        setActiveCategoryTab('notes');
+                                      }}
+                                      className="text-[11px] font-bold text-brand-600 dark:text-brand-400 hover:underline pt-0.5 block"
+                                    >
+                                      View all {chapterDocs.length} chapter notes →
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+                                  <span>No notes uploaded for this chapter</span>
+                                  {canUpload && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setUploadSubject(activeRoom);
+                                        setUploadTitle(`${activeRoom} - ${ch.number}: ${ch.title}`);
+                                        setShowUploadModal(true);
+                                      }}
+                                      className="text-brand-600 dark:text-brand-400 font-bold hover:underline"
+                                    >
+                                      + Upload
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -1416,79 +1656,110 @@ export const SubjectRooms: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {textbookDocs.map((doc) => (
-                    <div
-                      key={doc.id}
-                      onClick={() => handleOpenDoc(doc)}
-                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-2 mb-3">
-                          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
-                            <BookOpen className="w-5 h-5" />
+                <div className="space-y-4">
+                  {/* Chapter Filter Bar for Textbooks */}
+                  {activeRoomChapters.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chapter:</span>
+                        <select
+                          value={selectedChapterFilter}
+                          onChange={(e) => setSelectedChapterFilter(e.target.value)}
+                          className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-3 py-1.5 outline-none cursor-pointer"
+                        >
+                          <option value="All">All Chapters ({textbookDocs.length} Textbooks)</option>
+                          {activeRoomChapters.map((ch) => (
+                            <option key={ch.number} value={ch.number}>
+                              {ch.number}: {ch.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {selectedChapterFilter !== 'All' && (
+                        <button
+                          onClick={() => setSelectedChapterFilter('All')}
+                          className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline"
+                        >
+                          Show All Chapters
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredTextbookDocs.map((doc) => {
+                      const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc]).length > 0);
+
+                      return (
+                        <div
+                          key={doc.id}
+                          onClick={() => handleOpenDoc(doc)}
+                          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-2 mb-3">
+                              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
+                                <BookOpen className="w-5 h-5" />
+                              </div>
+
+                              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                {matchedCh && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                    {matchedCh.number}
+                                  </span>
+                                )}
+
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                  Official Textbook
+                                </span>
+                              </div>
+                            </div>
+
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
+                              {doc.originalName || doc.name}
+                            </h4>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
+                              <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
+                              <span>•</span>
+                              <span>Class {doc.standard || activeStandard}</span>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                              Official Textbook
+                          <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
+                            <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
+                              <Eye className="w-3.5 h-3.5" /> Read PDF
                             </span>
 
-                            {/* Super Admin Upload Count Tracker */}
-                            {isSuperAdmin && (
-                              <span
-                                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                                title="Number of times this document has been uploaded"
+                            <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                              <a
+                                href={getDownloadUrl(doc)}
+                                target="_blank"
+                                rel="noreferrer"
+                                download={doc.originalName || doc.name}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                title="Download PDF"
                               >
-                                {doc.uploadCount || 1} {doc.uploadCount === 1 ? 'upload' : 'uploads'}
-                              </span>
-                            )}
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                              {canUpload && (
+                                <button
+                                  onClick={(e) => handleDeleteDocument(doc.id, e)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                                  title="Delete from room"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
-
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
-                          {doc.originalName || doc.name}
-                        </h4>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
-                          <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
-                          <span>•</span>
-                          <span>Class {doc.standard || activeStandard}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
-                        <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5" /> Read PDF
-                        </span>
-
-                        <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                          <a
-                            href={getDownloadUrl(doc)}
-                            target="_blank"
-                            rel="noreferrer"
-                            download={doc.originalName || doc.name}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            title="Download PDF"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </a>
-                          {canUpload && (
-                            <button
-                              onClick={(e) => handleDeleteDocument(doc.id, e)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                              title="Delete from room"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
                 </div>
               )
             ) : (
-              /* TAB 2: STUDY NOTES & MATERIALS */
+              /* TAB 3: STUDY NOTES & MATERIALS */
               notesDocs.length === 0 ? (
                 <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
                   <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-100 dark:border-amber-900">
@@ -1514,75 +1785,119 @@ export const SubjectRooms: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {notesDocs.map((doc) => (
-                    <div
-                      key={doc.id}
-                      onClick={() => handleOpenDoc(doc)}
-                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-2 mb-3">
-                          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-100 dark:border-amber-900">
-                            <FileText className="w-5 h-5" />
+                <div className="space-y-4">
+                  {/* Chapter Filter Bar for Study Notes */}
+                  {activeRoomChapters.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chapter:</span>
+                        <select
+                          value={selectedChapterFilter}
+                          onChange={(e) => setSelectedChapterFilter(e.target.value)}
+                          className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-3 py-1.5 outline-none cursor-pointer"
+                        >
+                          <option value="All">All Chapters ({notesDocs.length} Notes)</option>
+                          {activeRoomChapters.map((ch) => {
+                            const count = getDocsForChapter(ch, notesDocs).length;
+                            return (
+                              <option key={ch.number} value={ch.number}>
+                                {ch.number}: {ch.title} ({count} {count === 1 ? 'PDF' : 'PDFs'})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                      {selectedChapterFilter !== 'All' && (
+                        <button
+                          onClick={() => setSelectedChapterFilter('All')}
+                          className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline"
+                        >
+                          Show All Chapters
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredNotesDocs.map((doc) => {
+                      const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc]).length > 0);
+
+                      return (
+                        <div
+                          key={doc.id}
+                          onClick={() => handleOpenDoc(doc)}
+                          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-2 mb-3">
+                              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-100 dark:border-amber-900">
+                                <FileText className="w-5 h-5" />
+                              </div>
+
+                              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                {matchedCh && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                                    {matchedCh.number}
+                                  </span>
+                                )}
+
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                  Study Material
+                                </span>
+
+                                {/* Super Admin Upload Count Tracker */}
+                                {isSuperAdmin && (
+                                  <span
+                                    className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                                    title="Number of times this document has been uploaded"
+                                  >
+                                    {doc.uploadCount || 1} {doc.uploadCount === 1 ? 'upload' : 'uploads'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
+                              {doc.originalName || doc.name}
+                            </h4>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
+                              <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
+                              <span>•</span>
+                              <span>Class {doc.standard || activeStandard}</span>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              Study Material
+                          <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
+                            <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
+                              <Eye className="w-3.5 h-3.5" /> Read Notes
                             </span>
 
-                            {/* Super Admin Upload Count Tracker */}
-                            {isSuperAdmin && (
-                              <span
-                                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                                title="Number of times this document has been uploaded"
+                            <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                              <a
+                                href={getDownloadUrl(doc)}
+                                target="_blank"
+                                rel="noreferrer"
+                                download={doc.originalName || doc.name}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                title="Download PDF"
                               >
-                                {doc.uploadCount || 1} {doc.uploadCount === 1 ? 'upload' : 'uploads'}
-                              </span>
-                            )}
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                              {canUpload && (
+                                <button
+                                  onClick={(e) => handleDeleteDocument(doc.id, e)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                                  title="Delete from room"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
-
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
-                          {doc.originalName || doc.name}
-                        </h4>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
-                          <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
-                          <span>•</span>
-                          <span>Class {doc.standard || activeStandard}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
-                        <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5" /> Read Notes
-                        </span>
-
-                        <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                          <a
-                            href={getDownloadUrl(doc)}
-                            target="_blank"
-                            rel="noreferrer"
-                            download={doc.originalName || doc.name}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            title="Download PDF"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </a>
-                          {canUpload && (
-                            <button
-                              onClick={(e) => handleDeleteDocument(doc.id, e)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                              title="Delete from room"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
                 </div>
               )
             )}
