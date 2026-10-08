@@ -82,7 +82,12 @@ export async function requestGoogleDriveToken(): Promise<string> {
 export async function uploadDirectToGoogleDrive(
   file: File,
   subject: string,
-  uploaderEmail: string
+  uploaderEmail: string,
+  standard?: string,
+  category?: 'textbook' | 'notes',
+  year?: number,
+  isAnswerKey?: boolean,
+  folderPath?: string
 ): Promise<DriveUploadResult> {
   // Option 1: 100% Free Google Apps Script Web App (Zero GCP, Zero Service Accounts)
   if (GOOGLE_APPS_SCRIPT_URL) {
@@ -111,6 +116,11 @@ export async function uploadDirectToGoogleDrive(
           fileBase64: base64,
           mimeType: file.type || 'application/pdf',
           subject,
+          standard: standard || '12',
+          category: category || 'notes',
+          year: year || '',
+          isAnswerKey: !!isAnswerKey,
+          folderPath: folderPath || '',
         }),
         redirect: 'follow',
       });

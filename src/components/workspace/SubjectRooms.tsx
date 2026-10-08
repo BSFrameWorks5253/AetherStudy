@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api, ServerDocument } from '../../services/api';
+import { TestPaper } from '../../types/testPaper';
 import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import { CardSkeleton, PdfLoaderOverlay } from '../common/LoadingSkeleton';
 import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
 import {
+  GraduationCap,
   BookOpen,
   FileText,
   Upload,
@@ -545,7 +547,7 @@ export const SubjectRooms: React.FC = () => {
 
   // Navigation & Room State
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
-  const [activeCategoryTab, setActiveCategoryTab] = useState<'syllabus' | 'textbooks' | 'notes'>('syllabus');
+  const [activeCategoryTab, setActiveCategoryTab] = useState<'syllabus' | 'textbooks' | 'notes' | 'pyq'>('syllabus');
   const [readingDoc, setReadingDoc] = useState<ServerDocument | null>(null);
 
   // Chapter syllabus mastery tracking (persisted in localStorage)
@@ -558,8 +560,9 @@ export const SubjectRooms: React.FC = () => {
     }
   });
 
-  // Document & Subject Data
+  // Document & Subject & PYQ Data
   const [documents, setDocuments] = useState<ServerDocument[]>([]);
+  const [testPapers, setTestPapers] = useState<TestPaper[]>([]);
   const [serverSubjects, setServerSubjects] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPdfLoading, setIsPdfLoading] = useState<boolean>(false);
@@ -604,12 +607,14 @@ export const SubjectRooms: React.FC = () => {
   const loadContent = async () => {
     setIsLoading(true);
     try {
-      const [docs, subjs] = await Promise.all([
+      const [docs, subjs, papers] = await Promise.all([
         api.getDocuments(),
         api.getSubjects(),
+        api.getTestPapers(),
       ]);
       setDocuments(docs);
       setServerSubjects(subjs);
+      setTestPapers(papers);
     } catch (err) {
       console.warn('Could not load subjects and documents:', err);
     } finally {
@@ -855,6 +860,12 @@ export const SubjectRooms: React.FC = () => {
   const notesDocs = useMemo(() => {
     return roomDocuments.filter((d) => d.category !== 'textbook');
   }, [roomDocuments]);
+
+  // PYQ Past Papers for active room
+  const roomPyqPapers = useMemo(() => {
+    if (!activeRoom) return [];
+    return testPapers.filter((p) => matchSubjectDoc(activeRoom, p.subject || ''));
+  }, [testPapers, activeRoom]);
 
   // Active Subject Meta
   const currentRoomMeta = useMemo(() => {
@@ -1419,6 +1430,27 @@ export const SubjectRooms: React.FC = () => {
                 {notesDocs.length}
               </span>
             </button>
+
+            <button
+              onClick={() => setActiveCategoryTab('pyq')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeCategoryTab === 'pyq'
+                  ? 'bg-purple-600 text-white shadow-sm shadow-purple-500/25'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              <span>Board Exam Papers (PYQ)</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                  activeCategoryTab === 'pyq'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {roomPyqPapers.length}
+              </span>
+            </button>
           </div>
 
           {/* Material Cards Section */}
@@ -1798,7 +1830,7 @@ export const SubjectRooms: React.FC = () => {
                   </div>
                 </div>
               )
-            ) : (
+            ) : activeCategoryTab === 'notes' ? (
               /* TAB 3: STUDY NOTES & MATERIALS */
               isLoading ? (
                 <CardSkeleton count={6} />
@@ -1942,7 +1974,90 @@ export const SubjectRooms: React.FC = () => {
                   </div>
                 </div>
               )
-            )}
+            ) : activeCategoryTab === 'pyq' ? (
+                /* TAB 4: BOARD EXAM PAPERS & SOLUTIONS (PYQ) */
+                roomPyqPapers.length === 0 ? (
+                  <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
+                    <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto border border-purple-100 dark:border-purple-900">
+                      <GraduationCap className="w-7 h-7" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      No Past Exam Papers Found for {activeRoom}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                      Official board question papers and model answer keys will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {roomPyqPapers.map((paper) => (
+                      <div
+                        key={paper.id}
+                        className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-500 transition-all flex flex-col justify-between"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                              {paper.year} Board Exam
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                              {paper.examType || 'PYQ'}
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                            {paper.title}
+                          </h4>
+                          <p className="text-[11px] text-slate-500">
+                            {paper.totalMarks || 80} Marks • {paper.durationMinutes || 180} Mins
+                          </p>
+                        </div>
+
+                        <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => handleOpenDoc({
+                              id: paper.id,
+                              name: paper.title + ' (Question Paper)',
+                              originalName: paper.questionPdfName,
+                              streamUrl: paper.questionPdfUrl,
+                              serverUrl: paper.questionPdfUrl,
+                              subject: paper.subject,
+                              standard: '12',
+                              category: 'notes',
+                              uploadedBy: paper.uploadedBy,
+                              uploadedAt: paper.uploadedAt,
+                            })}
+                            className="flex-1 py-1.5 px-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Questions</span>
+                          </button>
+                          {paper.answerKeyPdfUrl && (
+                            <button
+                              onClick={() => handleOpenDoc({
+                                id: paper.id + '-sol',
+                                name: paper.title + ' (Model Solution)',
+                                originalName: paper.answerKeyPdfName,
+                                streamUrl: paper.answerKeyPdfUrl,
+                                serverUrl: paper.answerKeyPdfUrl,
+                                subject: paper.subject,
+                                standard: '12',
+                                category: 'notes',
+                                uploadedBy: paper.uploadedBy,
+                                uploadedAt: paper.uploadedAt,
+                              })}
+                              className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Solutions</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : null
+            }
           </div>
         </div>
       ) : (

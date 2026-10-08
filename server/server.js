@@ -84,6 +84,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(UPLOADS_DIR));
 app.use('/material', express.static(path.join(__dirname, '../Material')));
+app.use('/Material', express.static(path.join(__dirname, '../Material')));
 app.use('/data', express.static(path.join(__dirname, '../data')));
 
 // File Validation & Multer Engine
@@ -1273,9 +1274,9 @@ app.post('/api/db/sync', async (req, res) => {
   }
 });
 
-// 10. GOOGLE DRIVE LARGE PDF STORAGE ROUTING ENDPOINT
+// 10. GOOGLE DRIVE LARGE PDF STORAGE ROUTING ENDPOINT WITH PROPER FOLDERS
 app.post('/api/storage/upload', async (req, res) => {
-  const { fileName, fileBase64, mimeType, subject, uploaderEmail } = req.body || {};
+  const { fileName, fileBase64, mimeType, subject, standard, category, year, isAnswerKey, folderPath, uploaderEmail } = req.body || {};
   if (!fileName || !fileBase64) {
     return res.status(400).json({ error: 'File name and file base64 buffer required.' });
   }
@@ -1285,6 +1286,7 @@ app.post('/api/storage/upload', async (req, res) => {
     const fileBuffer = Buffer.from(base64Data, 'base64');
     let streamUrl = '';
     let driveFileId = `gdrive-${Date.now()}`;
+    let resolvedFolder = '';
 
     // Priority 1: Free Google Apps Script Web App (100% Free, Zero GCP Setup)
     const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
@@ -1298,6 +1300,11 @@ app.post('/api/storage/upload', async (req, res) => {
             fileBase64: base64Data,
             mimeType: mimeType || 'application/pdf',
             subject: subject || 'General',
+            standard: standard || '12',
+            category: category || 'notes',
+            year: year || '',
+            isAnswerKey: !!isAnswerKey,
+            folderPath: folderPath || '',
             folderId: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
           }),
         });
@@ -1305,6 +1312,7 @@ app.post('/api/storage/upload', async (req, res) => {
         if (gasJson && gasJson.success && (gasJson.streamUrl || gasJson.url)) {
           streamUrl = gasJson.streamUrl || gasJson.url;
           driveFileId = gasJson.id || driveFileId;
+          resolvedFolder = gasJson.folderPath || gasJson.folderName || '';
         }
       } catch (gasErr) {
         console.error('[Google Apps Script Upload Error]:', gasErr);
@@ -1365,10 +1373,16 @@ app.post('/api/storage/upload', async (req, res) => {
     const docRecord = {
       id: driveFileId,
       name: fileName,
+      originalName: fileName,
       subject: subject || 'General',
+      standard: standard || '12',
+      category: category || 'notes',
+      folder: resolvedFolder || folderPath || '',
       size: `${(fileBuffer.length / (1024 * 1024)).toFixed(2)} MB`,
+      sizeBytes: fileBuffer.length,
       url: streamUrl,
       streamUrl: streamUrl,
+      serverUrl: streamUrl,
       uploadedBy: uploaderEmail || 'admin',
       uploadedAt: new Date().toISOString(),
     };
