@@ -28,6 +28,8 @@ import {
   Briefcase,
   TrendingUp,
   Laptop,
+  CheckCircle2,
+  ListChecks,
 } from 'lucide-react';
 
 interface SubjectMeta {
@@ -72,6 +74,102 @@ export const matchSubjectDoc = (roomName: string, docSubject: string): boolean =
   const dSlug = getSubjectSlug(docSubject);
   if (rSlug === dSlug) return true;
   return roomName.trim().toLowerCase() === docSubject.trim().toLowerCase();
+};
+
+export interface ChapterItem {
+  number: string;
+  title: string;
+  part?: string;
+  keyTopics?: string;
+}
+
+export const COMMERCE_STD12_CHAPTERS: Record<string, ChapterItem[]> = {
+  accounts: [
+    { number: 'Chapter 1', title: 'Introduction to Partnership and Partnership Final Accounts', keyTopics: 'Trading A/c, P&L A/c, Balance Sheet adjustments, Partners Capital/Current A/c' },
+    { number: 'Chapter 2', title: "Accounts of 'Not for Profit' Concerns", keyTopics: 'Receipts & Payments, Income & Expenditure A/c, Subscription, Capital Fund' },
+    { number: 'Chapter 3', title: 'Reconstitution of Partnership (Admission of Partner)', keyTopics: 'New Profit Sharing Ratio, Sacrificing Ratio, Revaluation A/c, Goodwill treatment' },
+    { number: 'Chapter 4', title: 'Reconstitution of Partnership (Retirement of Partner)', keyTopics: 'Gaining Ratio, Asset Revaluation, Settlement of Loan Account' },
+    { number: 'Chapter 5', title: 'Reconstitution of Partnership (Death of Partner)', keyTopics: 'Profit share calculation, Legal Representative Executor A/c' },
+    { number: 'Chapter 6', title: 'Dissolution of Partnership Firm', keyTopics: 'Realisation A/c, Partners Capital A/c, Bank A/c, Partner Deficiency' },
+    { number: 'Chapter 7', title: 'Bills of Exchange', keyTopics: 'Promissory Note, Endorsement, Discounting, Dishonour & Renewal of Bill' },
+    { number: 'Chapter 8', title: 'Company Accounts – Issue of Shares', keyTopics: 'Equity & Preference Shares, Calls in Arrears, Forfeiture & Re-issue' },
+    { number: 'Chapter 9', title: 'Analysis of Financial Statements', keyTopics: 'Comparative Statements, Common-Size Statements, Cash Flow, Accounting Ratios' },
+    { number: 'Chapter 10', title: 'Computer in Accounting', keyTopics: 'Electronic Accounting Systems, Ledger Grouping, Security Features, ERP' },
+  ],
+  maths: [
+    // Part 1
+    { number: 'Part 1 • 1', title: 'Mathematical Logic', part: 'Part 1', keyTopics: 'Statements, Truth Tables, Logical Connectives, Tautology, Contradiction, Duals & Negation' },
+    { number: 'Part 1 • 2', title: 'Matrices', part: 'Part 1', keyTopics: 'Row/Column Transformations, Inverse by Adjoint Method, Linear Equations Solution' },
+    { number: 'Part 1 • 3', title: 'Differentiation', part: 'Part 1', keyTopics: 'Chain Rule, Inverse Trigonometric Functions, Logarithmic Differentiation, Second Order' },
+    { number: 'Part 1 • 4', title: 'Applications of Derivatives', part: 'Part 1', keyTopics: 'Tangents & Normals, Maxima & Minima, Marginal Cost & Revenue Analysis' },
+    { number: 'Part 1 • 5', title: 'Integration', part: 'Part 1', keyTopics: 'Indefinite Integrals, Integration by Parts, Partial Fractions, Substitutions' },
+    { number: 'Part 1 • 6', title: 'Definite Integration', part: 'Part 1', keyTopics: 'Definite Integral Properties, Fundamental Theorem of Calculus' },
+    { number: 'Part 1 • 7', title: 'Applications of Definite Integration', part: 'Part 1', keyTopics: 'Area Under Curves, Consumer Surplus & Producer Surplus Calculations' },
+    { number: 'Part 1 • 8', title: 'Differential Equations and Applications', part: 'Part 1', keyTopics: 'Order & Degree, Variable Separable Method, Homogeneous Equations, Growth/Decay' },
+    // Part 2
+    { number: 'Part 2 • 1', title: 'Commission, Brokerage, and Discount', part: 'Part 2', keyTopics: 'Agents Commission, Del-Credere, Trade Discount, Cash Discount, True Discount' },
+    { number: 'Part 2 • 2', title: 'Insurance and Annuity', part: 'Part 2', keyTopics: 'Fire & Marine Insurance, Average Clause, Immediate Annuity, Annuity Due' },
+    { number: 'Part 2 • 3', title: 'Linear Regression', part: 'Part 2', keyTopics: 'Scatter Diagrams, Regression Lines (Y on X & X on Y), Regression Coefficients' },
+    { number: 'Part 2 • 4', title: 'Time Series', part: 'Part 2', keyTopics: 'Components of Time Series, Moving Averages Method, Least Squares Method' },
+    { number: 'Part 2 • 5', title: 'Index Numbers', part: 'Part 2', keyTopics: "Laspeyre's, Paasche's, Fisher's Ideal Index, Cost of Living Index" },
+    { number: 'Part 2 • 6', title: 'Linear Programming', part: 'Part 2', keyTopics: 'LPP Formulation, Graphical Method, Feasible Region & Optimal Solution' },
+    { number: 'Part 2 • 7', title: 'Assignment Problem and Sequencing', part: 'Part 2', keyTopics: 'Hungarian Method, Unbalanced Assignment, n Jobs 2 Machines Sequencing' },
+    { number: 'Part 2 • 8', title: 'Probability Distributions', part: 'Part 2', keyTopics: 'Random Variables, PMF, PDF, Expected Value, Binomial & Poisson Distribution' },
+  ],
+  eco: [
+    { number: 'Chapter 1', title: 'Introduction to Micro-economics and Macro-economics', keyTopics: 'Features, Scope, Importance & Core Differences between Micro and Macro' },
+    { number: 'Chapter 2', title: 'Utility Analysis', keyTopics: 'Total Utility, Marginal Utility, Law of Diminishing Marginal Utility (DMU) & Exceptions' },
+    { number: 'Chapter 3A', title: 'Demand Analysis', keyTopics: 'Individual & Market Demand, Determinants of Demand, Law of Demand & Assumptions' },
+    { number: 'Chapter 3B', title: 'Elasticity of Demand', keyTopics: 'Price, Income & Cross Elasticity, Measurement Methods, Factors Influencing Elasticity' },
+    { number: 'Chapter 4', title: 'Supply Analysis', keyTopics: 'Individual & Market Supply, Law of Supply, Total Cost & Marginal Revenue Concepts' },
+    { number: 'Chapter 5', title: 'Forms of Market', keyTopics: 'Perfect Competition, Monopoly, Monopolistic Competition & Oligopoly Features' },
+    { number: 'Chapter 6', title: 'Index Numbers', keyTopics: 'Types of Index Numbers, Construction Methods, Significance in Economic Policy' },
+    { number: 'Chapter 7', title: 'National Income', keyTopics: 'Circular Flow of Income, Measurement Methods (Output, Income, Expenditure), Difficulties' },
+    { number: 'Chapter 8', title: 'Public Finance in India', keyTopics: 'Public Revenue (Direct/Indirect Tax), Public Expenditure, Public Debt, Fiscal Deficit' },
+    { number: 'Chapter 9', title: 'Money Market and Capital Market in India', keyTopics: 'Organised & Unorganised Sectors, RBI Functions, Commercial Banks, SEBI Regulation' },
+    { number: 'Chapter 10', title: 'Foreign Trade of India', keyTopics: 'Internal vs International Trade, Composition and Direction of India’s Export/Import' },
+  ],
+  ocm: [
+    { number: 'Chapter 1', title: 'Principles of Management', keyTopics: "Henry Fayol's 14 Principles of Management, F. W. Taylor's Scientific Management Theory" },
+    { number: 'Chapter 2', title: 'Functions of Management', keyTopics: 'Planning, Organising, Staffing, Directing, Coordinating, Controlling' },
+    { number: 'Chapter 3', title: 'Entrepreneurship Development', keyTopics: 'Characteristics of an Entrepreneur, Startup India, Skill India, EDP Framework' },
+    { number: 'Chapter 4', title: 'Business Services', keyTopics: 'Banking Types, Principles of Insurance, Warehousing, Transport & Communication' },
+    { number: 'Chapter 5', title: 'Emerging Modes of Business', keyTopics: 'E-Business Benefits & Limitations, Outsourcing (BPO, KPO, LPO)' },
+    { number: 'Chapter 6', title: 'Social Responsibilities of Business', keyTopics: 'Responsibilities towards Owners, Employees, Consumers, Government & Society' },
+    { number: 'Chapter 7', title: 'Consumer Protection', keyTopics: 'Consumer Rights, Three-Tier Redressal Machinery (District, State, National Commission)' },
+    { number: 'Chapter 8', title: 'Marketing', keyTopics: 'Functions of Marketing, 4Ps (Product, Price, Place, Promotion) vs 7Ps of Services' },
+  ],
+  it: [
+    { number: 'Chapter 1', title: 'Advanced Web Designing', keyTopics: 'HTML5 Form Controls, CSS3 Selectors & Flexbox, Audio/Video Tags, Client-Side Validation' },
+    { number: 'Chapter 2', title: 'Digital Marketing', keyTopics: 'Search Engine Optimization (SEO), On-Page & Off-Page Techniques, PageRank, Keywords' },
+    { number: 'Chapter 3', title: 'Computerised Accounting with GST', keyTopics: 'Company Creation, Ledger Masters, GST Rates & Voucher Entries, Balance Sheet' },
+    { number: 'Chapter 4', title: 'E-Commerce and E-Governance', keyTopics: 'B2B, B2C, C2C Models, E-Payment Security, E-Governance Models (G2C, G2B, G2G)' },
+    { number: 'Chapter 5', title: 'Database Concepts using Libre Office Base', keyTopics: 'Relational Database, Primary Key, Foreign Key, Queries, Forms & Reports' },
+    { number: 'Chapter 6', title: 'Enterprise Resource Planning (ERP)', keyTopics: 'ERP Modules (Supply Chain, Finance, HR), Integrated Database, Cloud ERP' },
+  ],
+  english: [
+    { number: '1.1', title: 'An Astrologer’s Day', keyTopics: 'R. K. Narayan prose, Irony & Human nature, Vocabulary, Grammar' },
+    { number: '1.2', title: 'On Saying “Please”', keyTopics: 'A. G. Gardiner prose, Social etiquette, Civility & Politeness' },
+    { number: '1.3', title: 'The Cop and the Anthem', keyTopics: 'O. Henry story, Humour & Irony, Soapy’s resolution' },
+    { number: '1.4', title: 'Big Data - Big Insights', keyTopics: 'Data revolution, Industry applications, Machine learning basics' },
+    { number: '1.5', title: 'The New Dress', keyTopics: 'Virginia Woolf stream of consciousness, Self-consciousness' },
+    { number: '2.1-2.6', title: 'Poetry & Appreciation (Section II)', keyTopics: 'Cherry Tree, Indian Weavers, The Inchcape Rock, Have You Earned Your Tomorrow' },
+    { number: '3.1-3.6', title: 'Writing Skills & Novel (Section III & IV)', keyTopics: 'Summary, Mind Mapping, Note Making, SOP, History of English Novel' },
+  ],
+  sp: [
+    { number: 'Chapter 1', title: 'Introduction to Corporate Finance', keyTopics: 'Fixed & Working capital, Capital structure determinants' },
+    { number: 'Chapter 2', title: 'Sources of Corporate Finance', keyTopics: 'Owned capital (Equity, Preference), Borrowed capital (Debentures, Bonds, Loans)' },
+    { number: 'Chapter 3', title: 'Issue of Shares', keyTopics: 'Public issue, Rights issue, Bonus shares, Allotment procedure, Share Certificate' },
+    { number: 'Chapter 4', title: 'Issue of Debentures', keyTopics: 'Types of debentures, Debenture trustee, Procedure for issue' },
+    { number: 'Chapter 5', title: 'Deposits', keyTopics: 'Acceptance of deposits from public & members, Terms & conditions' },
+    { number: 'Chapter 6', title: 'Correspondence with Members', keyTopics: 'Letters for bonus shares, dividend warrant, electronic dividend mandate' },
+    { number: 'Chapter 7', title: 'Correspondence with Debentureholders', keyTopics: 'Letters for allotment, interest payment, redemption of debentures' },
+    { number: 'Chapter 8', title: 'Correspondence with Depositors', keyTopics: 'Letters for deposit receipt, interest payment, renewal of deposits' },
+    { number: 'Chapter 9', title: 'Depository System', keyTopics: 'NSDL & CDSL, Dematerialisation, Fungibility, Benefits to investors' },
+    { number: 'Chapter 10', title: 'Dividend and Interest', keyTopics: 'Interim & Final dividend, Unpaid dividend account, Legal provisions' },
+    { number: 'Chapter 11', title: 'Financial Market', keyTopics: 'Money market vs Capital market, Primary market vs Secondary market' },
+    { number: 'Chapter 12', title: 'Stock Exchange', keyTopics: 'BSE, NSE, Functions of Stock exchange, Trading procedure, SEBI regulation' },
+  ],
 };
 
 const DEFAULT_STANDARD_SUBJECTS: Record<string, SubjectMeta[]> = {
@@ -251,8 +349,18 @@ export const SubjectRooms: React.FC = () => {
 
   // Navigation & Room State
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
-  const [activeCategoryTab, setActiveCategoryTab] = useState<'textbooks' | 'notes'>('textbooks');
+  const [activeCategoryTab, setActiveCategoryTab] = useState<'syllabus' | 'textbooks' | 'notes'>('syllabus');
   const [readingDoc, setReadingDoc] = useState<ServerDocument | null>(null);
+
+  // Chapter syllabus mastery tracking (persisted in localStorage)
+  const [completedChapters, setCompletedChapters] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('aether_chapter_progress');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   // Document & Subject Data
   const [documents, setDocuments] = useState<ServerDocument[]>([]);
@@ -465,6 +573,65 @@ export const SubjectRooms: React.FC = () => {
       (s) => s.name.toLowerCase() === (activeRoom || '').toLowerCase()
     );
   }, [availableSubjects, activeRoom]);
+
+  // Active Subject Slug & Official Chapters Portion
+  const activeSubjectSlug = useMemo(() => {
+    return activeRoom ? getSubjectSlug(activeRoom) : '';
+  }, [activeRoom]);
+
+  const activeRoomChapters: ChapterItem[] = useMemo(() => {
+    if (!activeSubjectSlug) return [];
+    return COMMERCE_STD12_CHAPTERS[activeSubjectSlug] || [];
+  }, [activeSubjectSlug]);
+
+  const chaptersMasteredCount = useMemo(() => {
+    return activeRoomChapters.filter(
+      (ch) => !!completedChapters[`${activeSubjectSlug}-${ch.number}`]
+    ).length;
+  }, [activeRoomChapters, completedChapters, activeSubjectSlug]);
+
+  // Toggle chapter completion
+  const toggleChapter = (chapterKey: string) => {
+    setCompletedChapters((prev) => {
+      const next = { ...prev, [chapterKey]: !prev[chapterKey] };
+      try {
+        localStorage.setItem('aether_chapter_progress', JSON.stringify(next));
+      } catch (err) {
+        console.warn('Failed to save chapter progress:', err);
+      }
+      return next;
+    });
+  };
+
+  const handleMarkAllChapters = () => {
+    setCompletedChapters((prev) => {
+      const next = { ...prev };
+      activeRoomChapters.forEach((ch) => {
+        next[`${activeSubjectSlug}-${ch.number}`] = true;
+      });
+      try {
+        localStorage.setItem('aether_chapter_progress', JSON.stringify(next));
+      } catch (err) {
+        console.warn('Failed to save chapter progress:', err);
+      }
+      return next;
+    });
+  };
+
+  const handleResetChapters = () => {
+    setCompletedChapters((prev) => {
+      const next = { ...prev };
+      activeRoomChapters.forEach((ch) => {
+        delete next[`${activeSubjectSlug}-${ch.number}`];
+      });
+      try {
+        localStorage.setItem('aether_chapter_progress', JSON.stringify(next));
+      } catch (err) {
+        console.warn('Failed to save chapter progress:', err);
+      }
+      return next;
+    });
+  };
 
   // Download URL Helper
   const getDownloadUrl = (doc: ServerDocument) => {
@@ -729,7 +896,28 @@ export const SubjectRooms: React.FC = () => {
           </div>
 
           {/* Subject Room Sub-Navigation Tabs */}
-          <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <button
+              onClick={() => setActiveCategoryTab('syllabus')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeCategoryTab === 'syllabus'
+                  ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              <ListChecks className="w-4 h-4" />
+              <span>Official Chapter Syllabus</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                  activeCategoryTab === 'syllabus'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {activeRoomChapters.length > 0 ? `${chaptersMasteredCount}/${activeRoomChapters.length}` : 'Chapters'}
+              </span>
+            </button>
+
             <button
               onClick={() => setActiveCategoryTab('textbooks')}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
@@ -741,7 +929,7 @@ export const SubjectRooms: React.FC = () => {
               <BookOpen className="w-4 h-4" />
               <span>Textbook PDFs</span>
               <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
                   activeCategoryTab === 'textbooks'
                     ? 'bg-white/20 text-white'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
@@ -762,7 +950,7 @@ export const SubjectRooms: React.FC = () => {
               <FileText className="w-4 h-4" />
               <span>Study Notes & Lecture Materials</span>
               <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
                   activeCategoryTab === 'notes'
                     ? 'bg-white/20 text-white'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
@@ -775,8 +963,190 @@ export const SubjectRooms: React.FC = () => {
 
           {/* Material Cards Section */}
           <div>
-            {activeCategoryTab === 'textbooks' ? (
-              /* TAB 1: TEXTBOOKS */
+            {activeCategoryTab === 'syllabus' ? (
+              /* TAB 1: OFFICIAL CHAPTER SYLLABUS & CHECKLIST */
+              <div className="space-y-6 animate-fade-in">
+                {/* Syllabus Progress Card */}
+                <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-brand-500/10 via-brand-600/5 to-transparent border border-brand-200 dark:border-brand-900/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-800 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800 tracking-wide uppercase">
+                        Maharashtra State Board Portion (Class 12)
+                      </span>
+                      {chaptersMasteredCount === activeRoomChapters.length && activeRoomChapters.length > 0 && (
+                        <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> 100% Completed!
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                      {activeRoom} Chapter Mastery
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Track and master every chapter from the official HSC commerce syllabus.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto">
+                    {/* Mastery Bar */}
+                    <div className="w-full sm:w-56 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <span>Mastery</span>
+                        <span>
+                          {chaptersMasteredCount} / {activeRoomChapters.length} Chapters (
+                          {activeRoomChapters.length > 0
+                            ? Math.round((chaptersMasteredCount / activeRoomChapters.length) * 100)
+                            : 0}
+                          %)
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-brand-600 to-emerald-500 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${
+                              activeRoomChapters.length > 0
+                                ? (chaptersMasteredCount / activeRoomChapters.length) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quick batch actions */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleMarkAllChapters}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all shadow-2xs"
+                        title="Mark all chapters as mastered"
+                      >
+                        Mark All
+                      </button>
+                      <button
+                        onClick={handleResetChapters}
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-xs font-bold transition-all shadow-2xs"
+                        title="Reset progress"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chapter List */}
+                {activeRoomChapters.length === 0 ? (
+                  <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
+                    <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto border border-brand-100 dark:border-brand-900">
+                      <ListChecks className="w-7 h-7" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Curriculum Syllabus Available
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                      Visit the curriculum tracker or upload reference materials for {activeRoom}.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {activeRoomChapters.map((ch) => {
+                      const chapterKey = `${activeSubjectSlug}-${ch.number}`;
+                      const isCompleted = !!completedChapters[chapterKey];
+
+                      return (
+                        <div
+                          key={ch.number + ch.title}
+                          onClick={() => toggleChapter(chapterKey)}
+                          className={`p-5 rounded-2xl border transition-all cursor-pointer group flex flex-col justify-between ${
+                            isCompleted
+                              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-md'
+                          }`}
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                                  isCompleted
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                                    : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                }`}
+                              >
+                                {ch.number}
+                              </span>
+
+                              {ch.part && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                  {ch.part}
+                                </span>
+                              )}
+
+                              <div className="ml-auto">
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                    isCompleted
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                      : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                                  }`}
+                                >
+                                  {isCompleted ? (
+                                    <>
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                      Mastered
+                                    </>
+                                  ) : (
+                                    'Pending'
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+
+                            <h4
+                              className={`text-sm font-bold leading-snug transition-colors ${
+                                isCompleted
+                                  ? 'text-emerald-950 dark:text-emerald-100 line-through decoration-emerald-500/40'
+                                  : 'text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400'
+                              }`}
+                            >
+                              {ch.title}
+                            </h4>
+
+                            {ch.keyTopics && (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
+                                <span className="font-semibold text-slate-600 dark:text-slate-300">Key topics:</span>{' '}
+                                {ch.keyTopics}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                              HSC Board Portion
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleChapter(chapterKey);
+                              }}
+                              className={`text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${
+                                isCompleted
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'bg-slate-100 dark:bg-slate-800 hover:bg-brand-500 hover:text-white dark:hover:bg-brand-600 text-slate-700 dark:text-slate-200'
+                              }`}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>{isCompleted ? 'Mastered' : 'Mark Done'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : activeCategoryTab === 'textbooks' ? (
+              /* TAB 2: TEXTBOOKS */
               textbookDocs.length === 0 ? (
                 <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
                   <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-100 dark:border-blue-900">
