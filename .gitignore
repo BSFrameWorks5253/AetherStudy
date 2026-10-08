@@ -9,6 +9,10 @@ dist-electron/
 .env
 *.local
 
+# Local Runtime Storage & User Uploads
+server/data/
+server/uploads/
+
 # System Files
 .DS_Store
 Thumbs.db

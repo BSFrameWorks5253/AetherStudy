@@ -85,7 +85,7 @@ export const DocumentViewer: React.FC = () => {
     if (!selectedFile) return;
 
     if (!canUpload) {
-      alert('Upload restricted: Only administrators or sounasathburhan5252@gmail.com can upload materials.');
+      alert('Upload restricted: Only administrators or the account owner can upload materials.');
       return;
     }
 
@@ -270,7 +270,7 @@ export const DocumentViewer: React.FC = () => {
           <button
             onClick={() => {
               if (!canUpload) {
-                alert('Uploading documents is restricted to administrators (sounasathburhan5252@gmail.com).');
+                alert('Uploading documents is restricted to administrators and the account owner.');
                 return;
               }
               setShowUploadModal(true);

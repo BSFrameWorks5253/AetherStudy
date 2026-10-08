@@ -9,7 +9,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10);
-const SUPER_ADMIN_EMAIL = 'sounasathburhan5252@gmail.com';
+const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
 
 // Storage Directory Setup
 const DATA_DIR = path.join(__dirname, 'data');
@@ -426,13 +426,13 @@ app.post('/api/auth/login', (req, res) => {
   res.json(user);
 });
 
-// Get registered users (Only for SUPER_ADMIN sounasathburhan5252@gmail.com)
+// Get registered users (Only for SUPER_ADMIN)
 app.get('/api/auth/users', (req, res) => {
   const users = readJsonFile('users.json', initialUsers);
   res.json(users);
 });
 
-// Update User Role (Only permitted by sounasathburhan5252@gmail.com)
+// Update User Role (Only permitted by SUPER_ADMIN)
 app.put('/api/auth/users/role', (req, res) => {
   const { requesterEmail, targetEmail, newRole } = req.body;
 
@@ -441,7 +441,7 @@ app.put('/api/auth/users/role', (req, res) => {
     requesterEmail.trim().toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()
   ) {
     return res.status(403).json({
-      error: 'Permission Denied: Only the owner (sounasathburhan5252@gmail.com) can modify user roles.',
+      error: `Permission Denied: Only the owner (${SUPER_ADMIN_EMAIL}) can modify user roles.`,
     });
   }
 

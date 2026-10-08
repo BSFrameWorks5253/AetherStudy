@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 
 const OTP_SECRET = process.env.OTP_SECRET || 'aether-antigravity-secure-session-key-2026';
-const SUPER_ADMIN_EMAIL = 'sounasathburhan5252@gmail.com';
+const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Determine authorization role
-    const isSuper = normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase();
+    const isSuper = Boolean(SUPER_ADMIN_EMAIL) && normalizedEmail === SUPER_ADMIN_EMAIL;
     const role = isSuper ? 'SUPER_ADMIN' : 'USER';
 
     // Generate secure session token

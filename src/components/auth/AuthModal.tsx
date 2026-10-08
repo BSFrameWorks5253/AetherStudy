@@ -170,7 +170,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="font-bold text-slate-700 dark:text-slate-200">Security Architecture:</div>
               <div>• OTP is generated strictly within the serverless environment.</div>
               <div>• Zero passwords stored; tokens are signed using HMAC-SHA256.</div>
-              <div>• Owner privileges automatically bind to <code>{SUPER_ADMIN_EMAIL}</code>.</div>
+              <div>• Owner privileges automatically bind to the authorized Super Admin account.</div>
             </div>
 
             <button
@@ -337,7 +337,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </p>
                 <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
                   {usersList.map((u) => {
-                    const isSuper = u.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+                    const isSuper =
+                      u.role === 'SUPER_ADMIN' ||
+                      (Boolean(SUPER_ADMIN_EMAIL) && u.email.toLowerCase() === SUPER_ADMIN_EMAIL);
 
                     return (
                       <div

@@ -31,7 +31,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
 
-  const isSuperAdmin = currentUser?.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+  const isSuperAdmin =
+    currentUser?.role === 'SUPER_ADMIN' ||
+    Boolean(SUPER_ADMIN_EMAIL && currentUser?.email.toLowerCase() === SUPER_ADMIN_EMAIL);
   const isAdmin = currentUser?.role === 'ADMIN' || isSuperAdmin;
   const canUpload = isAdmin;
 
