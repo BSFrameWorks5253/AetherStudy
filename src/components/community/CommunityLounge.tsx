@@ -139,6 +139,7 @@ export const CommunityLounge: React.FC<CommunityLoungeProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [internalMobileChat, setInternalMobileChat] = useState<boolean>(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(true);
 
   const showMobileChat = externalMobileChatOpen !== undefined ? externalMobileChatOpen : internalMobileChat;
   const setShowMobileChat = (open: boolean) => {
@@ -158,10 +159,13 @@ export const CommunityLounge: React.FC<CommunityLoungeProps> = ({
       setMessages(data);
     } catch (e) {
       console.warn('Could not load chat messages:', e);
+    } finally {
+      setIsLoadingMessages(false);
     }
   };
 
   useEffect(() => {
+    setIsLoadingMessages(true);
     loadMessages();
     const interval = setInterval(loadMessages, 3500);
     return () => clearInterval(interval);
@@ -415,8 +419,27 @@ export const CommunityLounge: React.FC<CommunityLoungeProps> = ({
           </div>
 
           {/* Messages Stream */}
-          {messages.map((msg) => {
-            const userHandle = (currentUser?.email || '').split('@')[0].trim().toLowerCase();
+          {isLoadingMessages && messages.length === 0 ? (
+            <div className="space-y-3.5 p-4 animate-pulse">
+              <div className="flex items-start space-x-2">
+                <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-700" />
+                <div className="w-48 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
+              </div>
+              <div className="flex items-start justify-end space-x-2">
+                <div className="w-56 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/30" />
+              </div>
+              <div className="flex items-start space-x-2">
+                <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-700" />
+                <div className="w-64 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400">
+              No messages in this channel yet. Be the first to start the discussion!
+            </div>
+          ) : (
+            messages.map((msg) => {
+              const userHandle = (currentUser?.email || '').split('@')[0].trim().toLowerCase();
             const isMe =
               Boolean(isAuthenticated) &&
               Boolean(currentUser?.email) &&
@@ -509,7 +532,8 @@ export const CommunityLounge: React.FC<CommunityLoungeProps> = ({
                 </div>
               </div>
             );
-          })}
+          })
+          )}
           <div ref={messagesEndRef} />
         </div>
 

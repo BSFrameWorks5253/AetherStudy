@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api, ServerDocument } from '../../services/api';
 import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
+import { CardSkeleton, PdfLoaderOverlay } from '../common/LoadingSkeleton';
 import {
   BookOpen,
   FileText,
@@ -517,6 +518,8 @@ export const SubjectRooms: React.FC = () => {
   // Document & Subject Data
   const [documents, setDocuments] = useState<ServerDocument[]>([]);
   const [serverSubjects, setServerSubjects] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isPdfLoading, setIsPdfLoading] = useState<boolean>(false);
 
   // Reader Controls
   const [zoom, setZoom] = useState<number>(100);
@@ -577,6 +580,7 @@ export const SubjectRooms: React.FC = () => {
 
   // Fetch documents and subjects
   const loadContent = async () => {
+    setIsLoading(true);
     try {
       const [docs, subjs] = await Promise.all([
         api.getDocuments(),
@@ -586,6 +590,8 @@ export const SubjectRooms: React.FC = () => {
       setServerSubjects(subjs);
     } catch (err) {
       console.warn('Could not load subjects and documents:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -786,6 +792,7 @@ export const SubjectRooms: React.FC = () => {
   // Open a document inside reader
   const handleOpenDoc = (doc: ServerDocument) => {
     setReadingDoc(doc);
+    setIsPdfLoading(true);
     if (!activeRoom) {
       setActiveRoom(doc.subject);
     }
@@ -1235,8 +1242,11 @@ export const SubjectRooms: React.FC = () => {
 
           {/* PDF Viewer Frame */}
           <div className="flex-1 relative overflow-auto bg-slate-200/50 dark:bg-slate-900/50 p-2 sm:p-4 flex items-center justify-center">
+            {isPdfLoading && (
+              <PdfLoaderOverlay message={`Loading ${readingDoc.originalName || readingDoc.name}...`} />
+            )}
             <div
-              className="w-full h-full max-w-6xl mx-auto rounded-2xl shadow-xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 transition-transform duration-150"
+              className="w-full h-full max-w-6xl mx-auto rounded-2xl shadow-xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 transition-transform duration-150 relative"
               style={{
                 transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
                 transformOrigin: 'center center',
@@ -1247,6 +1257,7 @@ export const SubjectRooms: React.FC = () => {
                 title={readingDoc.originalName || readingDoc.name}
                 allow="autoplay; fullscreen"
                 className="w-full h-full rounded-2xl bg-white"
+                onLoad={() => setIsPdfLoading(false)}
               />
             </div>
           </div>
@@ -1459,7 +1470,9 @@ export const SubjectRooms: React.FC = () => {
                 </div>
 
                 {/* Chapter List */}
-                {activeRoomChapters.length === 0 ? (
+                {isLoading ? (
+                  <CardSkeleton count={6} />
+                ) : activeRoomChapters.length === 0 ? (
                   <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
                     <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto border border-brand-100 dark:border-brand-900">
                       <ListChecks className="w-7 h-7" />
@@ -1620,7 +1633,9 @@ export const SubjectRooms: React.FC = () => {
               </div>
             ) : activeCategoryTab === 'textbooks' ? (
               /* TAB 2: TEXTBOOKS */
-              textbookDocs.length === 0 ? (
+              isLoading ? (
+                <CardSkeleton count={3} />
+              ) : textbookDocs.length === 0 ? (
                 <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
                   <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-100 dark:border-blue-900">
                     <BookOpen className="w-7 h-7" />
@@ -1760,7 +1775,9 @@ export const SubjectRooms: React.FC = () => {
               )
             ) : (
               /* TAB 3: STUDY NOTES & MATERIALS */
-              notesDocs.length === 0 ? (
+              isLoading ? (
+                <CardSkeleton count={6} />
+              ) : notesDocs.length === 0 ? (
                 <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
                   <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-100 dark:border-amber-900">
                     <FileText className="w-7 h-7" />
@@ -1949,14 +1966,17 @@ export const SubjectRooms: React.FC = () => {
           </div>
 
           {/* Subject Rooms Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {availableSubjects.map((sub) => {
-              const Icon = sub.icon;
-              const directDocs = standardFilteredDocuments.filter(
-                (d) => matchSubjectDoc(sub.name, d.subject || '')
-              );
-              const subDocs = directDocs.length > 0
-                ? directDocs
+          {isLoading ? (
+            <CardSkeleton count={6} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {availableSubjects.map((sub) => {
+                const Icon = sub.icon;
+                const directDocs = standardFilteredDocuments.filter(
+                  (d) => matchSubjectDoc(sub.name, d.subject || '')
+                );
+                const subDocs = directDocs.length > 0
+                  ? directDocs
                 : documents.filter((d) => matchSubjectDoc(sub.name, d.subject || ''));
               const tBooks = subDocs.filter((d) => d.category === 'textbook').length;
               const nDocs = subDocs.filter((d) => d.category !== 'textbook').length;
@@ -2001,6 +2021,7 @@ export const SubjectRooms: React.FC = () => {
               );
             })}
           </div>
+        )}
         </div>
       )}
 

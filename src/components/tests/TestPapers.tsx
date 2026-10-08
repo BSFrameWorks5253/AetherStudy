@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { TestPaper } from '../../types/testPaper';
 import { useAuth } from '../../context/AuthContext';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
+import { ListSkeleton, PdfLoaderOverlay } from '../common/LoadingSkeleton';
 import { matchSubjectDoc } from '../workspace/SubjectRooms';
 import {
   GraduationCap,
@@ -25,6 +26,8 @@ export const TestPapers: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<string>('All');
   const [activePaper, setActivePaper] = useState<TestPaper | null>(null);
   const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isPdfLoading, setIsPdfLoading] = useState<boolean>(false);
 
   // Solving/Review Mode: 'question' | 'answer' | 'split'
   const [solveViewMode, setSolveViewMode] = useState<'question' | 'answer' | 'split'>('question');
@@ -85,6 +88,7 @@ export const TestPapers: React.FC = () => {
   const akFileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = async () => {
+    setIsLoading(true);
     try {
       const [papers, subjs] = await Promise.all([api.getTestPapers(), api.getSubjects()]);
       setTestPapers(papers);
@@ -93,6 +97,8 @@ export const TestPapers: React.FC = () => {
       if (papers.length > 0 && !activePaper) setActivePaper(papers[0]);
     } catch (err) {
       console.warn('Could not load test papers:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -264,7 +270,9 @@ export const TestPapers: React.FC = () => {
             Available Exam Papers ({filteredPapers.length})
           </div>
 
-          {filteredPapers.length === 0 ? (
+          {isLoading ? (
+            <ListSkeleton count={4} />
+          ) : filteredPapers.length === 0 ? (
             <div className="p-6 text-center text-xs text-slate-400">
               No test papers found for this subject/year.
             </div>
@@ -275,7 +283,10 @@ export const TestPapers: React.FC = () => {
               return (
                 <div
                   key={paper.id}
-                  onClick={() => setActivePaper(paper)}
+                  onClick={() => {
+                    setActivePaper(paper);
+                    setIsPdfLoading(true);
+                  }}
                   className={`p-3 rounded-2xl liquid-glass border cursor-pointer transition-all ${
                     isSelected
                       ? 'border-brand-500 bg-brand-500/10 shadow-md'
@@ -419,12 +430,18 @@ export const TestPapers: React.FC = () => {
                         </a>
                       </div>
                     </div>
-                    <iframe
-                      src={getViewerUrl(activePaper.questionPdfUrl)}
-                      title="Question Paper"
-                      allow="autoplay; fullscreen"
-                      className="w-full flex-1 bg-white"
-                    />
+                    <div className="relative w-full flex-1 bg-white">
+                      {isPdfLoading && (
+                        <PdfLoaderOverlay message="Loading Question Paper..." />
+                      )}
+                      <iframe
+                        src={getViewerUrl(activePaper.questionPdfUrl)}
+                        title="Question Paper"
+                        allow="autoplay; fullscreen"
+                        className="w-full h-full bg-white"
+                        onLoad={() => setIsPdfLoading(false)}
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -461,12 +478,18 @@ export const TestPapers: React.FC = () => {
                         </a>
                       </div>
                     </div>
-                    <iframe
-                      src={getViewerUrl(activePaper.answerKeyPdfUrl)}
-                      title="Answer Key Solutions"
-                      allow="autoplay; fullscreen"
-                      className="w-full flex-1 bg-white"
-                    />
+                    <div className="relative w-full flex-1 bg-white">
+                      {isPdfLoading && (
+                        <PdfLoaderOverlay message="Loading Model Solutions..." />
+                      )}
+                      <iframe
+                        src={getViewerUrl(activePaper.answerKeyPdfUrl)}
+                        title="Answer Key Solutions"
+                        allow="autoplay; fullscreen"
+                        className="w-full h-full bg-white"
+                        onLoad={() => setIsPdfLoading(false)}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
