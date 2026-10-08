@@ -15,6 +15,7 @@ import {
   Lock,
   Download,
   FolderUp,
+  Smartphone,
 } from 'lucide-react';
 
 export const TestPapers: React.FC = () => {
@@ -27,6 +28,41 @@ export const TestPapers: React.FC = () => {
 
   // Solving/Review Mode: 'question' | 'answer' | 'split'
   const [solveViewMode, setSolveViewMode] = useState<'question' | 'answer' | 'split'>('question');
+  const [useMobileViewer, setUseMobileViewer] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return /android|iphone|ipad|ipod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  });
+
+  const getViewerUrl = (rawUrl?: string): string => {
+    if (!rawUrl) return '';
+    if (rawUrl.includes('drive.google.com')) {
+      if (rawUrl.includes('/view')) return rawUrl.replace('/view', '/preview');
+      if (!rawUrl.includes('/preview')) {
+        const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+          return `https://drive.google.com/file/d/${match[1]}/preview`;
+        }
+      }
+      return rawUrl;
+    }
+
+    const absoluteUrl = rawUrl.startsWith('http')
+      ? rawUrl
+      : `${window.location.origin}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+
+    if (useMobileViewer) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(absoluteUrl)}&embedded=true`;
+    }
+
+    return rawUrl;
+  };
+
+  const getDirectPdfUrl = (rawUrl?: string): string => {
+    if (!rawUrl) return '';
+    return rawUrl.startsWith('http')
+      ? rawUrl
+      : `${window.location.origin}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+  };
 
   // Upload modal state
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
@@ -354,7 +390,24 @@ export const TestPapers: React.FC = () => {
                         <FileText className="w-3.5 h-3.5" />
                         {activePaper.questionPdfName}
                       </span>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <button
+                          onClick={() => setUseMobileViewer(!useMobileViewer)}
+                          className="px-2 py-0.5 rounded bg-brand-500/20 hover:bg-brand-500/30 text-brand-700 dark:text-brand-300 font-bold text-[10px] hidden sm:flex items-center gap-1"
+                          title="Toggle Google Docs mobile viewer engine vs direct browser embed"
+                        >
+                          <Smartphone className="w-3 h-3" />
+                          <span>{useMobileViewer ? 'Google Engine' : 'Direct'}</span>
+                        </button>
+                        <a
+                          href={getDirectPdfUrl(activePaper.questionPdfUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2 py-0.5 rounded bg-brand-600 hover:bg-brand-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-xs"
+                          title="Open Question Paper directly in mobile PDF app"
+                        >
+                          <ExternalLink className="w-3 h-3" /> App
+                        </a>
                         <a
                           href={activePaper.questionPdfUrl}
                           download={activePaper.questionPdfName}
@@ -364,19 +417,12 @@ export const TestPapers: React.FC = () => {
                         >
                           <Download className="w-3 h-3" /> Download
                         </a>
-                        <a
-                          href={activePaper.questionPdfUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="hover:underline flex items-center gap-1 text-[11px] text-slate-500"
-                        >
-                          Popout <ExternalLink className="w-3 h-3" />
-                        </a>
                       </div>
                     </div>
                     <iframe
-                      src={activePaper.questionPdfUrl}
+                      src={getViewerUrl(activePaper.questionPdfUrl)}
                       title="Question Paper"
+                      allow="autoplay; fullscreen"
                       className="w-full flex-1 bg-white"
                     />
                   </div>
@@ -396,6 +442,15 @@ export const TestPapers: React.FC = () => {
                       </span>
                       <div className="flex items-center space-x-2 shrink-0">
                         <a
+                          href={getDirectPdfUrl(activePaper.answerKeyPdfUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-xs"
+                          title="Open Solutions directly in mobile PDF app"
+                        >
+                          <ExternalLink className="w-3 h-3" /> App
+                        </a>
+                        <a
                           href={activePaper.answerKeyPdfUrl}
                           download={activePaper.answerKeyPdfName}
                           target="_blank"
@@ -404,19 +459,12 @@ export const TestPapers: React.FC = () => {
                         >
                           <Download className="w-3 h-3" /> Download
                         </a>
-                        <a
-                          href={activePaper.answerKeyPdfUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="hover:underline flex items-center gap-1 text-[11px] text-slate-500"
-                        >
-                          Popout <ExternalLink className="w-3 h-3" />
-                        </a>
                       </div>
                     </div>
                     <iframe
-                      src={activePaper.answerKeyPdfUrl}
+                      src={getViewerUrl(activePaper.answerKeyPdfUrl)}
                       title="Answer Key Solutions"
+                      allow="autoplay; fullscreen"
                       className="w-full flex-1 bg-white"
                     />
                   </div>

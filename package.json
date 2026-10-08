@@ -8,7 +8,7 @@
     "server": "node server/server.js",
     "client": "vite",
     "dev": "concurrently -k \"node server/server.js\" \"vite\"",
-    "build": "tsc && vite build",
+    "build": "node scripts/sync-pdf-assets.js && tsc && vite build",
     "preview": "vite preview",
     "electron": "electron .",
     "electron:dev": "node electron/start-dev.js",

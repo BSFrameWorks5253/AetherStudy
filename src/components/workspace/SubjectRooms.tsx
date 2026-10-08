@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   ListChecks,
   FolderUp,
+  Smartphone,
 } from 'lucide-react';
 
 interface SubjectMeta {
@@ -384,6 +385,45 @@ export const SubjectRooms: React.FC = () => {
   // Reader Controls
   const [zoom, setZoom] = useState<number>(100);
   const [rotation, setRotation] = useState<number>(0);
+  const [useMobileViewer, setUseMobileViewer] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return /android|iphone|ipad|ipod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  });
+
+  const getViewerUrl = (rawUrl?: string): string => {
+    if (!rawUrl) return '';
+    // If it's already a Google Drive file link, convert to preview mode
+    if (rawUrl.includes('drive.google.com')) {
+      if (rawUrl.includes('/view')) return rawUrl.replace('/view', '/preview');
+      if (!rawUrl.includes('/preview')) {
+        const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+          return `https://drive.google.com/file/d/${match[1]}/preview`;
+        }
+      }
+      return rawUrl;
+    }
+
+    // Convert relative paths (/Material/..., /data/...) to absolute URLs
+    const absoluteUrl = rawUrl.startsWith('http')
+      ? rawUrl
+      : `${window.location.origin}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+
+    // On mobile or when mobile engine is enabled, wrap with Google Docs Viewer
+    // which reliably renders PDFs into HTML on Android Chrome & iOS Safari
+    if (useMobileViewer) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(absoluteUrl)}&embedded=true`;
+    }
+
+    return rawUrl;
+  };
+
+  const getDirectPdfUrl = (rawUrl?: string): string => {
+    if (!rawUrl) return '';
+    return rawUrl.startsWith('http')
+      ? rawUrl
+      : `${window.location.origin}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+  };
 
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
@@ -937,6 +977,30 @@ export const SubjectRooms: React.FC = () => {
                 </button>
               </div>
 
+              <button
+                onClick={() => setUseMobileViewer(!useMobileViewer)}
+                className={`hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                  useMobileViewer
+                    ? 'bg-purple-50 dark:bg-purple-950/70 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300'
+                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                }`}
+                title="Toggle Google Docs mobile viewer engine vs direct browser embed"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>{useMobileViewer ? 'Google Engine' : 'Direct Embed'}</span>
+              </button>
+
+              <a
+                href={getDirectPdfUrl(readingDoc.streamUrl || readingDoc.serverUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition-all text-xs font-bold shadow-xs"
+                title="Open directly in phone's native PDF reader app (Google Drive / Samsung / Adobe)"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Open in App</span>
+              </a>
+
               <a
                 href={getDownloadUrl(readingDoc)}
                 target="_blank"
@@ -948,15 +1012,32 @@ export const SubjectRooms: React.FC = () => {
                 <Download className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Download</span>
               </a>
+            </div>
+          </div>
 
+          {/* Mobile PDF Guidance Quick Bar */}
+          <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-purple-50/80 dark:bg-purple-950/40 border-b border-purple-200 dark:border-purple-900/50 text-xs">
+            <div className="flex items-center space-x-2 text-purple-900 dark:text-purple-200 truncate mr-2">
+              <Smartphone className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+              <span className="text-[11px] truncate">
+                Mobile PDF Engine: <strong>{useMobileViewer ? 'Google Docs Web Engine' : 'Direct File Embed'}</strong> • Tap <strong>Open in App</strong> for full-screen pinch-to-zoom!
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                onClick={() => setUseMobileViewer(!useMobileViewer)}
+                className="px-2 py-1 rounded-lg bg-white dark:bg-purple-900/60 hover:bg-purple-100 dark:hover:bg-purple-800/80 text-purple-700 dark:text-purple-200 font-bold text-[10px] border border-purple-200 dark:border-purple-800 transition-colors"
+              >
+                Switch Engine
+              </button>
               <a
-                href={readingDoc.streamUrl || readingDoc.serverUrl}
+                href={getDirectPdfUrl(readingDoc.streamUrl || readingDoc.serverUrl)}
                 target="_blank"
                 rel="noreferrer"
-                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-                title="Open in Standalone Tab"
+                className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] flex items-center space-x-1 shadow-xs transition-colors"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="w-3 h-3" />
+                <span>Open in App</span>
               </a>
             </div>
           </div>
@@ -971,10 +1052,9 @@ export const SubjectRooms: React.FC = () => {
               }}
             >
               <iframe
-                src={readingDoc.streamUrl || readingDoc.serverUrl}
+                src={getViewerUrl(readingDoc.streamUrl || readingDoc.serverUrl)}
                 title={readingDoc.originalName || readingDoc.name}
-                allow="autoplay"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                allow="autoplay; fullscreen"
                 className="w-full h-full rounded-2xl bg-white"
               />
             </div>

@@ -22,6 +22,11 @@ build/
 server/data/
 server/uploads/
 
+# Root staging folders (synced directly into public/Material and public/data for web deployment)
+/Material/
+/Material_Original_Backup/
+/data/
+
 # Debugging, Logs, and Runtime Artefacts
 npm-debug.log*
 yarn-debug.log*

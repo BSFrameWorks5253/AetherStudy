@@ -68,10 +68,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Static Assets (Scripts, CSS, Fonts, Images, Icons)
+  // 2. Static Assets & PDFs (Scripts, CSS, Fonts, Images, Icons, Material & PYQ PDFs)
   // Strategy: Stale-While-Revalidate (Serve cached instantly, update in background)
   const isStaticAsset =
-    url.pathname.match(/\.(js|css|svg|png|jpg|jpeg|webp|woff|woff2|ttf|json)$/) ||
+    url.pathname.match(/\.(js|css|svg|png|jpg|jpeg|webp|woff|woff2|ttf|json|pdf)$/i) ||
+    url.pathname.startsWith('/Material/') ||
+    url.pathname.startsWith('/data/') ||
     url.hostname.includes('fonts.googleapis.com') ||
     url.hostname.includes('fonts.gstatic.com');
 
