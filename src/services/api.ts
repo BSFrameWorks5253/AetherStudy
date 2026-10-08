@@ -200,9 +200,32 @@ export const api = {
 
   // 2. Test Papers & PYQ Vault API
   async getTestPapers(): Promise<TestPaper[]> {
-    const res = await fetch(`${API_BASE}/test-papers`);
-    if (!res.ok) throw new Error('Failed to fetch test papers');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/test-papers`);
+      if (res.ok) {
+        const papers = await res.json();
+        if (Array.isArray(papers) && papers.length > 0) {
+          localStorage.setItem('aether_cached_test_papers', JSON.stringify(papers));
+          return papers;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+
+    try {
+      const cached = localStorage.getItem('aether_cached_test_papers');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+
+    try {
+      const catalog = await import('../data/catalog.json');
+      if (catalog && Array.isArray(catalog.testPapers) && catalog.testPapers.length > 0) {
+        return catalog.testPapers as TestPaper[];
+      }
+    } catch {}
+
+    return [];
   },
 
   async uploadTestPaper(formData: FormData): Promise<TestPaper> {
@@ -228,9 +251,25 @@ export const api = {
 
   // 3. Subjects Management
   async getSubjects(): Promise<string[]> {
-    const res = await fetch(`${API_BASE}/subjects`);
-    if (!res.ok) throw new Error('Failed to fetch subjects');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/subjects`);
+      if (res.ok) {
+        const subjs = await res.json();
+        if (Array.isArray(subjs) && subjs.length > 0) return subjs;
+      }
+    } catch {}
+
+    return [
+      'Accounts',
+      'Economics',
+      'Mathematics',
+      'OCM',
+      'IT',
+      'English',
+      'Secretarial Practice',
+      'Hindi',
+      'Marathi',
+    ];
   },
 
   async createSubject(name: string): Promise<{ subjects: string[]; created: string }> {
@@ -292,6 +331,18 @@ export const api = {
     let merged = Array.from(docMap.values());
     if (standard && standard !== 'ALL') {
       merged = merged.filter((d) => !d.standard || d.standard === 'ALL' || d.standard === standard);
+    }
+
+    if (merged.length === 0) {
+      try {
+        const catalog = await import('../data/catalog.json');
+        if (catalog && Array.isArray(catalog.documents) && catalog.documents.length > 0) {
+          merged = catalog.documents as ServerDocument[];
+          if (standard && standard !== 'ALL') {
+            merged = merged.filter((d) => !d.standard || d.standard === 'ALL' || d.standard === standard);
+          }
+        }
+      } catch {}
     }
 
     // Update local cache with merged list

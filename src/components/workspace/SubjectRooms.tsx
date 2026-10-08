@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api, ServerDocument } from '../../services/api';
 import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
+import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import {
   BookOpen,
   FileText,
@@ -372,6 +373,7 @@ export const SubjectRooms: React.FC = () => {
 
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
+  const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
   const [uploadSubject, setUploadSubject] = useState<string>('');
   const [uploadTitle, setUploadTitle] = useState<string>('');
   const [uploadCategory, setUploadCategory] = useState<'textbook' | 'notes'>('textbook');
@@ -1423,16 +1425,26 @@ export const SubjectRooms: React.FC = () => {
             </div>
 
             {canUpload && (
-              <button
-                onClick={() => {
-                  setUploadSubject(availableSubjects[0]?.name || 'General');
-                  setShowUploadModal(true);
-                }}
-                className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all self-start sm:self-auto"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Upload Document</span>
-              </button>
+              <div className="flex items-center space-x-2 self-start sm:self-auto">
+                <button
+                  onClick={() => {
+                    setUploadSubject(availableSubjects[0]?.name || 'General');
+                    setShowUploadModal(true);
+                  }}
+                  className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload File</span>
+                </button>
+                <button
+                  onClick={() => setShowBulkModal(true)}
+                  className="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-500/25 flex items-center space-x-1.5 transition-all"
+                  title="Bulk upload and auto-segregate complete folders of study materials"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Bulk Auto-Segregate</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -1661,6 +1673,16 @@ export const SubjectRooms: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Intelligent Bulk Uploader Modal */}
+      {showBulkModal && (
+        <BulkUploaderModal
+          isOpen={showBulkModal}
+          onClose={() => setShowBulkModal(false)}
+          defaultCategory="notes"
+          onUploadSuccess={loadContent}
+        />
       )}
     </div>
   );

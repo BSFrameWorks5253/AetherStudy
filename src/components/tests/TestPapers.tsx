@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { TestPaper } from '../../types/testPaper';
 import { useAuth } from '../../context/AuthContext';
+import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import {
   GraduationCap,
   FileText,
@@ -12,6 +13,7 @@ import {
   ExternalLink,
   Lock,
   Download,
+  Sparkles,
 } from 'lucide-react';
 
 export const TestPapers: React.FC = () => {
@@ -20,6 +22,7 @@ export const TestPapers: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<string>('All');
   const [selectedYear, setSelectedYear] = useState<string>('All');
   const [activePaper, setActivePaper] = useState<TestPaper | null>(null);
+  const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
 
   // Solving/Review Mode: 'question' | 'answer' | 'split'
   const [solveViewMode, setSolveViewMode] = useState<'question' | 'answer' | 'split'>('question');
@@ -198,8 +201,21 @@ export const TestPapers: React.FC = () => {
             }`}
           >
             {canUpload ? <Plus className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-            <span>Upload PYQ Test</span>
+            <span className="hidden sm:inline">Upload Single PYQ</span>
+            <span className="sm:hidden">Upload</span>
           </button>
+
+          {/* Bulk Auto-Segregate Button */}
+          {canUpload && (
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/25 glass-pill"
+              title="Bulk upload full folders of PYQ papers with automatic yearly and answer segregation"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Bulk Auto-Segregate</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -644,6 +660,16 @@ export const TestPapers: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Intelligent Bulk Uploader Modal */}
+      {showBulkModal && (
+        <BulkUploaderModal
+          isOpen={showBulkModal}
+          onClose={() => setShowBulkModal(false)}
+          defaultCategory="pyq"
+          onUploadSuccess={loadData}
+        />
       )}
     </div>
   );

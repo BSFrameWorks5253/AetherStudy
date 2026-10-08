@@ -65,6 +65,8 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/material', express.static(path.join(__dirname, '../Material')));
+app.use('/data', express.static(path.join(__dirname, '../data')));
 
 // File Validation & Multer Engine
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.html', '.htm', '.txt', '.md', '.png', '.jpg', '.jpeg', '.webp', '.svg']);
