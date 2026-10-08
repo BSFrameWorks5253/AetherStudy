@@ -2063,7 +2063,7 @@ export const SubjectRooms: React.FC = () => {
               {/* File Selection */}
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  PDF Document File
+                  Study Document or Note (PDF, Word, Text, Images)
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
@@ -2072,13 +2072,13 @@ export const SubjectRooms: React.FC = () => {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="application/pdf"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.rtf,.epub,.html,.htm,.png,.jpg,.jpeg,.webp,.svg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/*"
                     className="hidden"
                     onChange={(e) => {
                       if (e.target.files && e.target.files.length > 0) {
                         const file = e.target.files[0];
                         setSelectedFile(file);
-                        if (!uploadTitle) setUploadTitle(file.name.replace(/\.pdf$/i, ''));
+                        if (!uploadTitle) setUploadTitle(file.name.replace(/\.[a-zA-Z0-9]+$/i, ''));
                       }
                     }}
                   />
@@ -2089,7 +2089,7 @@ export const SubjectRooms: React.FC = () => {
                   ) : (
                     <div className="text-slate-500 dark:text-slate-400">
                       <Upload className="w-6 h-6 mx-auto mb-1 text-slate-400" />
-                      <span>Click to select PDF document</span>
+                      <span>Click to select PDF or study document</span>
                     </div>
                   )}
                 </div>

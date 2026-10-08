@@ -87,16 +87,46 @@ app.use('/material', express.static(path.join(__dirname, '../Material')));
 app.use('/data', express.static(path.join(__dirname, '../data')));
 
 // File Validation & Multer Engine
-const ALLOWED_EXTENSIONS = new Set(['.pdf', '.html', '.htm', '.txt', '.md', '.png', '.jpg', '.jpeg', '.webp', '.svg']);
+const ALLOWED_EXTENSIONS = new Set([
+  '.pdf',
+  '.html',
+  '.htm',
+  '.txt',
+  '.md',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.svg',
+  '.doc',
+  '.docx',
+  '.ppt',
+  '.pptx',
+  '.xls',
+  '.xlsx',
+  '.csv',
+  '.rtf',
+  '.epub',
+]);
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
   'text/html',
   'text/plain',
   'text/markdown',
+  'text/csv',
+  'text/rtf',
+  'application/rtf',
   'image/png',
   'image/jpeg',
   'image/webp',
   'image/svg+xml',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/epub+zip',
 ]);
 
 const storage = multer.diskStorage({

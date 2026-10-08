@@ -666,7 +666,7 @@ export const TestPapers: React.FC = () => {
                     type="file"
                     ref={qFileInputRef}
                     className="hidden"
-                    accept="application/pdf,text/html,text/plain"
+                    accept=".pdf,application/pdf,text/html,text/plain,image/*"
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
                         setQuestionFile(e.target.files[0]);
@@ -678,7 +678,7 @@ export const TestPapers: React.FC = () => {
                       ✓ {questionFile.name}
                     </div>
                   ) : (
-                    <div className="text-xs text-slate-500">Tap to select Question Paper PDF</div>
+                    <div className="text-xs text-slate-500">Tap to select Question Paper (PDF, Image, HTML)</div>
                   )}
                 </div>
               </div>
@@ -686,7 +686,7 @@ export const TestPapers: React.FC = () => {
               {/* Answer Key PDF upload */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-                  2. Official Answer Key / Solutions PDF
+                  2. Official Answer Key / Solutions Paper
                 </label>
                 <div
                   onClick={() => akFileInputRef.current?.click()}
@@ -696,7 +696,7 @@ export const TestPapers: React.FC = () => {
                     type="file"
                     ref={akFileInputRef}
                     className="hidden"
-                    accept="application/pdf,text/html,text/plain"
+                    accept=".pdf,application/pdf,text/html,text/plain,image/*"
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
                         setAnswerKeyFile(e.target.files[0]);
@@ -708,7 +708,7 @@ export const TestPapers: React.FC = () => {
                       ✓ {answerKeyFile.name}
                     </div>
                   ) : (
-                    <div className="text-xs text-slate-500">Tap to select Answer Key PDF</div>
+                    <div className="text-xs text-slate-500">Tap to select Answer Key (PDF, Image, HTML)</div>
                   )}
                 </div>
               </div>

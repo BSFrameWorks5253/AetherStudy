@@ -163,7 +163,7 @@ export const segregateFile = (fileName: string, fullPath: string = ''): Segregat
   const pyqRole = category === 'pyq' ? detectPYQRole(combined) : undefined;
 
   // Clean title construction
-  let cleanTitle = fileName.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim();
+  let cleanTitle = fileName.replace(/\.[a-zA-Z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim();
   
   // Refine title for PYQs
   if (category === 'pyq' && year) {

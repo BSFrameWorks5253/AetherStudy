@@ -77,20 +77,47 @@ export const BulkUploaderModal: React.FC<BulkUploaderModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+const SUPPORTED_STUDY_EXTENSIONS = new Set([
+  'pdf',
+  'doc',
+  'docx',
+  'ppt',
+  'pptx',
+  'xls',
+  'xlsx',
+  'csv',
+  'txt',
+  'md',
+  'rtf',
+  'epub',
+  'html',
+  'htm',
+  'png',
+  'jpg',
+  'jpeg',
+  'webp',
+  'svg',
+]);
+
   // Set webkitdirectory explicitly on DOM element for broad browser support
   useEffect(() => {
-    if (folderInputRef.current) {
+    if (isOpen && folderInputRef.current) {
       folderInputRef.current.setAttribute('webkitdirectory', '');
       folderInputRef.current.setAttribute('directory', '');
       folderInputRef.current.setAttribute('mozdirectory', '');
     }
-  }, []);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleFilesAdded = (rawFiles: FileList | File[]) => {
     const newItems: SegregatedFile[] = [];
-    const filesArr = Array.from(rawFiles).filter((f) => f.name.toLowerCase().endsWith('.pdf'));
+    const filesArr = Array.from(rawFiles).filter((f) => {
+      const name = f.name.toLowerCase();
+      if (name.startsWith('.') || name === 'thumbs.db' || name === 'desktop.ini') return false;
+      const ext = name.split('.').pop() || '';
+      return SUPPORTED_STUDY_EXTENSIONS.has(ext);
+    });
 
     const detectedNewSubjects = new Set<string>();
 
@@ -577,10 +604,10 @@ export const BulkUploaderModal: React.FC<BulkUploaderModalProps> = ({
             <h3 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
               {filesList.length > 0
                 ? 'Drop more files or folders to add to queue'
-                : 'Drag & Drop PDF Study Materials or Exam Folders Here'}
+                : 'Drag & Drop Study Documents or Complete Folders Here'}
             </h3>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 max-w-md">
-              Extracts Subject, Standard, Year, and Question vs Solution automatically from file names & folder trees.
+              Supports PDF, Word (DOC/DOCX), Notes (TXT/MD), Presentations (PPTX), and Images. Automatically segregates Subject, Standard, Year, and Papers.
             </p>
 
             <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
@@ -607,7 +634,7 @@ export const BulkUploaderModal: React.FC<BulkUploaderModalProps> = ({
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".pdf,application/pdf"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.rtf,.epub,.html,.htm,.png,.jpg,.jpeg,.webp,.svg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/*"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
@@ -617,9 +644,23 @@ export const BulkUploaderModal: React.FC<BulkUploaderModalProps> = ({
               }}
             />
             <input
-              ref={folderInputRef}
+              ref={(el) => {
+                // @ts-ignore
+                folderInputRef.current = el;
+                if (el) {
+                  el.setAttribute('webkitdirectory', '');
+                  el.setAttribute('directory', '');
+                  el.setAttribute('mozdirectory', '');
+                }
+              }}
               type="file"
               multiple
+              // @ts-ignore
+              webkitdirectory=""
+              // @ts-ignore
+              directory=""
+              // @ts-ignore
+              mozdirectory=""
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
