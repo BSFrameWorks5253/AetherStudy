@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar, ActiveTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { LiquidBackground } from './components/layout/LiquidBackground';
@@ -16,6 +16,44 @@ export const App: React.FC = () => {
   const { theme } = useTheme();
   const { isAuthenticated, isSuperAdmin, activeStandard } = useAuth();
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || isSuperAdmin;
+
+  // Sync top-level tab with current browser URL path
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const path = window.location.pathname;
+      if (path.startsWith('/tests')) {
+        setActiveTab('tests');
+      } else if (path.startsWith('/timetable')) {
+        setActiveTab('timetable');
+      } else if (path.startsWith('/syllabus')) {
+        setActiveTab('syllabus');
+      } else if (path.startsWith('/studyroom') || path === '/' || path === '') {
+        setActiveTab('workspace');
+        if (path === '/' || path === '') {
+          window.history.replaceState(null, '', '/studyroom');
+        }
+      }
+    };
+
+    handleUrlChange();
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
+
+  const handleTabChange = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    if (tab === 'workspace') {
+      if (!window.location.pathname.startsWith('/studyroom')) {
+        window.history.pushState(null, '', '/studyroom');
+      }
+    } else if (tab === 'tests') {
+      window.history.pushState(null, '', '/tests');
+    } else if (tab === 'timetable') {
+      window.history.pushState(null, '', '/timetable');
+    } else if (tab === 'syllabus') {
+      window.history.pushState(null, '', '/syllabus');
+    }
+  };
 
   // STEP 5 GUARD: If unauthenticated, render the secure AuthModal exclusively
   if (!isAuthenticated) {
@@ -48,7 +86,7 @@ export const App: React.FC = () => {
       {/* Primary Sidebar Navigation & Mobile Bottom Bar */}
       <Sidebar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
@@ -77,7 +115,7 @@ export const App: React.FC = () => {
                   Your active profile is enrolled in <strong className="text-slate-800 dark:text-slate-200">Standard {activeStandard}</strong>.
                 </p>
                 <button
-                  onClick={() => setActiveTab('workspace')}
+                  onClick={() => handleTabChange('workspace')}
                   className="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all"
                 >
                   Return to Subject Rooms

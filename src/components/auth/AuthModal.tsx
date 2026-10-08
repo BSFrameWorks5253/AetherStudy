@@ -56,8 +56,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isAddingAdmin, setIsAddingAdmin] = useState<boolean>(false);
   const [adminSuccessMsg, setAdminSuccessMsg] = useState<string | null>(null);
 
-  // Academic Standard Selection State
-  const [selectedStandard, setSelectedStandard] = useState<string>('12');
+  // Academic Standard State (Default HSC Standard 12)
+  const selectedStandard = '12';
   const SUPER_ADMIN_EMAIL = 'bs.framework5253@gmail.com';
   const isSuperAdminEmail = emailInput.trim().toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
 
@@ -210,57 +210,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
 
-            {/* Dynamic Standard Selection Box (opens after entering email, unless Super Admin) */}
-            {emailInput.trim().includes('@') && (
-              isSuperAdminEmail ? (
-                <div className="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 text-purple-800 dark:text-purple-200 text-xs flex items-center gap-2.5 animate-fade-in">
-                  <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-                  <div>
-                    <div className="font-bold text-xs text-purple-900 dark:text-purple-100">Super Administrator Account</div>
-                    <div className="text-[11px] text-purple-700 dark:text-purple-300">Universal access to all standards & administration controls granted.</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5 animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                      <GraduationCap className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-                      <span>Select Your Academic Standard</span>
-                    </label>
-                    <span className="text-[10px] bg-brand-50 dark:bg-brand-950/80 text-brand-600 dark:text-brand-300 border border-brand-200 dark:border-brand-800 font-bold px-2 py-0.5 rounded-full">
-                      Required
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                    Your curriculum, subject rooms, and materials will be strictly filtered to this standard.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 pt-0.5">
-                    {[
-                      { id: '12', label: 'Standard 12', desc: 'HSC / Senior Secondary' },
-                      { id: '10', label: 'Standard 10', desc: 'SSC / Board Exam' },
-                      { id: '11', label: 'Standard 11', desc: 'FYJC / Junior College' },
-                      { id: '9', label: 'Standard 9', desc: 'Class IX Foundation' },
-                    ].map((std) => (
-                      <button
-                        key={std.id}
-                        type="button"
-                        onClick={() => setSelectedStandard(std.id)}
-                        className={`p-2.5 rounded-xl border text-left transition-all ${
-                          selectedStandard === std.id
-                            ? 'bg-brand-600 text-white border-brand-600 shadow-md shadow-brand-500/25 ring-2 ring-brand-500/20'
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-brand-400 dark:hover:border-brand-500'
-                        }`}
-                      >
-                        <div className="text-xs font-bold leading-tight">{std.label}</div>
-                        <div className={`text-[10px] mt-0.5 ${selectedStandard === std.id ? 'text-brand-100' : 'text-slate-500 dark:text-slate-400'}`}>
-                          {std.desc}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            )}
+
 
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-[11px] space-y-1 text-slate-500 dark:text-slate-400">
               <div className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -315,14 +265,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="flex items-center justify-between font-bold">
                   <span className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                    <span>Test Passcode:</span>
+                    <span>Instant Login Passcode:</span>
                   </span>
-                  <span className="font-mono text-base font-black tracking-widest px-2.5 py-0.5 rounded-lg bg-amber-200/80 dark:bg-amber-900/80 text-amber-950 dark:text-amber-100 border border-amber-300 dark:border-amber-700">
-                    {devPasscode}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setOtpInput(devPasscode)}
+                    className="font-mono text-base font-black tracking-widest px-2.5 py-0.5 rounded-lg bg-amber-200/80 hover:bg-amber-300 dark:bg-amber-900/80 dark:hover:bg-amber-800 text-amber-950 dark:text-amber-100 border border-amber-300 dark:border-amber-700 transition-colors cursor-pointer"
+                    title="Click to auto-fill passcode"
+                  >
+                    {devPasscode} (Fill)
+                  </button>
                 </div>
                 <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
-                  {sandboxNotice || "Note: Free email sandbox is active. You can use the passcode above to sign in immediately."}
+                  {sandboxNotice || "Note: Free email sandbox is active. You can click the passcode above to sign in immediately."}
                 </p>
               </div>
             )}

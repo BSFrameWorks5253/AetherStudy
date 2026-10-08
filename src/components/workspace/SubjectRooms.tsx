@@ -25,6 +25,9 @@ import {
   Sparkles,
   Layers,
   AlertCircle,
+  Briefcase,
+  TrendingUp,
+  Laptop,
 } from 'lucide-react';
 
 interface SubjectMeta {
@@ -36,45 +39,97 @@ interface SubjectMeta {
   badgeColor: string;
 }
 
+// URL Slug Mapping Helpers
+export const getSubjectSlug = (name: string): string => {
+  if (!name) return 'general';
+  const lower = name.toLowerCase();
+  if (lower.includes('account') || lower.includes('bk')) return 'accounts';
+  if (lower.includes('ocm') || lower.includes('organization') || lower.includes('organisation')) return 'ocm';
+  if (lower.includes('eco')) return 'eco';
+  if (lower.includes('math')) return 'maths';
+  if (lower.includes('english') || lower.includes('yuvakbharati')) return 'english';
+  if (lower.includes('information') || lower.includes('it')) return 'it';
+  if (lower.includes('secretarial') || lower.includes('sp')) return 'sp';
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+};
+
+export const findSubjectBySlug = (slug: string, subjects: SubjectMeta[]): string | null => {
+  if (!slug) return null;
+  const s = slug.toLowerCase();
+  const direct = subjects.find((sub) => getSubjectSlug(sub.name) === s);
+  if (direct) return direct.name;
+  const loose = subjects.find(
+    (sub) =>
+      sub.name.toLowerCase() === s ||
+      sub.code.toLowerCase().replace(/[^a-z0-9]/g, '') === s.replace(/[^a-z0-9]/g, '')
+  );
+  return loose ? loose.name : null;
+};
+
+export const matchSubjectDoc = (roomName: string, docSubject: string): boolean => {
+  if (!roomName || !docSubject) return false;
+  const rSlug = getSubjectSlug(roomName);
+  const dSlug = getSubjectSlug(docSubject);
+  if (rSlug === dSlug) return true;
+  return roomName.trim().toLowerCase() === docSubject.trim().toLowerCase();
+};
+
 const DEFAULT_STANDARD_SUBJECTS: Record<string, SubjectMeta[]> = {
+  // Hardcoded Standard 12 Commerce Subjects
   '12': [
     {
-      name: 'English',
-      code: 'ENG-XII',
-      description: 'Yuvakbharati Prose, Poetry & Writing Skills',
-      icon: BookOpen,
-      colorGradient: 'from-blue-600 to-indigo-700',
-      badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-    },
-    {
-      name: 'Physics',
-      code: 'PHY-XII',
-      description: 'Rotational Dynamics, Wave Optics & Modern Physics',
-      icon: Atom,
-      colorGradient: 'from-purple-600 to-violet-700',
-      badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-    },
-    {
-      name: 'Chemistry',
-      code: 'CHEM-XII',
-      description: 'Physical, Inorganic & Organic Reaction Mechanisms',
-      icon: FlaskConical,
+      name: 'Book-Keeping & Accountancy (Accounts)',
+      code: 'BK-XII',
+      description: 'Partnership Final Accounts, Reconstitution, Dissolution, Company Accounts & Computerised Accounting',
+      icon: Calculator,
       colorGradient: 'from-emerald-600 to-teal-700',
       badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
     },
     {
-      name: 'Mathematics',
+      name: 'Organization of Commerce & Management (OCM)',
+      code: 'OCM-XII',
+      description: 'Principles of Management, Functions, Entrepreneurship Development & Business Services',
+      icon: Briefcase,
+      colorGradient: 'from-blue-600 to-indigo-700',
+      badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+    },
+    {
+      name: 'Economics (ECO)',
+      code: 'ECO-XII',
+      description: 'Micro & Macro Economics, Utility, Elasticity of Demand, National Income & Public Finance',
+      icon: TrendingUp,
+      colorGradient: 'from-purple-600 to-violet-700',
+      badgeColor: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    },
+    {
+      name: 'Mathematics & Statistics (Commerce)',
       code: 'MATH-XII',
-      description: 'Calculus, Vectors, Matrices & Probability Distributions',
+      description: 'Part 1 (Mathematical Logic, Matrices, Calculus) & Part 2 (Commercial Mathematics, Linear Regression)',
       icon: Calculator,
       colorGradient: 'from-amber-600 to-orange-700',
       badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800',
     },
     {
-      name: 'Biology',
-      code: 'BIO-XII',
-      description: 'Genetics, Physiology & Biotechnology Innovations',
-      icon: Dna,
+      name: 'English (Yuvakbharati)',
+      code: 'ENG-XII',
+      description: 'Yuvakbharati Prose, Poetry, Writing Skills, Drama & History of English Novel',
+      icon: BookOpen,
+      colorGradient: 'from-sky-600 to-cyan-700',
+      badgeColor: 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200 dark:border-sky-800',
+    },
+    {
+      name: 'Information Technology (IT)',
+      code: 'IT-XII',
+      description: 'Advanced Web Designing, SEO, Advanced JavaScript, Server Technologies & E-Commerce / E-Governance',
+      icon: Laptop,
+      colorGradient: 'from-cyan-600 to-blue-700',
+      badgeColor: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
+    },
+    {
+      name: 'Secretarial Practice (SP)',
+      code: 'SP-XII',
+      description: 'Corporate Finance, Sources of Capital, Issue of Shares & Debentures, Deposit Correspondence',
+      icon: FileText,
       colorGradient: 'from-rose-600 to-pink-700',
       badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800',
     },
@@ -238,6 +293,9 @@ export const SubjectRooms: React.FC = () => {
     loadContent();
   }, [activeStandard, isSuperAdmin]);
 
+  // Pending PDF slug requested by URL
+  const [pendingPdfSlug, setPendingPdfSlug] = useState<string | null>(null);
+
   // Sync uploadStandard whenever activeStandard changes
   useEffect(() => {
     if (activeStandard && activeStandard !== 'ALL') {
@@ -245,9 +303,13 @@ export const SubjectRooms: React.FC = () => {
     }
   }, [activeStandard]);
 
-  // Combined subject list for the active standard
+  // Combined subject list for the active standard (Hardcoded Std 12 Commerce)
   const availableSubjects: SubjectMeta[] = useMemo(() => {
     const stdKey = activeStandard === 'ALL' ? '12' : activeStandard;
+    if (stdKey === '12') {
+      // Strictly hardcoded Standard 12 Commerce subjects as requested
+      return DEFAULT_STANDARD_SUBJECTS['12'];
+    }
     const baseList = DEFAULT_STANDARD_SUBJECTS[stdKey] || DEFAULT_STANDARD_SUBJECTS['12'];
 
     // Map base subjects
@@ -279,13 +341,114 @@ export const SubjectRooms: React.FC = () => {
     });
   }, [documents, activeStandard, isSuperAdmin]);
 
-  // Documents inside the selected room
+  // Documents inside the selected room (flexible matching for BK, Accounts, OCM, ECO, Maths, etc.)
   const roomDocuments = useMemo(() => {
     if (!activeRoom) return [];
     return standardFilteredDocuments.filter(
-      (doc) => (doc.subject || '').trim().toLowerCase() === activeRoom.trim().toLowerCase()
+      (doc) => matchSubjectDoc(activeRoom, doc.subject || '')
     );
   }, [standardFilteredDocuments, activeRoom]);
+
+  // Deep Link URL sync logic
+  const syncWithUrl = () => {
+    const pathname = window.location.pathname;
+    if (!pathname.startsWith('/studyroom')) return;
+
+    const subPath = pathname.replace(/^\/studyroom\/?/, '');
+    const segments = subPath ? subPath.split('/').filter(Boolean) : [];
+
+    if (segments.length === 0) {
+      setActiveRoom(null);
+      setReadingDoc(null);
+      return;
+    }
+
+    const subjectSlug = decodeURIComponent(segments[0]);
+    const matchedSubject = findSubjectBySlug(subjectSlug, availableSubjects);
+    if (matchedSubject) {
+      setActiveRoom(matchedSubject);
+    }
+
+    if (segments.length >= 2) {
+      const pdfSlug = decodeURIComponent(segments.slice(1).join('/'));
+      setPendingPdfSlug(pdfSlug);
+    } else {
+      setReadingDoc(null);
+      setPendingPdfSlug(null);
+    }
+  };
+
+  useEffect(() => {
+    syncWithUrl();
+    window.addEventListener('popstate', syncWithUrl);
+    return () => window.removeEventListener('popstate', syncWithUrl);
+  }, [availableSubjects]);
+
+  // Hydrate readingDoc when documents load and pendingPdfSlug is present
+  useEffect(() => {
+    if (!pendingPdfSlug || documents.length === 0) return;
+    const target = pendingPdfSlug.trim().toLowerCase();
+    const doc = documents.find(
+      (d) =>
+        (d.originalName || '').trim().toLowerCase() === target ||
+        d.name.trim().toLowerCase() === target ||
+        d.id.trim().toLowerCase() === target ||
+        (d.originalName || '').toLowerCase().includes(target)
+    );
+    if (doc) {
+      setReadingDoc(doc);
+      if (!activeRoom) {
+        setActiveRoom(doc.subject);
+      }
+      setPendingPdfSlug(null);
+    }
+  }, [documents, pendingPdfSlug, activeRoom]);
+
+  // Navigate into a subject room
+  const handleSelectRoom = (subjectName: string) => {
+    setActiveRoom(subjectName);
+    setReadingDoc(null);
+    const slug = getSubjectSlug(subjectName);
+    const targetUrl = `/studyroom/${slug}`;
+    if (window.location.pathname !== targetUrl) {
+      window.history.pushState(null, '', targetUrl);
+    }
+  };
+
+  // Open a document inside reader
+  const handleOpenDoc = (doc: ServerDocument) => {
+    setReadingDoc(doc);
+    if (!activeRoom) {
+      setActiveRoom(doc.subject);
+    }
+    const slug = getSubjectSlug(doc.subject || activeRoom || 'room');
+    const docName = doc.originalName || doc.name;
+    const targetUrl = `/studyroom/${slug}/${encodeURIComponent(docName)}`;
+    if (window.location.pathname !== targetUrl) {
+      window.history.pushState(null, '', targetUrl);
+    }
+  };
+
+  // Close reader and return to current subject room
+  const handleCloseReader = () => {
+    setReadingDoc(null);
+    const currentSub = activeRoom || readingDoc?.subject;
+    const slug = currentSub ? getSubjectSlug(currentSub) : '';
+    const targetUrl = slug ? `/studyroom/${slug}` : '/studyroom';
+    if (window.location.pathname !== targetUrl) {
+      window.history.pushState(null, '', targetUrl);
+    }
+  };
+
+  // Exit subject room and return to Study Desk overview
+  const handleBackToOverview = () => {
+    setActiveRoom(null);
+    setReadingDoc(null);
+    const targetUrl = '/studyroom';
+    if (window.location.pathname !== targetUrl) {
+      window.history.pushState(null, '', targetUrl);
+    }
+  };
 
   // Segregate room documents into Textbooks and Notes
   const textbookDocs = useMemo(() => {
@@ -325,7 +488,7 @@ export const SubjectRooms: React.FC = () => {
     try {
       await api.deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
-      if (readingDoc?.id === id) setReadingDoc(null);
+      if (readingDoc?.id === id) handleCloseReader();
     } catch (err: any) {
       alert(err.message || 'Failed to remove document.');
     }
@@ -408,7 +571,7 @@ export const SubjectRooms: React.FC = () => {
           <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs z-20">
             <div className="flex items-center space-x-3 truncate mr-2">
               <button
-                onClick={() => setReadingDoc(null)}
+                onClick={handleCloseReader}
                 className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700 text-xs font-bold transition-all text-slate-700 dark:text-slate-300"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -518,7 +681,7 @@ export const SubjectRooms: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setActiveRoom(null)}
+                onClick={handleBackToOverview}
                 className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0"
                 title="Back to all subjects"
               >
@@ -643,7 +806,7 @@ export const SubjectRooms: React.FC = () => {
                   {textbookDocs.map((doc) => (
                     <div
                       key={doc.id}
-                      onClick={() => setReadingDoc(doc)}
+                      onClick={() => handleOpenDoc(doc)}
                       className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
                     >
                       <div>
@@ -741,7 +904,7 @@ export const SubjectRooms: React.FC = () => {
                   {notesDocs.map((doc) => (
                     <div
                       key={doc.id}
-                      onClick={() => setReadingDoc(doc)}
+                      onClick={() => handleOpenDoc(doc)}
                       className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
                     >
                       <div>
@@ -851,7 +1014,7 @@ export const SubjectRooms: React.FC = () => {
             {availableSubjects.map((sub) => {
               const Icon = sub.icon;
               const subDocs = standardFilteredDocuments.filter(
-                (d) => (d.subject || '').trim().toLowerCase() === sub.name.trim().toLowerCase()
+                (d) => matchSubjectDoc(sub.name, d.subject || '')
               );
               const tBooks = subDocs.filter((d) => d.category === 'textbook').length;
               const nDocs = subDocs.filter((d) => d.category !== 'textbook').length;
@@ -859,7 +1022,7 @@ export const SubjectRooms: React.FC = () => {
               return (
                 <div
                   key={sub.name}
-                  onClick={() => setActiveRoom(sub.name)}
+                  onClick={() => handleSelectRoom(sub.name)}
                   className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/60 dark:hover:border-brand-500/60 hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between relative overflow-hidden"
                 >
                   <div className="space-y-4">
