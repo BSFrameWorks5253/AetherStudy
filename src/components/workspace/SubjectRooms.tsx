@@ -278,13 +278,32 @@ export const toRomanStandard = (std?: string | number): string => {
   return clean;
 };
 
-// Match uploaded study documents to specific chapters
-export const getDocsForChapter = (ch: ChapterItem, docs: ServerDocument[]): ServerDocument[] => {
+// Match uploaded study documents to specific chapters with strict standard segregation
+export const getDocsForChapter = (
+  ch: ChapterItem,
+  docs: ServerDocument[],
+  targetStandard?: string
+): ServerDocument[] => {
   if (!docs || docs.length === 0) return [];
   const numDigits = ch.number.match(/\d+/)?.[0];
 
   return docs.filter((d) => {
+    // 0. Strict standard check: never attach a Standard 11 doc to Standard 12, or vice versa
+    if (targetStandard && targetStandard !== 'ALL') {
+      if (d.standard && d.standard !== 'ALL' && d.standard !== targetStandard) {
+        return false;
+      }
+    }
+
     const dName = (d.originalName || d.name || '').toLowerCase();
+
+    // Prevent FYJC notes from ever attaching to HSC or vice versa
+    if (targetStandard === '12' && (dName.includes('fyjc') || dName.includes('std 11') || dName.includes('class 11'))) {
+      return false;
+    }
+    if (targetStandard === '11' && (dName.includes('hsc') || dName.includes('std 12') || dName.includes('class 12'))) {
+      return false;
+    }
 
     // Check part discrimination for subjects with multiple parts (like Maths Part 1 & 2)
     if (ch.part) {
@@ -688,27 +707,38 @@ export const SubjectRooms: React.FC = () => {
     return [...baseList, ...customList];
   }, [activeStandard, serverSubjects, documents]);
 
-  // Filter documents by active standard (Available for ALL user IDs, not just super admin)
+  // Local standard toggle when user selects "ALL" in the header
+  const [roomStandardView, setRoomStandardView] = useState<'12' | '11'>('12');
+
+  // Synchronize roomStandardView when header activeStandard changes
+  useEffect(() => {
+    if (activeStandard === '11') {
+      setRoomStandardView('11');
+    } else if (activeStandard === '12') {
+      setRoomStandardView('12');
+    }
+  }, [activeStandard]);
+
+  const effectiveStandard = activeStandard === 'ALL' ? roomStandardView : (activeStandard || '12');
+
+  // Filter documents strictly by effective standard (never mix Std 11 and Std 12!)
   const standardFilteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
-      if (!activeStandard || activeStandard === 'ALL') return true;
-      if (!doc.standard || doc.standard === 'ALL') return true;
-      return doc.standard === activeStandard;
+      if (!effectiveStandard) return true;
+      if (doc.standard && doc.standard !== 'ALL' && doc.standard !== effectiveStandard) {
+        return false;
+      }
+      return true;
     });
-  }, [documents, activeStandard]);
+  }, [documents, effectiveStandard]);
 
-  // Documents inside the selected room (flexible matching for BK, Accounts, OCM, ECO, Maths, etc.)
+  // Documents inside the selected room (strictly matching subject AND standard)
   const roomDocuments = useMemo(() => {
     if (!activeRoom) return [];
-    const directMatches = standardFilteredDocuments.filter(
+    return standardFilteredDocuments.filter(
       (doc) => matchSubjectDoc(activeRoom, doc.subject || '')
     );
-    // If documents exist for active standard, display them
-    if (directMatches.length > 0) return directMatches;
-    // Resilient Fallback: If 0 documents exist for active standard (e.g. FYJC / Class 11 notes for Accounts/IT),
-    // display all available documents for this subject room so students and other IDs always see their study files!
-    return documents.filter((doc) => matchSubjectDoc(activeRoom, doc.subject || ''));
-  }, [standardFilteredDocuments, documents, activeRoom]);
+  }, [standardFilteredDocuments, activeRoom]);
 
   // Deep Link URL sync logic
   const syncWithUrl = () => {
@@ -881,19 +911,13 @@ export const SubjectRooms: React.FC = () => {
 
   const activeRoomChapters: ChapterItem[] = useMemo(() => {
     if (!activeSubjectSlug) return [];
-    const stdKey = activeStandard === 'ALL' ? '12' : activeStandard;
-    const stdDict = ALL_SYLLABUS_CHAPTERS[stdKey] || ALL_SYLLABUS_CHAPTERS['12'];
+    const stdDict = ALL_SYLLABUS_CHAPTERS[effectiveStandard] || ALL_SYLLABUS_CHAPTERS['12'];
     const standardChapters = stdDict?.[activeSubjectSlug];
     if (standardChapters && standardChapters.length > 0) {
       return standardChapters;
     }
-    // Fallback across other standards (e.g. if room is in Class 11, check 11 then 12)
-    for (const key of ['11', '12']) {
-      const match = ALL_SYLLABUS_CHAPTERS[key]?.[activeSubjectSlug];
-      if (match && match.length > 0) return match;
-    }
 
-    // Dynamic chapter synthesis: Extract chapters from uploaded document names
+    // Dynamic chapter synthesis only if official chapters are not configured
     const synthesizedMap = new Map<string, ChapterItem>();
     roomDocuments.forEach((doc) => {
       const dName = doc.originalName || doc.name;
@@ -919,7 +943,7 @@ export const SubjectRooms: React.FC = () => {
     }
 
     return [];
-  }, [activeSubjectSlug, activeStandard, roomDocuments]);
+  }, [activeSubjectSlug, effectiveStandard, roomDocuments]);
 
   // Selected Chapter filter for Notes and Textbooks tabs
   const [selectedChapterFilter, setSelectedChapterFilter] = useState<string>('All');
@@ -929,15 +953,15 @@ export const SubjectRooms: React.FC = () => {
     if (selectedChapterFilter === 'All') return notesDocs;
     const targetChapter = activeRoomChapters.find((ch) => ch.number === selectedChapterFilter);
     if (!targetChapter) return notesDocs;
-    return notesDocs.filter((d) => getDocsForChapter(targetChapter, [d]).length > 0);
-  }, [notesDocs, selectedChapterFilter, activeRoomChapters]);
+    return notesDocs.filter((d) => getDocsForChapter(targetChapter, [d], effectiveStandard).length > 0);
+  }, [notesDocs, selectedChapterFilter, activeRoomChapters, effectiveStandard]);
 
   const filteredTextbookDocs = useMemo(() => {
     if (selectedChapterFilter === 'All') return textbookDocs;
     const targetChapter = activeRoomChapters.find((ch) => ch.number === selectedChapterFilter);
     if (!targetChapter) return textbookDocs;
-    return textbookDocs.filter((d) => getDocsForChapter(targetChapter, [d]).length > 0);
-  }, [textbookDocs, selectedChapterFilter, activeRoomChapters]);
+    return textbookDocs.filter((d) => getDocsForChapter(targetChapter, [d], effectiveStandard).length > 0);
+  }, [textbookDocs, selectedChapterFilter, activeRoomChapters, effectiveStandard]);
 
   const chaptersMasteredCount = useMemo(() => {
     return activeRoomChapters.filter(
@@ -1327,9 +1351,36 @@ export const SubjectRooms: React.FC = () => {
                   <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-normal">
                     {activeRoom}
                   </h2>
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/80 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">
-                    Standard {activeStandard}
-                  </span>
+                  {activeStandard === 'ALL' ? (
+                    <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 ml-1">
+                      <button
+                        type="button"
+                        onClick={() => setRoomStandardView('12')}
+                        className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                          roomStandardView === '12'
+                            ? 'bg-brand-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Class 12 (HSC)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRoomStandardView('11')}
+                        className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                          roomStandardView === '11'
+                            ? 'bg-purple-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Class 11 (FYJC)
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/80 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">
+                      Class {toRomanStandard(effectiveStandard)} • {effectiveStandard === '12' ? 'HSC' : 'FYJC'}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   {currentRoomMeta?.description || 'Dedicated Subject Room • Textbooks & Study Materials'}
@@ -1546,7 +1597,7 @@ export const SubjectRooms: React.FC = () => {
                     {activeRoomChapters.map((ch) => {
                       const chapterKey = `${activeSubjectSlug}-${ch.number}`;
                       const isCompleted = !!completedChapters[chapterKey];
-                      const chapterDocs = getDocsForChapter(ch, roomDocuments);
+                      const chapterDocs = getDocsForChapter(ch, roomDocuments, effectiveStandard);
 
                       return (
                         <div
@@ -1760,7 +1811,7 @@ export const SubjectRooms: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredTextbookDocs.map((doc) => {
-                      const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc]).length > 0);
+                      const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc], effectiveStandard).length > 0);
 
                       return (
                         <div
@@ -1872,7 +1923,7 @@ export const SubjectRooms: React.FC = () => {
                         >
                           <option value="All">All Chapters ({notesDocs.length} Notes)</option>
                           {activeRoomChapters.map((ch) => {
-                            const count = getDocsForChapter(ch, notesDocs).length;
+                            const count = getDocsForChapter(ch, notesDocs, effectiveStandard).length;
                             return (
                               <option key={ch.number} value={ch.number}>
                                 {ch.number}: {ch.title} ({count} {count === 1 ? 'PDF' : 'PDFs'})
@@ -1894,7 +1945,7 @@ export const SubjectRooms: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredNotesDocs.map((doc) => {
-                      const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc]).length > 0);
+                      const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc], effectiveStandard).length > 0);
 
                       return (
                         <div

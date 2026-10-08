@@ -28,10 +28,10 @@ function detectSubject(text) {
 
 function detectStandard(text) {
   const normalized = text.toLowerCase();
-  if (/\b(hsc|std[_\s-]?12|class[_\s-]?12|12th|finals)\b/i.test(normalized)) return '12';
-  if (/\b(fyjc|std[_\s-]?11|class[_\s-]?11|11th)\b/i.test(normalized)) return '11';
+  if (normalized.includes('hsc') || /\b(std[_\s-]?12|class[_\s-]?12|12th)\b/i.test(normalized)) return '12';
+  if (normalized.includes('fyjc') || normalized.includes('economics tetxual') || normalized.includes('math 1 - (commerce)') || /\b(std[_\s-]?11|class[_\s-]?11|11th)\b/i.test(normalized)) return '11';
   if (/\b(ssc|std[_\s-]?10|class[_\s-]?10|10th)\b/i.test(normalized)) return '10';
-  return '12';
+  return '11';
 }
 
 function detectYear(text) {
