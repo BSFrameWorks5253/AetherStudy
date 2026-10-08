@@ -2,8 +2,8 @@
   "name": "AetherStudy — Unified Study Workstation",
   "short_name": "AetherStudy",
   "description": "High-Performance Liquid Glass Academic Workstation, Class 12 HSC Prep & Peer Lounge",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#090d16",
@@ -11,7 +11,7 @@
   "categories": ["education", "productivity", "study"],
   "icons": [
     {
-      "src": "./favicon.svg",
+      "src": "/favicon.svg",
       "sizes": "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"

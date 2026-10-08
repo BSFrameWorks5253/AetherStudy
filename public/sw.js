@@ -7,10 +7,10 @@ const CACHE_NAME = 'aetherstudy-cache-v1';
 
 // Core assets to pre-cache immediately during Service Worker installation
 const PRECACHE_ASSETS = [
-  './',
-  './index.html',
-  './favicon.svg',
-  './manifest.json'
+  '/',
+  '/index.html',
+  '/favicon.svg',
+  '/manifest.json'
 ];
 
 // Install Event: Pre-cache app shell
@@ -59,7 +59,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(async () => {
           const cache = await caches.open(CACHE_NAME);
-          const cachedIndex = await cache.match('./index.html') || await cache.match('/');
+          const cachedIndex = await cache.match('/index.html') || await cache.match('/');
           return cachedIndex || new Response('Offline - App Shell Cached', {
             headers: { 'Content-Type': 'text/html' }
           });

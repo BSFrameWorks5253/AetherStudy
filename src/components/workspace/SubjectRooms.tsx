@@ -516,9 +516,34 @@ export const SubjectRooms: React.FC = () => {
     }
 
     const subjectSlug = decodeURIComponent(segments[0]);
-    const matchedSubject = findSubjectBySlug(subjectSlug, availableSubjects);
+    let matchedSubject = findSubjectBySlug(subjectSlug, availableSubjects);
+    
+    // Fallback: If not found in active standard, search across all standards (12, 11, 10, 9)
+    if (!matchedSubject) {
+      const allBase = Object.values(DEFAULT_STANDARD_SUBJECTS).flat();
+      matchedSubject = findSubjectBySlug(subjectSlug, allBase);
+    }
+
+    // Fallback: Check if any uploaded document matches this slug
+    if (!matchedSubject && documents.length > 0) {
+      const docWithSub = documents.find((d) => getSubjectSlug(d.subject || '') === subjectSlug.toLowerCase());
+      if (docWithSub && docWithSub.subject) {
+        matchedSubject = docWithSub.subject;
+      }
+    }
+
     if (matchedSubject) {
       setActiveRoom(matchedSubject);
+      // Auto-switch to notes or textbooks if this room doesn't have official syllabus chapters
+      const sSlug = getSubjectSlug(matchedSubject);
+      const chaps = COMMERCE_STD12_CHAPTERS[sSlug] || [];
+      if (chaps.length === 0 && activeCategoryTab === 'syllabus') {
+        setActiveCategoryTab('notes');
+      }
+    } else {
+      // As a graceful default, capitalize slug so UI displays the requested room
+      const formattedName = subjectSlug.charAt(0).toUpperCase() + subjectSlug.slice(1);
+      setActiveRoom(formattedName);
     }
 
     if (segments.length >= 2) {
@@ -534,7 +559,7 @@ export const SubjectRooms: React.FC = () => {
     syncWithUrl();
     window.addEventListener('popstate', syncWithUrl);
     return () => window.removeEventListener('popstate', syncWithUrl);
-  }, [availableSubjects]);
+  }, [availableSubjects, documents]);
 
   // Hydrate readingDoc when documents load and pendingPdfSlug is present
   useEffect(() => {
@@ -545,7 +570,9 @@ export const SubjectRooms: React.FC = () => {
         (d.originalName || '').trim().toLowerCase() === target ||
         d.name.trim().toLowerCase() === target ||
         d.id.trim().toLowerCase() === target ||
-        (d.originalName || '').toLowerCase().includes(target)
+        encodeURIComponent(d.originalName || d.name).toLowerCase() === target ||
+        (d.originalName || '').toLowerCase().includes(target) ||
+        target.includes((d.originalName || '').toLowerCase())
     );
     if (doc) {
       setReadingDoc(doc);

@@ -10,7 +10,7 @@ export function registerServiceWorker(): void {
 
   window.addEventListener('load', () => {
     // Determine sw path relative to base
-    const swUrl = './sw.js';
+    const swUrl = '/sw.js';
 
     navigator.serviceWorker
       .register(swUrl)

@@ -8,6 +8,7 @@ import { TestPapers } from './components/tests/TestPapers';
 import { TimetableGrid } from './components/timetable/TimetableGrid';
 import { TrackerTree } from './components/syllabus/TrackerTree';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
+import { PWAInstallBanner } from './components/common/PWAInstallBanner';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 
@@ -136,6 +137,7 @@ export const App: React.FC = () => {
         </main>
       </div>
       <OfflineIndicator />
+      <PWAInstallBanner />
     </div>
   );
 };

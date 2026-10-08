@@ -3,9 +3,11 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vitejs.dev/config/
+const isElectron = process.env.VITE_TARGET === 'electron' || process.env.ELECTRON === 'true';
+
 export default defineConfig({
   plugins: [react()],
-  base: './', // Ensures relative asset paths work inside Electron file:// protocol
+  base: isElectron ? './' : '/', // Root '/' for Web/PWA/Vercel (fixes nested route refresh 404), './' for Electron file://
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

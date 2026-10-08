@@ -20,7 +20,9 @@ import {
   Bell,
   LogOut,
   LogIn,
+  Download,
 } from 'lucide-react';
+import { triggerPWAInstall } from '../common/PWAInstallBanner';
 
 interface HeaderProps {
   title: string;
@@ -48,6 +50,24 @@ export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false 
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
+  const [canInstall, setCanInstall] = useState<boolean>(false);
+
+  useEffect(() => {
+    const isStandaloneMode =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as any).standalone === true ||
+      document.referrer.includes('android-app://');
+    setCanInstall(!isStandaloneMode);
+  }, []);
+
+  const handleHeaderInstall = async () => {
+    const res = await triggerPWAInstall();
+    if (res === 'ios') {
+      alert('To install on iPhone/iPad:\n1. Tap the Share button [⎋] in Safari\n2. Select "Add to Home Screen" [+]\n3. Tap "Add" in top-right corner.');
+    } else if (res === 'fallback') {
+      alert('To install on this device:\nOpen browser menu (⋮) -> tap "Install app" or "Add to Home screen".');
+    }
+  };
 
   useEffect(() => {
     const checkNotifs = async () => {
@@ -241,6 +261,18 @@ export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false 
               </div>
             )}
           </div>
+
+          {/* Install App Button (When installable) */}
+          {canInstall && (
+            <button
+              onClick={handleHeaderInstall}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-brand-600/10 to-purple-600/10 hover:from-brand-600/20 hover:to-purple-600/20 text-brand-700 dark:text-brand-300 border border-brand-300 dark:border-brand-800 text-xs font-bold transition-all shadow-xs"
+              title="Install AetherStudy Web App"
+            >
+              <Download className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 animate-bounce" />
+              <span className="hidden sm:inline">Install App</span>
+            </button>
+          )}
 
           {/* Official Announcements & Notifications Bell */}
           <button
