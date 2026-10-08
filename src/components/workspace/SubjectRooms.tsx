@@ -28,6 +28,7 @@ import {
   Laptop,
   CheckCircle2,
   ListChecks,
+  FolderUp,
 } from 'lucide-react';
 
 interface SubjectMeta {
@@ -971,16 +972,28 @@ export const SubjectRooms: React.FC = () => {
             {/* Quick Room Actions */}
             <div className="flex items-center space-x-2 shrink-0 self-start md:self-center">
               {canUpload && (
-                <button
-                  onClick={() => {
-                    setUploadSubject(activeRoom);
-                    setShowUploadModal(true);
-                  }}
-                  className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Upload PDF</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      setUploadSubject(activeRoom);
+                      setShowUploadModal(true);
+                    }}
+                    className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Upload PDF</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBulkModal(true);
+                    }}
+                    className="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-500/25 flex items-center space-x-1.5 transition-all"
+                    title="Upload complete folder of study notes or test papers"
+                  >
+                    <FolderUp className="w-4 h-4" />
+                    <span>Upload Folder</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1610,6 +1623,19 @@ export const SubjectRooms: React.FC = () => {
                       <span>Click to select PDF document</span>
                     </div>
                   )}
+                </div>
+                <div className="mt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setShowBulkModal(true);
+                    }}
+                    className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:underline inline-flex items-center gap-1.5 cursor-pointer py-1"
+                  >
+                    <FolderUp className="w-3.5 h-3.5" />
+                    <span>Want to upload a complete folder instead? Click here</span>
+                  </button>
                 </div>
               </div>
 

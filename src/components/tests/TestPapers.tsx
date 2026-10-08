@@ -13,7 +13,7 @@ import {
   ExternalLink,
   Lock,
   Download,
-  Sparkles,
+  FolderUp,
 } from 'lucide-react';
 
 export const TestPapers: React.FC = () => {
@@ -205,15 +205,15 @@ export const TestPapers: React.FC = () => {
             <span className="sm:hidden">Upload</span>
           </button>
 
-          {/* Bulk Auto-Segregate Button */}
+          {/* Bulk Folder Upload / Ingest Button */}
           {canUpload && (
             <button
               onClick={() => setShowBulkModal(true)}
               className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md bg-purple-600 hover:bg-purple-500 text-white shadow-purple-500/25 glass-pill"
-              title="Bulk upload full folders of PYQ papers with automatic yearly and answer segregation"
+              title="Bulk upload complete folders of PYQ papers with automatic yearly and answer segregation"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Bulk Auto-Segregate</span>
+              <FolderUp className="w-3.5 h-3.5" />
+              <span>Upload PYQ Folder</span>
             </button>
           )}
         </div>

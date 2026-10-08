@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   segregateFile,
   pairPYQFiles,
@@ -61,6 +61,15 @@ export const BulkUploaderModal: React.FC<BulkUploaderModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+  // Set webkitdirectory explicitly on DOM element for broad browser support
+  useEffect(() => {
+    if (folderInputRef.current) {
+      folderInputRef.current.setAttribute('webkitdirectory', '');
+      folderInputRef.current.setAttribute('directory', '');
+      folderInputRef.current.setAttribute('mozdirectory', '');
+    }
+  }, []);
+
   if (!isOpen) return null;
 
   const handleFilesAdded = (rawFiles: FileList | File[]) => {
@@ -80,8 +89,71 @@ export const BulkUploaderModal: React.FC<BulkUploaderModalProps> = ({
     setUploadSuccessSummary(null);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  // Recursively read all files from dropped folders or directory entries
+  const scanDirectoryEntry = async (item: any, currentPath: string = ''): Promise<File[]> => {
+    if (item.isFile) {
+      return new Promise((resolve) => {
+        item.file(
+          (file: File) => {
+            // Attach simulated webkitRelativePath for folder structure preservation
+            Object.defineProperty(file, 'webkitRelativePath', {
+              value: currentPath ? `${currentPath}/${file.name}` : file.name,
+              writable: true,
+              configurable: true,
+            });
+            resolve([file]);
+          },
+          () => resolve([])
+        );
+      });
+    } else if (item.isDirectory) {
+      const dirReader = item.createReader();
+      const readAllEntries = async (): Promise<any[]> => {
+        return new Promise((resolve) => {
+          dirReader.readEntries(
+            (entries: any[]) => resolve(entries),
+            () => resolve([])
+          );
+        });
+      };
+      let allEntries: any[] = [];
+      let batch = await readAllEntries();
+      while (batch && batch.length > 0) {
+        allEntries = allEntries.concat(batch);
+        batch = await readAllEntries();
+      }
+      const dirPath = currentPath ? `${currentPath}/${item.name}` : item.name;
+      const fileLists = await Promise.all(
+        allEntries.map((entry) => scanDirectoryEntry(entry, dirPath))
+      );
+      return fileLists.flat();
+    }
+    return [];
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+
+    // 1. Try modern DataTransferItemList with recursive folder resolution
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      const items = Array.from(e.dataTransfer.items);
+      const filePromises = items.map((item) => {
+        const entry = (item as any).webkitGetAsEntry?.();
+        if (entry) {
+          return scanDirectoryEntry(entry);
+        }
+        const file = item.getAsFile();
+        return Promise.resolve(file ? [file] : []);
+      });
+      const resolvedFiles = (await Promise.all(filePromises)).flat();
+      if (resolvedFiles.length > 0) {
+        handleFilesAdded(resolvedFiles);
+        return;
+      }
+    }
+
+    // 2. Fallback to standard files list
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFilesAdded(e.dataTransfer.files);
     }
@@ -153,14 +225,32 @@ export const BulkUploaderModal: React.FC<BulkUploaderModalProps> = ({
             notesUploaded++;
           } catch (err) {
             console.warn('Fallback server document upload:', err);
-            await api.uploadDocument(
-              item.originalFile,
-              item.subject,
-              currentUser?.email || '',
-              item.standard,
-              'notes'
-            );
-            notesUploaded++;
+            try {
+              await api.uploadDocument(
+                item.originalFile,
+                item.subject,
+                currentUser?.email || 'admin',
+                item.standard,
+                'notes'
+              );
+              notesUploaded++;
+            } catch (fallbackErr) {
+              console.warn('Direct local attachment fallback for:', item.fileName, fallbackErr);
+              const streamUrl = URL.createObjectURL(item.originalFile);
+              await api.attachDriveDoc(item.subject, {
+                id: `local-doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                name: item.cleanTitle || item.fileName,
+                originalName: item.fileName,
+                streamUrl,
+                serverUrl: streamUrl,
+                subject: item.subject,
+                standard: item.standard,
+                category: 'notes',
+                size: (item.originalFile.size / (1024 * 1024)).toFixed(2) + ' MB',
+                uploadedBy: currentUser?.email || 'admin',
+              });
+              notesUploaded++;
+            }
           }
         }
         setUploadProgress(Math.round(((i + 1) / total) * 100));
@@ -343,19 +433,26 @@ export const BulkUploaderModal: React.FC<BulkUploaderModalProps> = ({
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".pdf"
+              accept=".pdf,application/pdf"
               className="hidden"
-              onChange={(e) => e.target.files && handleFilesAdded(e.target.files)}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleFilesAdded(e.target.files);
+                }
+                e.target.value = '';
+              }}
             />
             <input
               ref={folderInputRef}
               type="file"
-              // @ts-ignore
-              webkitdirectory=""
-              directory=""
               multiple
               className="hidden"
-              onChange={(e) => e.target.files && handleFilesAdded(e.target.files)}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleFilesAdded(e.target.files);
+                }
+                e.target.value = '';
+              }}
             />
           </div>
 
