@@ -44,12 +44,13 @@ export const PWAInstallBanner: React.FC = () => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
   useEffect(() => {
-    // 1. Check if already installed in standalone mode
+    // 1. Check if already installed in standalone mode or previously marked as installed
     const checkStandalone = () => {
       const isStandaloneMode =
         window.matchMedia('(display-mode: standalone)').matches ||
         (navigator as any).standalone === true ||
-        document.referrer.includes('android-app://');
+        document.referrer.includes('android-app://') ||
+        localStorage.getItem('aether_pwa_installed') === 'true';
       setIsStandalone(isStandaloneMode);
     };
 
@@ -67,14 +68,21 @@ export const PWAInstallBanner: React.FC = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
-    // 3. Check if user already dismissed in this session
-    const dismissedThisSession = sessionStorage.getItem('aether_pwa_dismissed') === 'true';
-    if (dismissedThisSession) {
+    // 3. Check if user already dismissed or installed
+    const dismissed =
+      localStorage.getItem('aether_pwa_dismissed') === 'true' ||
+      sessionStorage.getItem('aether_pwa_dismissed') === 'true' ||
+      localStorage.getItem('aether_pwa_installed') === 'true';
+    if (dismissed) {
       setIsDismissed(true);
     }
 
     // 4. Capture beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
+      // Don't show if user already installed or permanently dismissed
+      if (localStorage.getItem('aether_pwa_installed') === 'true' || localStorage.getItem('aether_pwa_dismissed') === 'true') {
+        return;
+      }
       e.preventDefault();
       const installEvent = e as BeforeInstallPromptEvent;
       globalDeferredPrompt = installEvent;
@@ -87,11 +95,14 @@ export const PWAInstallBanner: React.FC = () => {
       globalDeferredPrompt = null;
       setDeferredPrompt(null);
       promptListeners.forEach((cb) => cb(null));
+      localStorage.setItem('aether_pwa_installed', 'true');
+      localStorage.setItem('aether_pwa_dismissed', 'true');
       setInstalledSuccess(true);
       setTimeout(() => {
         setInstalledSuccess(false);
         setIsStandalone(true);
-      }, 4000);
+        setIsDismissed(true);
+      }, 3000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -110,9 +121,17 @@ export const PWAInstallBanner: React.FC = () => {
         await deferredPrompt.prompt();
         const choiceResult = await deferredPrompt.userChoice;
         if (choiceResult.outcome === 'accepted') {
+          localStorage.setItem('aether_pwa_installed', 'true');
+          localStorage.setItem('aether_pwa_dismissed', 'true');
           setInstalledSuccess(true);
           setDeferredPrompt(null);
           globalDeferredPrompt = null;
+          setTimeout(() => {
+            setIsStandalone(true);
+            setIsDismissed(true);
+          }, 3000);
+        } else {
+          localStorage.setItem('aether_pwa_dismissed', 'true');
         }
       } catch (err) {
         console.warn('Install prompt error:', err);
@@ -133,11 +152,12 @@ export const PWAInstallBanner: React.FC = () => {
 
   const handleDismiss = () => {
     setIsDismissed(true);
+    localStorage.setItem('aether_pwa_dismissed', 'true');
     sessionStorage.setItem('aether_pwa_dismissed', 'true');
   };
 
-  // If already running inside installed standalone PWA, hide install banner
-  if (isStandalone) {
+  // If already running inside installed standalone PWA or marked installed/dismissed, hide install banner
+  if (isStandalone || isDismissed) {
     return null;
   }
 
@@ -304,7 +324,11 @@ export const PWAInstallBanner: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setShowIOSModal(false)}
+              onClick={() => {
+                setShowIOSModal(false);
+                setIsDismissed(true);
+                localStorage.setItem('aether_pwa_dismissed', 'true');
+              }}
               className="mt-5 w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition-colors"
             >
               Got it!
@@ -330,7 +354,11 @@ export const PWAInstallBanner: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => setShowInstructionsModal(false)}
+                onClick={() => {
+                  setShowInstructionsModal(false);
+                  setIsDismissed(true);
+                  localStorage.setItem('aether_pwa_dismissed', 'true');
+                }}
                 className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white"
               >
                 <X className="w-4 h-4" />

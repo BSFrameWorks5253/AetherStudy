@@ -524,10 +524,17 @@ export const SubjectRooms: React.FC = () => {
   // Reader Controls
   const [zoom, setZoom] = useState<number>(100);
   const [rotation, setRotation] = useState<number>(0);
-  const [useMobileViewer, setUseMobileViewer] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return /android|iphone|ipad|ipod/i.test(navigator.userAgent) || window.innerWidth <= 768;
-  });
+  const [useMobileViewer, setUseMobileViewer] = useState<boolean>(false);
+
+  // Auto-dismiss PDF loader overlay after 2.5s to prevent freezing on mobile
+  useEffect(() => {
+    if (readingDoc && isPdfLoading) {
+      const timer = setTimeout(() => {
+        setIsPdfLoading(false);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [readingDoc, isPdfLoading]);
 
   const getViewerUrl = (rawUrl?: string): string => {
     if (!rawUrl) return '';
@@ -548,8 +555,7 @@ export const SubjectRooms: React.FC = () => {
       ? rawUrl
       : `${window.location.origin}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
 
-    // On mobile or when mobile engine is enabled, wrap with Google Docs Viewer
-    // which reliably renders PDFs into HTML on Android Chrome & iOS Safari
+    // If Google Docs viewer engine is manually selected by the user
     if (useMobileViewer) {
       return `https://docs.google.com/viewer?url=${encodeURIComponent(absoluteUrl)}&embedded=true`;
     }
@@ -1214,34 +1220,39 @@ export const SubjectRooms: React.FC = () => {
           </div>
 
           {/* Mobile PDF Guidance Quick Bar */}
-          <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-purple-50/80 dark:bg-purple-950/40 border-b border-purple-200 dark:border-purple-900/50 text-xs">
-            <div className="flex items-center space-x-2 text-purple-900 dark:text-purple-200 truncate mr-2">
-              <Smartphone className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-              <span className="text-[11px] truncate">
-                Mobile PDF Engine: <strong>{useMobileViewer ? 'Google Docs Web Engine' : 'Direct File Embed'}</strong> • Tap <strong>Open in App</strong> for full-screen pinch-to-zoom!
+          <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-gradient-to-r from-brand-50 to-purple-50 dark:from-slate-900 dark:to-purple-950/40 border-b border-brand-200 dark:border-purple-900/50 text-xs">
+            <div className="flex items-center space-x-2 text-slate-800 dark:text-purple-200 truncate mr-2">
+              <Smartphone className="w-4 h-4 text-brand-600 dark:text-purple-400 shrink-0" />
+              <span className="text-[11px] truncate font-medium">
+                {useMobileViewer ? 'Google Docs Engine' : 'Direct Stream'} • Mobile students: tap <strong>Open Full PDF</strong> for pinch-to-zoom!
               </span>
             </div>
             <div className="flex items-center space-x-2 shrink-0">
               <button
-                onClick={() => setUseMobileViewer(!useMobileViewer)}
-                className="px-2 py-1 rounded-lg bg-white dark:bg-purple-900/60 hover:bg-purple-100 dark:hover:bg-purple-800/80 text-purple-700 dark:text-purple-200 font-bold text-[10px] border border-purple-200 dark:border-purple-800 transition-colors"
+                onClick={() => {
+                  setUseMobileViewer(!useMobileViewer);
+                  setIsPdfLoading(true);
+                }}
+                className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[10px] border border-slate-200 dark:border-slate-700 transition-colors shadow-xs"
+                title="Toggle between Direct Browser Embed and Google Docs Viewer"
               >
-                Switch Engine
+                {useMobileViewer ? 'Direct Mode' : 'Web Engine'}
               </button>
               <a
                 href={getDirectPdfUrl(readingDoc.streamUrl || readingDoc.serverUrl)}
                 target="_blank"
                 rel="noreferrer"
-                className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] flex items-center space-x-1 shadow-xs transition-colors"
+                className="px-3 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-[10px] flex items-center space-x-1 shadow-sm transition-colors"
+                title="Open PDF directly in phone's native PDF reader (Google Drive / Acrobat / Books)"
               >
                 <ExternalLink className="w-3 h-3" />
-                <span>Open in App</span>
+                <span>Open Full PDF ↗</span>
               </a>
             </div>
           </div>
 
           {/* PDF Viewer Frame */}
-          <div className="flex-1 relative overflow-auto bg-slate-200/50 dark:bg-slate-900/50 p-2 sm:p-4 flex items-center justify-center">
+          <div className="flex-1 relative overflow-auto bg-slate-200/50 dark:bg-slate-900/50 p-2 sm:p-4 flex flex-col items-center justify-center">
             {isPdfLoading && (
               <PdfLoaderOverlay message={`Loading ${readingDoc.originalName || readingDoc.name}...`} />
             )}

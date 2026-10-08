@@ -452,8 +452,7 @@ export const DocumentViewer: React.FC = () => {
             <iframe
               src={activeDoc.streamUrl || activeDoc.serverUrl}
               title={activeDoc.originalName || activeDoc.name}
-              allow="autoplay"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              allow="autoplay; fullscreen"
               className="w-full h-full rounded-2xl shadow-2xl border border-white/40 dark:border-white/10 bg-white"
             />
           </div>

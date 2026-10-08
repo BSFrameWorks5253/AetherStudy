@@ -31,10 +31,17 @@ export const TestPapers: React.FC = () => {
 
   // Solving/Review Mode: 'question' | 'answer' | 'split'
   const [solveViewMode, setSolveViewMode] = useState<'question' | 'answer' | 'split'>('question');
-  const [useMobileViewer, setUseMobileViewer] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return /android|iphone|ipad|ipod/i.test(navigator.userAgent) || window.innerWidth <= 768;
-  });
+  const [useMobileViewer, setUseMobileViewer] = useState<boolean>(false);
+
+  // Auto-dismiss PDF loader overlay after 2.5s to prevent freezing on mobile
+  useEffect(() => {
+    if (activePaper && isPdfLoading) {
+      const timer = setTimeout(() => {
+        setIsPdfLoading(false);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [activePaper, isPdfLoading]);
 
   const getViewerUrl = (rawUrl?: string): string => {
     if (!rawUrl) return '';
