@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api, ServerDocument } from '../../services/api';
+import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
 import {
   Upload,
   FileText,
@@ -94,10 +95,19 @@ export const DocumentViewer: React.FC = () => {
       const chosenSubject = uploadSubject || (subjects.length > 0 ? subjects[0] : 'General');
       let newDoc: any;
       try {
-        const driveRes = await api.uploadToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || '');
-        newDoc = driveRes.document;
-      } catch {
-        newDoc = await api.uploadDocument(selectedFile, chosenSubject, currentUser?.email || '');
+        // Step A: Client-side consumer Google Drive direct upload
+        const driveResult = await uploadDirectToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || 'admin');
+        // Step B: Attach pointer to syllabus.json in hidden GitHub Database
+        await api.attachDriveDoc(chosenSubject, driveResult);
+        newDoc = driveResult;
+      } catch (clientDriveErr) {
+        console.warn('[Direct Drive fallback to serverless/local pipeline]:', clientDriveErr);
+        try {
+          const driveRes = await api.uploadToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || '');
+          newDoc = driveRes.document;
+        } catch {
+          newDoc = await api.uploadDocument(selectedFile, chosenSubject, currentUser?.email || '');
+        }
       }
       setDocuments((prev) => [newDoc, ...prev]);
       setActiveDoc(newDoc);

@@ -294,5 +294,20 @@ export const api = {
       reader.readAsDataURL(file);
     });
   },
+
+  // 11. Attach Google Drive Stream Link to Syllabus and Documents Database
+  async attachDriveDoc(subject: string, document: any): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/db/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'attach-drive-doc',
+        subject,
+        document,
+      }),
+    });
+    if (!res.ok) throw new Error('Failed to attach document to syllabus in database');
+    return res.json();
+  },
 };
 

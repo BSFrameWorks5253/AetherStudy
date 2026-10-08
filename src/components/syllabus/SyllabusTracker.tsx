@@ -14,6 +14,7 @@ import {
   Layers,
   BookOpen,
   Server,
+  ExternalLink,
 } from 'lucide-react';
 
 const INITIAL_SYLLABUS: SyllabusTopic[] = [
@@ -442,6 +443,30 @@ export const SyllabusTracker: React.FC = () => {
                           </button>
                         </div>
                       ))
+                    )}
+
+                    {/* Attached Google Drive Materials */}
+                    {topic.materials && topic.materials.length > 0 && (
+                      <div className="pt-2 border-t border-black/5 dark:border-white/5 space-y-1.5">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <BookOpen className="w-3 h-3 text-brand-500" />
+                          <span>Google Drive Linked Textbooks & Vault</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {topic.materials.map((mat) => (
+                            <a
+                              key={mat.id}
+                              href={mat.streamUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg liquid-glass text-xs font-bold text-brand-600 dark:text-brand-300 hover:bg-brand-500/10 transition-colors border border-brand-500/20"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span className="truncate max-w-[200px]">{mat.name}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
                     )}
 
                     {/* Inline Chapter Input Form */}

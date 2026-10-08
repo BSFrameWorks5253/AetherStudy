@@ -10,6 +10,7 @@ export interface SyllabusTopic {
   title: string;
   subject: string;
   chapters: SyllabusChapter[];
+  materials?: Array<{ id: string; name: string; streamUrl: string; uploadedAt?: string }>;
   isExpanded?: boolean;
 }
 

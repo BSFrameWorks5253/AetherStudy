@@ -2,10 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as fs from 'fs';
 import * as path from 'path';
 
-interface SyncPayload {
-  file: string; // e.g. 'syllabus.json', 'notes.json', 'timetable.json', 'documents.json'
-  data?: any;
-}
 
 const GITHUB_REPO = process.env.GITHUB_REPO || 'BSFrameWorks5253/AetherStudy';
 const GH_ACCESS_TOKEN = process.env.GH_ACCESS_TOKEN;
@@ -105,7 +101,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 2. POST / PUT: Write JSON document into GitHub Database
   if (method === 'POST' || method === 'PUT') {
-    const { file, data } = (req.body as SyncPayload) || {};
+    const { file, data, action, subject, document } = req.body || {};
+
+    // Special Action: Attach Google Drive PDF link into syllabus.json and documents.json
+    if (action === 'attach-drive-doc' && document) {
+      try {
+        let syllabus: any[] = [];
+        let syllabusSha: string | undefined = undefined;
+
+        if (GH_ACCESS_TOKEN) {
+          const sRes = await fetchFromGitHub('syllabus.json');
+          if (sRes) {
+            syllabus = Array.isArray(sRes.data) ? sRes.data : [];
+            syllabusSha = sRes.sha;
+          }
+        } else {
+          const localSyllabusPath = path.join(LOCAL_DATA_DIR, 'syllabus.json');
+          if (fs.existsSync(localSyllabusPath)) {
+            syllabus = JSON.parse(fs.readFileSync(localSyllabusPath, 'utf8'));
+          }
+        }
+
+        let matched = false;
+        syllabus = syllabus.map((node: any) => {
+          if (node.subject && subject && node.subject.toLowerCase() === subject.toLowerCase()) {
+            matched = true;
+            const materials = Array.isArray(node.materials) ? node.materials : [];
+            return {
+              ...node,
+              materials: [
+                ...materials,
+                { id: document.id, name: document.name, streamUrl: document.streamUrl, uploadedAt: new Date().toISOString() },
+              ],
+            };
+          }
+          return node;
+        });
+
+        if (!matched && subject) {
+          syllabus.push({
+            id: `subj-${Date.now()}`,
+            subject,
+            title: `${subject} Syllabus & Vault`,
+            chapters: [],
+            materials: [{ id: document.id, name: document.name, streamUrl: document.streamUrl, uploadedAt: new Date().toISOString() }],
+          });
+        }
+
+        if (GH_ACCESS_TOKEN) {
+          await writeToGitHub('syllabus.json', syllabus, syllabusSha);
+          const docsRes = await fetchFromGitHub('documents.json');
+          let docs = Array.isArray(docsRes?.data) ? docsRes.data : [];
+          docs = [document, ...docs.filter((d: any) => d.id !== document.id)];
+          await writeToGitHub('documents.json', docs, docsRes?.sha);
+        } else {
+          if (!fs.existsSync(LOCAL_DATA_DIR)) fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
+          fs.writeFileSync(path.join(LOCAL_DATA_DIR, 'syllabus.json'), JSON.stringify(syllabus, null, 2), 'utf8');
+          const localDocsPath = path.join(LOCAL_DATA_DIR, 'documents.json');
+          let docs = fs.existsSync(localDocsPath) ? JSON.parse(fs.readFileSync(localDocsPath, 'utf8')) : [];
+          docs = [document, ...docs.filter((d: any) => d.id !== document.id)];
+          fs.writeFileSync(localDocsPath, JSON.stringify(docs, null, 2), 'utf8');
+        }
+
+        return res.status(200).json({ success: true, message: 'Google Drive pointer saved to syllabus.json' });
+      } catch (error) {
+        console.error('[Attach Drive Doc Error]:', error);
+        return res.status(500).json({ error: 'Internal security node allocation error.' });
+      }
+    }
 
     if (!file || typeof file !== 'string') {
       return res.status(400).json({ error: 'Target database file collection identifier required.' });
