@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "electron": "electron .",
     "electron:dev": "node electron/start-dev.js",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && electron-builder",
+    "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",
