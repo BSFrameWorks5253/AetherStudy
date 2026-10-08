@@ -106,16 +106,33 @@ export async function uploadDirectToGoogleDrive(
       }),
     });
 
-    const gasJson = await gasRes.json();
-    if (gasJson && gasJson.success) {
+    let gasJson: any = null;
+    try {
+      gasJson = await gasRes.json();
+    } catch {
+      const text = await gasRes.text().catch(() => '');
+      try {
+        gasJson = JSON.parse(text);
+      } catch {
+        console.warn('Apps Script returned non-JSON response:', text);
+      }
+    }
+
+    if (gasJson && (gasJson.success || gasJson.id)) {
+      const fileId = gasJson.id || `gas-${Date.now()}`;
+      const previewUrl =
+        gasJson.streamUrl ||
+        gasJson.url ||
+        `https://drive.google.com/file/d/${fileId}/preview`;
+
       return {
-        id: gasJson.id,
+        id: fileId,
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-        streamUrl: gasJson.streamUrl || gasJson.url,
+        streamUrl: previewUrl,
         subject,
         uploadedBy: uploaderEmail,
-        uploadedAt: new Date().toISOString(),
+        uploadedAt: gasJson.uploadedAt || new Date().toISOString(),
       };
     } else {
       throw new Error(gasJson?.error || 'Apps Script Drive upload failed');

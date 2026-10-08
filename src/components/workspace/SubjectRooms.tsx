@@ -683,26 +683,47 @@ export const SubjectRooms: React.FC = () => {
 
       let uploadedRecord: ServerDocument;
 
+      // 1. Attempt Direct Google Drive Upload first
+      let driveResult: any = null;
       try {
-        // Attempt Direct Google Drive Upload
-        const driveResult = await uploadDirectToGoogleDrive(
+        driveResult = await uploadDirectToGoogleDrive(
           selectedFile,
           targetSub,
           currentUser?.email || 'admin'
         );
-        const attachRes = await api.attachDriveDoc(targetSub, {
-          ...driveResult,
+      } catch (driveErr: any) {
+        console.warn('Direct Google Drive upload error, falling back to server upload:', driveErr);
+      }
+
+      if (driveResult && driveResult.id) {
+        // Direct Google Drive upload succeeded! The file is safely in Google Drive
+        const driveDoc: ServerDocument = {
+          id: driveResult.id,
+          name: driveResult.name || selectedFile.name,
+          originalName: selectedFile.name,
+          streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+          serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+          mimeType: selectedFile.type || 'application/pdf',
+          sizeBytes: selectedFile.size,
+          size: driveResult.size || `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
+          uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
+          uploadedBy: currentUser?.email || 'admin',
+          subject: targetSub,
           standard: targetStd,
           category: uploadCategory,
-        });
-        uploadedRecord = (attachRes as any).document || {
-          ...driveResult,
-          standard: targetStd,
-          category: uploadCategory,
+          uploadCount: 1,
         };
-      } catch (driveErr) {
-        console.warn('Direct Google Drive upload fallback to server pipeline:', driveErr);
-        // Fallback to Server Upload endpoint
+
+        // Attach & sync with server database (non-blocking, client cache is guaranteed)
+        try {
+          const attachRes = await api.attachDriveDoc(targetSub, driveDoc);
+          uploadedRecord = attachRes.document || driveDoc;
+        } catch (syncErr) {
+          console.warn('Server sync notice:', syncErr);
+          uploadedRecord = driveDoc;
+        }
+      } else {
+        // Fallback to Server Upload endpoint only if Google Drive upload failed
         uploadedRecord = await api.uploadDocument(
           selectedFile,
           targetSub,

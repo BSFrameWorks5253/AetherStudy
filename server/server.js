@@ -1071,12 +1071,18 @@ app.post('/api/db/sync', async (req, res) => {
         });
       }
 
+      writeJsonFile('syllabus.json', syllabus);
+
       let docs = readJsonFile('documents.json', []);
+      if (!Array.isArray(docs)) docs = [];
+      const cleanSubject = subject || document.subject || 'General';
       const count = docs.filter(
         (d) => (d.originalName || d.name || '').trim().toLowerCase() === (document.originalName || document.name || '').trim().toLowerCase()
       ).length;
       const enhancedDoc = {
         ...document,
+        subject: cleanSubject,
+        originalName: document.originalName || document.name,
         uploadCount: document.uploadCount || (count + 1),
         standard: document.standard || '12',
         category: document.category || 'notes',

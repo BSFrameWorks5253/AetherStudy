@@ -94,14 +94,40 @@ export const DocumentViewer: React.FC = () => {
       setIsUploading(true);
       const chosenSubject = uploadSubject || (subjects.length > 0 ? subjects[0] : 'General');
       let newDoc: any;
+
+      // Step A: Client-side consumer Google Drive direct upload
+      let driveResult: any = null;
       try {
-        // Step A: Client-side consumer Google Drive direct upload
-        const driveResult = await uploadDirectToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || 'admin');
-        // Step B: Attach pointer to syllabus.json in hidden GitHub Database
-        await api.attachDriveDoc(chosenSubject, driveResult);
-        newDoc = driveResult;
+        driveResult = await uploadDirectToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || 'admin');
       } catch (clientDriveErr) {
         console.warn('[Direct Drive fallback to serverless/local pipeline]:', clientDriveErr);
+      }
+
+      if (driveResult && driveResult.id) {
+        const driveDoc: ServerDocument = {
+          id: driveResult.id,
+          name: driveResult.name || selectedFile.name,
+          originalName: selectedFile.name,
+          streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+          serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+          mimeType: selectedFile.type || 'application/pdf',
+          sizeBytes: selectedFile.size,
+          size: driveResult.size || `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
+          uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
+          uploadedBy: currentUser?.email || 'admin',
+          subject: chosenSubject,
+          standard: currentUser?.standard || '12',
+          category: 'notes',
+          uploadCount: 1,
+        };
+
+        try {
+          const attachRes = await api.attachDriveDoc(chosenSubject, driveDoc);
+          newDoc = attachRes.document || driveDoc;
+        } catch {
+          newDoc = driveDoc;
+        }
+      } else {
         try {
           const driveRes = await api.uploadToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || '');
           newDoc = driveRes.document;

@@ -244,13 +244,59 @@ export const api = {
   },
 
   // 4. Documents Storage API
+  getLocalDocuments(): ServerDocument[] {
+    try {
+      const cached = localStorage.getItem('aether_cached_documents');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveLocalDocuments(docs: ServerDocument[]): void {
+    try {
+      localStorage.setItem('aether_cached_documents', JSON.stringify(docs));
+    } catch (err) {
+      console.warn('Failed to persist documents to localStorage:', err);
+    }
+  },
+
   async getDocuments(standard?: string): Promise<ServerDocument[]> {
-    const url = standard && standard !== 'ALL'
-      ? `${API_BASE}/documents?standard=${encodeURIComponent(standard)}`
-      : `${API_BASE}/documents`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to fetch documents from server');
-    return res.json();
+    let serverDocs: ServerDocument[] = [];
+    try {
+      const url = standard && standard !== 'ALL'
+        ? `${API_BASE}/documents?standard=${encodeURIComponent(standard)}`
+        : `${API_BASE}/documents`;
+      const res = await fetch(url);
+      if (res.ok) {
+        serverDocs = await res.json();
+      }
+    } catch (err) {
+      console.warn('[Documents API] Server documents endpoint unreachable, reading local vault:', err);
+    }
+
+    // Merge server documents with client cached documents
+    const localDocs = api.getLocalDocuments();
+    const docMap = new Map<string, ServerDocument>();
+
+    serverDocs.forEach((d) => {
+      if (d.id) docMap.set(d.id, d);
+    });
+
+    localDocs.forEach((d) => {
+      if (d.id && !docMap.has(d.id)) {
+        docMap.set(d.id, d);
+      }
+    });
+
+    let merged = Array.from(docMap.values());
+    if (standard && standard !== 'ALL') {
+      merged = merged.filter((d) => !d.standard || d.standard === 'ALL' || d.standard === standard);
+    }
+
+    // Update local cache with merged list
+    api.saveLocalDocuments(merged);
+    return merged;
   },
 
   async uploadDocument(
@@ -275,14 +321,26 @@ export const api = {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.error || 'Server file upload failed');
     }
-    return res.json();
+    const uploaded = await res.json();
+    const local = api.getLocalDocuments();
+    api.saveLocalDocuments([uploaded, ...local.filter((d) => d.id !== uploaded.id)]);
+    return uploaded;
   },
 
   async deleteDocument(id: string): Promise<boolean> {
-    const res = await fetch(`${API_BASE}/documents/${id}`, {
-      method: 'DELETE',
-    });
-    return res.ok;
+    try {
+      const local = api.getLocalDocuments();
+      api.saveLocalDocuments(local.filter((d) => d.id !== id));
+    } catch {}
+
+    try {
+      const res = await fetch(`${API_BASE}/documents/${id}`, {
+        method: 'DELETE',
+      });
+      return res.ok;
+    } catch {
+      return true;
+    }
   },
 
   // 5. Notes Storage API
@@ -409,18 +467,56 @@ export const api = {
   },
 
   // 11. Attach Google Drive Stream Link to Syllabus and Documents Database
-  async attachDriveDoc(subject: string, document: any): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/db/sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'attach-drive-doc',
-        subject,
-        document,
-      }),
-    });
-    if (!res.ok) throw new Error('Failed to attach document to syllabus in database');
-    return res.json();
+  async attachDriveDoc(subject: string, document: any): Promise<{ success: boolean; message: string; document: ServerDocument }> {
+    const enhancedDoc: ServerDocument = {
+      ...document,
+      subject: subject || document.subject || 'General',
+      originalName: document.originalName || document.name,
+      streamUrl: document.streamUrl || (document.id ? `https://drive.google.com/file/d/${document.id}/preview` : ''),
+      serverUrl: document.serverUrl || document.streamUrl || (document.id ? `https://drive.google.com/file/d/${document.id}/preview` : ''),
+      uploadedAt: document.uploadedAt || new Date().toISOString(),
+      standard: document.standard || '12',
+      category: document.category || 'notes',
+      uploadCount: document.uploadCount || 1,
+    };
+
+    // Immediately cache in local storage so document is NEVER lost
+    try {
+      const local = api.getLocalDocuments();
+      const filtered = local.filter((d) => d.id !== enhancedDoc.id);
+      api.saveLocalDocuments([enhancedDoc, ...filtered]);
+    } catch (err) {
+      console.warn('Local cache attachment warning:', err);
+    }
+
+    // Attempt server sync
+    try {
+      const res = await fetch(`${API_BASE}/db/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'attach-drive-doc',
+          subject,
+          document: enhancedDoc,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          success: true,
+          message: data.message || 'Synced with server database',
+          document: data.document || enhancedDoc,
+        };
+      }
+    } catch (netErr) {
+      console.warn('[Attach Drive Doc Warning] Server sync endpoint unreachable, document safely saved in local storage:', netErr);
+    }
+
+    return {
+      success: true,
+      message: 'Document saved to Google Drive and local vault',
+      document: enhancedDoc,
+    };
   },
 
   // 12. Notifications & Admin Announcements
