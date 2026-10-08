@@ -14,9 +14,9 @@ const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10);
 const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
 const OTP_SECRET = process.env.OTP_SECRET || 'aether-antigravity-secure-session-key-2026';
 
-// Storage Directory Setup
-const DATA_DIR = path.join(__dirname, 'data');
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+// Storage Directory Setup (Compatible with local and Vercel Serverless /tmp)
+const DATA_DIR = process.env.VERCEL ? path.join('/tmp', 'data') : path.join(__dirname, 'data');
+const UPLOADS_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -115,6 +115,10 @@ function readJsonFile(filename, defaultValue) {
   try {
     if (fs.existsSync(filePath)) {
       return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+    const seedPath = path.join(__dirname, 'data', filename);
+    if (fs.existsSync(seedPath)) {
+      return JSON.parse(fs.readFileSync(seedPath, 'utf8'));
     }
   } catch (err) {
     console.error(`Error reading ${filename}:`, err);
@@ -307,8 +311,8 @@ app.post('/api/auth/generate', async (req, res) => {
     const token = `${expiresAt}.${hash}`;
 
     const resendApiKey = process.env.RESEND_API_KEY;
-    const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
-    const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
+    const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || 'bs.framework5253@gmail.com';
+    const smtpPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'pfnkadvsxyzqukob').replace(/\s+/g, '');
     let sent = false;
     let sandboxNotice = null;
     let fallbackPasscode = null;
@@ -1073,7 +1077,11 @@ app.post('/api/storage/upload', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`[AetherStudy Server Storage Engine] Running on port ${PORT}`);
-  console.log(`[Super Admin]: ${SUPER_ADMIN_EMAIL}`);
-});
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`[AetherStudy Server Storage Engine] Running on port ${PORT}`);
+    console.log(`[Super Admin]: ${SUPER_ADMIN_EMAIL}`);
+  });
+}
+
+module.exports = app;

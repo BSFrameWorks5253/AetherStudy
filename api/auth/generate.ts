@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 import * as crypto from 'crypto';
 
@@ -45,7 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (smtpUser && smtpPass) {
       try {
-        const nodemailer = await import('nodemailer');
         const transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: { user: smtpUser, pass: smtpPass },
