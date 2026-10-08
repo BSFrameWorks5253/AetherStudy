@@ -1,20 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api, ChatMessage } from '../../services/api';
+import { AuthModal } from '../auth/AuthModal';
 import {
   MessageSquare,
-  Hash,
   Send,
   Smile,
   Shield,
   Crown,
-  Users,
   Search,
   BookOpen,
   Calculator,
   Briefcase,
   TrendingUp,
   Laptop,
+  CheckCheck,
+  Lock,
+  LogIn,
+  ArrowLeft,
+  MessageCircle,
 } from 'lucide-react';
 
 interface Channel {
@@ -28,44 +32,44 @@ interface Channel {
 const DEFAULT_CHANNELS_STD12: Channel[] = [
   {
     id: 'general',
-    name: 'general-study-lounge',
-    topic: 'Everyday peer study chatter, study routines & revision motivation',
+    name: 'Class 12 Commerce Lounge',
+    topic: 'Daily study routines, board tips & group motivation',
     icon: MessageSquare,
   },
   {
     id: 'accounts',
-    name: 'accounts-bk-solutions',
-    topic: 'Partnership Final Accounts, Reconstitution, Dissolution & adjustments',
+    name: 'Accounts (BK) Doubts & Sums',
+    topic: 'Partnership Final Accounts, Balance Sheet & Dissolution',
     icon: Calculator,
   },
   {
-    id: 'ocm',
-    name: 'ocm-case-studies',
-    topic: 'Principles of management, business services & consumer rights queries',
-    icon: Briefcase,
-  },
-  {
     id: 'economics',
-    name: 'economics-forum',
-    topic: 'Micro/Macro economics, demand elasticity & national income concepts',
+    name: 'Economics Discussion',
+    topic: 'Micro/Macro, Utility, Elasticity of Demand & Public Finance',
     icon: TrendingUp,
   },
   {
     id: 'maths',
-    name: 'maths-stats-doubts',
-    topic: 'Mathematical logic, matrices, calculus & linear regression solving',
+    name: 'Maths & Statistics Help',
+    topic: 'Part 1 Calculus & Part 2 Commercial Math & Regression',
     icon: Calculator,
   },
   {
+    id: 'ocm',
+    name: 'OCM Case Studies & Theory',
+    topic: 'Principles of management, marketing & consumer protection',
+    icon: Briefcase,
+  },
+  {
     id: 'it',
-    name: 'it-tech-queries',
-    topic: 'Advanced web designing, CSS flex, JavaScript & SEO concepts',
+    name: 'IT & Web Designing',
+    topic: 'Advanced web designing, HTML5/CSS3, SEO & Libre Office',
     icon: Laptop,
   },
   {
     id: 'english',
-    name: 'english-writing-skills',
-    topic: 'Expansion of ideas, summary writing, novel questions & poetry',
+    name: 'English Writing & Literature',
+    topic: 'Novel section, essay writing, comprehension & summary',
     icon: BookOpen,
   },
 ];
@@ -73,28 +77,50 @@ const DEFAULT_CHANNELS_STD12: Channel[] = [
 const DEFAULT_CHANNELS_GENERAL: Channel[] = [
   {
     id: 'general',
-    name: 'general-lounge',
+    name: 'General Study Lounge',
     topic: 'Peer discussion room for study tips and mutual preparation',
     icon: MessageSquare,
   },
   {
     id: 'doubts',
-    name: 'curriculum-doubts',
+    name: 'Curriculum Doubts',
     topic: 'Post homework problems and textbook questions for peer guidance',
     icon: BookOpen,
   },
 ];
 
-const EMOJI_LIST = ['👍', '❤️', '💡', '🔥', '💯', '🚀', '📚', '✨'];
+const EMOJI_LIST = ['👍', '❤️', '💡', '🔥', '💯', '🚀', '📚', '✨', '👏', '🙏'];
+
+// Generates persistent colors for sender names like WhatsApp group chats
+const SENDER_COLORS = [
+  'text-emerald-600 dark:text-emerald-400',
+  'text-sky-600 dark:text-sky-400',
+  'text-purple-600 dark:text-purple-400',
+  'text-amber-600 dark:text-amber-400',
+  'text-rose-600 dark:text-rose-400',
+  'text-indigo-600 dark:text-indigo-400',
+  'text-teal-600 dark:text-teal-400',
+];
+
+const getSenderColor = (name: string): string => {
+  if (!name) return SENDER_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return SENDER_COLORS[Math.abs(hash) % SENDER_COLORS.length];
+};
 
 export const CommunityLounge: React.FC = () => {
-  const { currentUser, isSuperAdmin, activeStandard } = useAuth();
+  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard } = useAuth();
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState<string>('');
   const [isSending, setIsSending] = useState<boolean>(false);
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showMobileChat, setShowMobileChat] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -114,7 +140,6 @@ export const CommunityLounge: React.FC = () => {
 
   useEffect(() => {
     loadMessages();
-    // Auto-poll every 3.5 seconds for real-time WhatsApp/Discord experience
     const interval = setInterval(loadMessages, 3500);
     return () => clearInterval(interval);
   }, [activeStandard, activeChannelId]);
@@ -126,6 +151,11 @@ export const CommunityLounge: React.FC = () => {
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim() || isSending) return;
+
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
 
     const textToSend = inputText.trim();
     setInputText('');
@@ -142,74 +172,83 @@ export const CommunityLounge: React.FC = () => {
       });
 
       setMessages((prev) => [...prev, newMsg]);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-    } catch (err) {
-      console.error('Failed to send message:', err);
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+    } catch (err: any) {
+      alert(err.message || 'Failed to dispatch message.');
     } finally {
       setIsSending(false);
-      inputRef.current?.focus();
     }
   };
 
-  const handleReaction = async (messageId: string, emoji: string) => {
+  const handleReaction = async (msgId: string, emoji: string) => {
     try {
-      const updatedReactions = await api.reactToChatMessage(messageId, emoji, activeStandard, activeChannelId);
+      const updatedReactions = await api.reactToChatMessage(
+        msgId,
+        emoji,
+        activeStandard,
+        activeChannelId
+      );
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, reactions: updatedReactions } : m))
+        prev.map((m) => (m.id === msgId ? { ...m, reactions: updatedReactions } : m))
       );
     } catch (err) {
-      console.error('Failed to react:', err);
+      console.warn('Could not send emoji reaction:', err);
     }
   };
 
-  const filteredChannels = channels.filter((c) =>
-    c.name.toLowerCase().includes(searchFilter.toLowerCase())
+  const filteredChannels = channels.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      c.topic.toLowerCase().includes(searchFilter.toLowerCase())
   );
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 select-text">
+    <div className="flex h-full w-full overflow-hidden bg-[#efeae2] dark:bg-[#0b141a] select-text">
       {/* ========================================================
-          LEFT: DISCORD / WHATSAPP CHANNEL LIST
+          LEFT: WHATSAPP SIDEBAR (CHATS LIST)
       ======================================================== */}
-      <div className="w-64 md:w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0">
-        {/* Server / Lounge Header */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                Class {activeStandard} Study Lounge
-              </h2>
+      <div
+        className={`${
+          showMobileChat ? 'hidden md:flex' : 'flex'
+        } w-full md:w-80 lg:w-96 flex-col h-full bg-white dark:bg-[#111b21] border-r border-slate-200 dark:border-slate-800 shrink-0 z-10 transition-all`}
+      >
+        {/* WhatsApp Green Top Header */}
+        <div className="p-3.5 bg-[#008069] dark:bg-[#202c33] text-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm shadow-inner">
+              <MessageCircle className="w-5 h-5 text-white" />
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Peer Discussion & Doubts
-            </p>
+            <div>
+              <h2 className="text-sm font-bold leading-tight">Peer Lounge</h2>
+              <p className="text-[10px] text-white/80">Class {activeStandard} Commerce Groups</p>
+            </div>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/80 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
-            Live
-          </span>
+
+          <div className="flex items-center space-x-1">
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-white/20 text-white">
+              WhatsApp Mode
+            </span>
+          </div>
         </div>
 
-        {/* Channel Search Input */}
-        <div className="p-3 border-b border-slate-100 dark:border-slate-800/80">
+        {/* WhatsApp Search Input Bar */}
+        <div className="p-2.5 bg-white dark:bg-[#111b21] border-b border-slate-100 dark:border-slate-800/80">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Search channels..."
-              className="w-full bg-slate-50 dark:bg-slate-800/80 rounded-xl pl-8 pr-3 py-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+              placeholder="Search or start new discussion..."
+              className="w-full bg-[#f0f2f5] dark:bg-[#202c33] rounded-xl pl-9 pr-3 py-2 text-xs border-none text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#00a884]"
             />
           </div>
         </div>
 
-        {/* Channel Navigation Links */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Discussion Channels
-          </div>
-
+        {/* Channels / Chats List */}
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
           {filteredChannels.map((channel) => {
             const Icon = channel.icon;
             const isActive = channel.id === activeChannelId;
@@ -217,189 +256,228 @@ export const CommunityLounge: React.FC = () => {
             return (
               <button
                 key={channel.id}
-                onClick={() => setActiveChannelId(channel.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group ${
+                onClick={() => {
+                  setActiveChannelId(channel.id);
+                  setShowMobileChat(true);
+                }}
+                className={`w-full flex items-center px-3.5 py-3 text-left transition-colors relative ${
                   isActive
-                    ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                    ? 'bg-[#f0f2f5] dark:bg-[#2a3942]'
+                    : 'hover:bg-slate-50 dark:hover:bg-[#202c33]/60'
                 }`}
               >
-                <div className="flex items-center space-x-2 truncate mr-2">
-                  <Hash className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                  <span className="truncate">{channel.name}</span>
+                {/* Chat Group Avatar */}
+                <div className="relative shrink-0 mr-3">
+                  <div
+                    className={`w-11 h-11 rounded-full flex items-center justify-center text-white shadow-xs ${
+                      isActive
+                        ? 'bg-[#00a884]'
+                        : 'bg-slate-400 dark:bg-slate-700 text-slate-100'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#25d366] border-2 border-white dark:border-[#111b21]" />
                 </div>
-                <Icon className={`w-3.5 h-3.5 shrink-0 opacity-70 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+
+                {/* Chat Details */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {channel.name}
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0 ml-1">
+                      Std {activeStandard}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    {channel.topic}
+                  </p>
+                </div>
               </button>
             );
           })}
         </div>
 
-        {/* User Presence Footer */}
-        <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center space-x-2 truncate mr-2">
-            <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center text-white text-xs font-bold uppercase">
-              {currentUser?.email ? currentUser.email[0] : 'U'}
+        {/* WhatsApp Profile / Sign-in Status Footer */}
+        <div className="p-3 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center space-x-2.5 truncate mr-2">
+            <div className="w-8 h-8 rounded-full bg-[#00a884] text-white flex items-center justify-center font-bold text-xs uppercase shadow-xs shrink-0">
+              {currentUser?.email ? currentUser.email[0] : 'G'}
             </div>
             <div className="truncate">
               <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                {currentUser?.email ? currentUser.email.split('@')[0] : 'Guest'}
+                {currentUser?.email ? currentUser.email.split('@')[0] : 'Guest Visitor'}
               </div>
               <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Online in Std {activeStandard}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${isAuthenticated ? 'bg-[#25d366]' : 'bg-amber-500'}`} />
+                <span>{isAuthenticated ? (isSuperAdmin ? 'Super Admin' : 'Classmate') : 'Read-Only Mode'}</span>
               </div>
             </div>
           </div>
-          {isSuperAdmin && (
-            <span title="Super Admin">
-              <Crown className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-            </span>
+
+          {!isAuthenticated && (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="px-2.5 py-1 rounded-lg bg-[#00a884] hover:bg-[#02906f] text-white text-[11px] font-bold shadow-xs transition-all shrink-0"
+            >
+              Sign In
+            </button>
           )}
         </div>
       </div>
 
       {/* ========================================================
-          RIGHT: DISCORD / WHATSAPP CHAT FEED & INPUT
+          RIGHT: AUTHENTIC WHATSAPP CONVERSATION PANEL
       ======================================================== */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-100/50 dark:bg-slate-950">
-        {/* Channel Header Bar */}
-        <div className="h-14 px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 shadow-xs">
-          <div className="flex items-center space-x-2 truncate">
-            <Hash className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
+      <div
+        className={`${
+          showMobileChat ? 'flex' : 'hidden md:flex'
+        } flex-1 flex-col h-full overflow-hidden relative`}
+      >
+        {/* WhatsApp Top Chat Header Bar */}
+        <div className="h-14 px-4 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 shadow-xs z-10">
+          <div className="flex items-center space-x-3 truncate">
+            {/* Mobile Back to Chat List Button */}
+            <button
+              onClick={() => setShowMobileChat(false)}
+              className="md:hidden p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              title="Back to chats"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+
+            <div className="w-9 h-9 rounded-full bg-[#00a884] text-white flex items-center justify-center shadow-xs shrink-0">
+              <MessageSquare className="w-4 h-4" />
+            </div>
+
             <div className="truncate">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight truncate">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate">
                 {currentChannel.name}
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                {currentChannel.topic}
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                {isAuthenticated
+                  ? `Active Class ${activeStandard} Commerce Community`
+                  : 'Viewing as Guest • Sign in to chat'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 shrink-0">
-            <div className="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-              <Users className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
-              <span>Standard {activeStandard} Peers</span>
-            </div>
+          <div className="flex items-center space-x-2 text-slate-500 dark:text-slate-400 shrink-0">
+            <span className="hidden sm:inline text-[11px] font-bold px-2.5 py-1 rounded-full bg-white dark:bg-[#111b21] text-emerald-700 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 shadow-2xs">
+              Class {activeStandard}
+            </span>
           </div>
         </div>
 
-        {/* Message Thread Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {/* Welcome Notice Banner */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-1 shadow-xs">
-            <div className="w-8 h-8 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto mb-1">
-              <Hash className="w-4 h-4" />
-            </div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-              Welcome to #{currentChannel.name}!
-            </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              This is the official peer chatroom for Standard {activeStandard}. Feel free to discuss concepts, exchange notes, and clarify doubts.
-            </p>
+        {/* WhatsApp Messages Feed with Pattern Background */}
+        <div
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5 relative bg-[#efeae2] dark:bg-[#0b141a]"
+          style={{
+            backgroundImage: `radial-gradient(rgba(0, 168, 132, 0.04) 1px, transparent 1px)`,
+            backgroundSize: '24px 24px',
+          }}
+        >
+          {/* Centered WhatsApp Date Badge */}
+          <div className="flex justify-center my-2">
+            <span className="px-3.5 py-1 rounded-lg bg-white/90 dark:bg-[#182229]/90 text-[10px] font-bold text-slate-600 dark:text-slate-400 shadow-xs border border-slate-200/50 dark:border-slate-700/50 tracking-wider uppercase">
+              Class {activeStandard} Commerce Discussion Group
+            </span>
           </div>
 
           {/* Messages Feed */}
           {messages.map((msg) => {
-            const isMe = msg.senderEmail.toLowerCase() === (currentUser?.email || '').toLowerCase();
+            const isMe =
+              isAuthenticated &&
+              currentUser?.email &&
+              msg.senderEmail.toLowerCase() === currentUser.email.toLowerCase();
             const isMsgSuperAdmin = msg.senderRole === 'SUPER_ADMIN';
             const isMsgAdmin = msg.senderRole === 'ADMIN';
+            const senderColor = getSenderColor(msg.senderName);
 
             return (
               <div
                 key={msg.id}
-                className={`flex items-start space-x-3 group animate-fade-in ${
-                  isMe ? 'flex-row-reverse space-x-reverse' : ''
-                }`}
+                className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} animate-fade-in`}
               >
-                {/* User Avatar */}
+                {/* WhatsApp Chat Bubble */}
                 <div
-                  className={`w-9 h-9 rounded-2xl flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0 ${
-                    isMsgSuperAdmin
-                      ? 'bg-gradient-to-br from-purple-600 to-indigo-700 ring-2 ring-purple-500/20'
-                      : isMsgAdmin
-                      ? 'bg-gradient-to-br from-blue-600 to-cyan-700'
-                      : 'bg-gradient-to-br from-brand-600 to-emerald-600'
+                  className={`max-w-[85%] sm:max-w-md md:max-w-lg p-2.5 sm:p-3 rounded-2xl shadow-xs relative transition-all ${
+                    isMe
+                      ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-xs border border-emerald-200/50 dark:border-emerald-800/40'
+                      : 'bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] rounded-tl-xs border border-slate-200/60 dark:border-slate-800/80'
                   }`}
                 >
-                  {msg.senderName ? msg.senderName[0].toUpperCase() : 'U'}
-                </div>
-
-                {/* Message Bubble Container */}
-                <div className={`max-w-xl flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                  {/* Sender Meta Header */}
-                  <div className="flex items-center space-x-1.5 mb-1 text-[11px]">
-                    <span className="font-bold text-slate-900 dark:text-white">
-                      {msg.senderName}
-                    </span>
-
-                    {/* Role Badge */}
-                    {isMsgSuperAdmin ? (
-                      <span className="px-1.5 py-0.2 rounded-md bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 font-extrabold text-[9px] flex items-center gap-0.5">
-                        <Crown className="w-2.5 h-2.5" /> Super Admin
+                  {/* Sender Name in WhatsApp Group Colors */}
+                  {!isMe && (
+                    <div className="flex items-center space-x-1.5 mb-1">
+                      <span className={`text-[11px] font-bold truncate ${senderColor}`}>
+                        {msg.senderName}
                       </span>
-                    ) : isMsgAdmin ? (
-                      <span className="px-1.5 py-0.2 rounded-md bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-extrabold text-[9px] flex items-center gap-0.5">
-                        <Shield className="w-2.5 h-2.5" /> Faculty
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold text-[9px]">
-                        Std {msg.standard}
-                      </span>
-                    )}
+                      {isMsgSuperAdmin ? (
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 flex items-center gap-0.5">
+                          <Crown className="w-2.5 h-2.5" /> Super Admin
+                        </span>
+                      ) : isMsgAdmin ? (
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 flex items-center gap-0.5">
+                          <Shield className="w-2.5 h-2.5" /> Faculty
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
 
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                  {/* Message Content */}
+                  <p className="text-xs sm:text-[13px] leading-relaxed whitespace-pre-wrap break-words pr-12">
+                    {msg.content}
+                  </p>
+
+                  {/* Timestamp & Double Checkmarks (WhatsApp Style) */}
+                  <div className="flex items-center justify-end space-x-1 mt-1 -mb-1 text-[10px] text-slate-500 dark:text-slate-400 float-right">
+                    <span>
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
                     </span>
-                  </div>
-
-                  {/* Message Bubble */}
-                  <div
-                    className={`p-3.5 rounded-2xl text-xs leading-relaxed shadow-xs relative ${
-                      isMe
-                        ? 'bg-brand-600 text-white rounded-tr-xs'
-                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-xs'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-
-                    {/* Reactions Pill Display */}
-                    {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2 pt-1 border-t border-black/10 dark:border-white/10">
-                        {Object.entries(msg.reactions).map(([emoji, count]) => (
-                          <button
-                            key={emoji}
-                            onClick={() => handleReaction(msg.id, emoji)}
-                            className={`flex items-center space-x-1 px-1.5 py-0.5 rounded-lg text-[10px] font-bold border transition-all ${
-                              isMe
-                                ? 'bg-white/20 text-white border-white/30 hover:bg-white/30'
-                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-brand-500'
-                            }`}
-                          >
-                            <span>{emoji}</span>
-                            <span>{count}</span>
-                          </button>
-                        ))}
-                      </div>
+                    {isMe && (
+                      <span title="Delivered & Read">
+                        <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+                      </span>
                     )}
                   </div>
 
-                  {/* Quick Reaction Emoji Toolbar on Hover */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-1.5 py-0.5 shadow-sm">
-                    {['👍', '❤️', '💡', '🔥'].map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => handleReaction(msg.id, emoji)}
-                        className="hover:scale-125 transition-transform text-xs p-0.5"
-                        title={`React with ${emoji}`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Reactions Pill Toolbar */}
+                  {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2.5 pt-1.5 border-t border-black/5 dark:border-white/5">
+                      {Object.entries(msg.reactions).map(([emoji, count]) => (
+                        <button
+                          key={emoji}
+                          onClick={() => handleReaction(msg.id, emoji)}
+                          className={`flex items-center space-x-1 px-1.5 py-0.5 rounded-lg text-[10px] font-bold border transition-all ${
+                            isMe
+                              ? 'bg-white/40 dark:bg-black/20 text-slate-800 dark:text-white border-emerald-300/40 dark:border-emerald-700/40'
+                              : 'bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          <span>{emoji}</span>
+                          <span>{count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Emoji Reaction on Hover */}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1 mt-0.5 bg-white dark:bg-[#202c33] border border-slate-200 dark:border-slate-700 rounded-full px-2 py-0.5 shadow-xs text-xs">
+                  {['👍', '❤️', '🔥', '💡'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleReaction(msg.id, emoji)}
+                      className="hover:scale-125 transition-transform p-0.5"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
                 </div>
               </div>
             );
@@ -407,57 +485,92 @@ export const CommunityLounge: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Message Input Box (WhatsApp / Discord style) */}
-        <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
-          <form onSubmit={handleSend} className="relative flex items-center space-x-2">
-            {/* Emoji Quick Picker Popover */}
-            {showEmojiPicker && (
-              <div className="absolute bottom-14 left-0 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl flex items-center gap-1.5 z-30 animate-fade-in">
-                {EMOJI_LIST.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => {
-                      setInputText((prev) => prev + emoji);
-                      setShowEmojiPicker(false);
-                    }}
-                    className="p-1 text-base hover:scale-125 transition-transform"
-                  >
-                    {emoji}
-                  </button>
-                ))}
+        {/* ========================================================
+            WHATSAPP BOTTOM DOCK: INPUT OR SIGN-IN PROMPT
+        ======================================================== */}
+        {isAuthenticated ? (
+          /* Logged In WhatsApp Message Input Bar */
+          <div className="p-2.5 sm:p-3 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-slate-200 dark:border-slate-800 shrink-0">
+            <form onSubmit={handleSend} className="relative flex items-center space-x-2">
+              {/* Emoji Picker Popover */}
+              {showEmojiPicker && (
+                <div className="absolute bottom-14 left-0 p-2.5 bg-white dark:bg-[#202c33] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl flex items-center gap-1.5 z-30 animate-fade-in">
+                  {EMOJI_LIST.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => {
+                        setInputText((prev) => prev + emoji);
+                        setShowEmojiPicker(false);
+                      }}
+                      className="p-1 text-base hover:scale-125 transition-transform"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="p-2 rounded-full text-slate-500 hover:text-amber-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                title="Add Emoji"
+              >
+                <Smile className="w-5 h-5" />
+              </button>
+
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 bg-white dark:bg-[#2a3942] rounded-xl px-4 py-2.5 text-xs sm:text-sm font-normal text-slate-900 dark:text-white placeholder:text-slate-400 border border-transparent focus:outline-none shadow-2xs"
+              />
+
+              <button
+                type="submit"
+                disabled={isSending || !inputText.trim()}
+                className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#02906f] disabled:opacity-40 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 transition-all shrink-0"
+                title="Send Message"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* Unauthenticated Prompt: Login is only compulsory for chatting! */
+          <div className="p-3.5 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center space-x-2.5 text-xs text-slate-700 dark:text-slate-300">
+              <div className="w-9 h-9 rounded-full bg-emerald-500/20 text-[#00a884] flex items-center justify-center shrink-0">
+                <Lock className="w-4 h-4" />
               </div>
-            )}
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white">
+                  Join the Class {activeStandard} WhatsApp Conversation
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Login is only required for chatting and posting doubts. Reading materials is free!
+                </p>
+              </div>
+            </div>
 
             <button
-              type="button"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="p-2.5 rounded-xl text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Add Emoji"
+              onClick={() => setShowAuthModal(true)}
+              className="px-5 py-2.5 rounded-xl bg-[#00a884] hover:bg-[#02906f] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 transition-all shrink-0"
             >
-              <Smile className="w-5 h-5" />
+              <LogIn className="w-4 h-4" />
+              <span>Log In to Chat</span>
             </button>
-
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={`Message #${currentChannel.name} (Class ${activeStandard})...`}
-              className="flex-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl px-4 py-3 text-xs font-medium border border-transparent focus:border-brand-500 dark:focus:border-brand-500 text-slate-900 dark:text-white outline-none"
-            />
-
-            <button
-              type="submit"
-              disabled={isSending || !inputText.trim()}
-              className="p-3 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white rounded-2xl shadow-md shadow-brand-500/20 transition-all shrink-0"
-              title="Send Message"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
+          </div>
+        )}
       </div>
+
+      {/* Global Auth Modal for instant peer lounge login */}
+      {showAuthModal && (
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      )}
     </div>
   );
 };

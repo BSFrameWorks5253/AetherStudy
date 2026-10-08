@@ -7,7 +7,6 @@ import { CommunityLounge } from './components/community/CommunityLounge';
 import { TestPapers } from './components/tests/TestPapers';
 import { TimetableGrid } from './components/timetable/TimetableGrid';
 import { TrackerTree } from './components/syllabus/TrackerTree';
-import { AuthModal } from './components/auth/AuthModal';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 
@@ -15,7 +14,7 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const { theme } = useTheme();
-  const { isAuthenticated, isSuperAdmin, activeStandard } = useAuth();
+  const { isSuperAdmin, activeStandard } = useAuth();
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || isSuperAdmin;
 
   // Sync top-level tab with current browser URL path
@@ -59,16 +58,6 @@ export const App: React.FC = () => {
       window.history.pushState(null, '', '/syllabus');
     }
   };
-
-  // STEP 5 GUARD: If unauthenticated, render the secure AuthModal exclusively
-  if (!isAuthenticated) {
-    return (
-      <div className={`relative flex h-screen w-screen items-center justify-center overflow-hidden antialiased select-none ${theme}`}>
-        <LiquidBackground />
-        <AuthModal isOpen={true} isGuardMode={true} />
-      </div>
-    );
-  }
 
   const getTitle = () => {
     switch (activeTab) {
