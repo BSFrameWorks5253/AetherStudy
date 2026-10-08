@@ -14,8 +14,6 @@ import {
   TrendingUp,
   Laptop,
   CheckCheck,
-  Lock,
-  LogIn,
   ArrowLeft,
   Paperclip,
   MoreVertical,
@@ -179,26 +177,28 @@ export const CommunityLounge: React.FC<CommunityLoungeProps> = ({
     if (e) e.preventDefault();
     if (!inputText.trim() || isSending) return;
 
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-
     const textToSend = inputText.trim();
     setInputText('');
     setIsSending(true);
 
     try {
+      const senderEmail = currentUser?.email || 'student.guest@aetherstudy.internal';
+      const senderName = currentUser?.email ? currentUser.email.split('@')[0] : 'Commerce Student';
+      const senderRole = currentUser?.role || 'USER';
+
       const newMsg = await api.sendChatMessage({
         standard: activeStandard,
         channelId: activeChannelId,
-        senderEmail: currentUser?.email || 'student@example.com',
-        senderName: currentUser?.email ? currentUser.email.split('@')[0] : 'Student',
-        senderRole: currentUser?.role || 'USER',
+        senderEmail,
+        senderName,
+        senderRole,
         content: textToSend,
       });
 
-      setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 50);
@@ -540,88 +540,80 @@ export const CommunityLounge: React.FC<CommunityLoungeProps> = ({
         {/* ========================================================
             WHATSAPP BOTTOM DOCK: INPUT OR SIGN-IN PROMPT
         ======================================================== */}
-        {isAuthenticated ? (
-          <div className="px-3 py-2.5 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-slate-200 dark:border-slate-800/80 shrink-0">
-            <form onSubmit={handleSend} className="relative flex items-center space-x-2">
-              {showEmojiPicker && (
-                <div className="absolute bottom-12 left-0 p-2 bg-white dark:bg-[#202c33] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl flex items-center gap-1.5 z-30 animate-fade-in">
-                  {EMOJI_LIST.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => {
-                        setInputText((prev) => prev + emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                      className="p-1 text-base hover:scale-125 transition-transform"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-
+        {/* ========================================================
+            WHATSAPP BOTTOM DOCK: UNIVERSAL INSTANT INPUT
+        ======================================================== */}
+        <div className="px-3 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-slate-200 dark:border-slate-800/80 shrink-0">
+          {!isAuthenticated && (
+            <div className="mb-1 px-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>Active as <strong>Commerce Student</strong> (Instant Chat)</span>
+              </span>
               <button
                 type="button"
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                title="Emoji"
+                onClick={() => setShowAuthModal(true)}
+                className="text-[#00a884] font-bold hover:underline"
               >
-                <Smile className="w-5 h-5" />
+                Sign In for Verified Badge →
               </button>
-
-              <button
-                type="button"
-                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                title="Attach"
-              >
-                <Paperclip className="w-5 h-5" />
-              </button>
-
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Type a message"
-                className="flex-1 bg-white dark:bg-[#2a3942] rounded-lg px-4 py-2 text-[13.5px] text-slate-900 dark:text-white placeholder:text-slate-400 border-none focus:outline-none shadow-2xs"
-              />
-
-              <button
-                type="submit"
-                disabled={isSending || !inputText.trim()}
-                className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#02906f] disabled:opacity-40 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 transition-all shrink-0"
-                title="Send"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div className="px-4 py-3 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-            <div className="flex items-center space-x-2.5 text-xs text-slate-700 dark:text-slate-300">
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-[#00a884] flex items-center justify-center shrink-0">
-                <Lock className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-white">
-                  Join the Class {activeStandard} Commerce Chat
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Reading materials is open to everyone. Sign in to send messages and ask doubts!
-                </p>
-              </div>
             </div>
+          )}
+          <form onSubmit={handleSend} className="relative flex items-center space-x-2">
+            {showEmojiPicker && (
+              <div className="absolute bottom-12 left-0 p-2 bg-white dark:bg-[#202c33] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl flex items-center gap-1.5 z-30 animate-fade-in">
+                {EMOJI_LIST.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      setInputText((prev) => prev + emoji);
+                      setShowEmojiPicker(false);
+                    }}
+                    className="p-1 text-base hover:scale-125 transition-transform"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <button
-              onClick={() => setShowAuthModal(true)}
-              className="px-4 py-2 rounded-lg bg-[#00a884] hover:bg-[#02906f] text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 transition-all shrink-0"
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+              title="Emoji"
             >
-              <LogIn className="w-4 h-4" />
-              <span>Log In to Chat</span>
+              <Smile className="w-5 h-5" />
             </button>
-          </div>
-        )}
+
+            <button
+              type="button"
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+              title="Attach"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Type a message or doubt here..."
+              className="flex-1 bg-white dark:bg-[#2a3942] rounded-lg px-4 py-2 text-[13.5px] text-slate-900 dark:text-white placeholder:text-slate-400 border-none focus:outline-none shadow-2xs"
+            />
+
+            <button
+              type="submit"
+              disabled={isSending || !inputText.trim()}
+              className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#02906f] disabled:opacity-40 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 transition-all shrink-0"
+              title="Send"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
       </div>
 
       {showAuthModal && (

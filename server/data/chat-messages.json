@@ -1,0 +1,54 @@
+[
+  {
+    "id": "chat-seed-1",
+    "standard": "12",
+    "channelId": "general",
+    "senderEmail": "student.hsc@example.com",
+    "senderName": "Rohit K.",
+    "senderRole": "USER",
+    "content": "Hey everyone! Has anyone started practicing the Partnership Final Accounts adjustment sums for the preliminary exams?",
+    "timestamp": "2026-10-08T15:08:35.822Z",
+    "reactions": {
+      "👍": 4,
+      "💡": 2
+    }
+  },
+  {
+    "id": "chat-seed-2",
+    "standard": "12",
+    "channelId": "general",
+    "senderEmail": "bs.framework5253@gmail.com",
+    "senderName": "Super Admin",
+    "senderRole": "SUPER_ADMIN",
+    "content": "Welcome to the Standard 12 HSC Peer Lounge! You can discuss solutions, ask doubts about Book-Keeping, OCM, Economics, and Maths, and prepare together.",
+    "timestamp": "2026-10-08T16:08:35.822Z",
+    "reactions": {
+      "🔥": 6,
+      "❤️": 5
+    }
+  },
+  {
+    "id": "chat-seed-3",
+    "standard": "12",
+    "channelId": "accounts",
+    "senderEmail": "priya.accounts@example.com",
+    "senderName": "Priya S.",
+    "senderRole": "USER",
+    "content": "Can someone explain the treatment of Goods distributed as free samples in Trading A/c vs P&L A/c?",
+    "timestamp": "2026-10-08T16:38:35.822Z",
+    "reactions": {
+      "📚": 3
+    }
+  },
+  {
+    "id": "chat-1791484201668-bokw",
+    "standard": "12",
+    "channelId": "general",
+    "senderEmail": "test@example.com",
+    "senderName": "Tester",
+    "senderRole": "USER",
+    "content": "Test message",
+    "timestamp": "2026-10-08T18:30:01.668Z",
+    "reactions": {}
+  }
+]

@@ -824,7 +824,7 @@ export const SubjectRooms: React.FC = () => {
       setActiveRoom(doc.subject);
     }
     const slug = getSubjectSlug(doc.subject || activeRoom || 'room');
-    const docName = doc.originalName || doc.name;
+    const docName = doc.name || doc.originalName || 'document';
     const targetUrl = `/studyroom/${slug}/${encodeURIComponent(docName)}`;
     if (window.location.pathname !== targetUrl) {
       window.history.pushState(null, '', targetUrl);
@@ -1159,7 +1159,7 @@ export const SubjectRooms: React.FC = () => {
 
               <div className="truncate">
                 <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                  {readingDoc.originalName || readingDoc.name}
+                  {readingDoc.name || readingDoc.originalName}
                 </div>
                 <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
                   <span>{readingDoc.subject}</span>
@@ -1641,7 +1641,7 @@ export const SubjectRooms: React.FC = () => {
                                       <div className="flex items-center space-x-2 truncate mr-2">
                                         <BookOpen className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
                                         <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover/doc:text-brand-600 dark:group-hover/doc:text-brand-400 truncate">
-                                          {doc.originalName || doc.name}
+                                          {doc.name || doc.originalName}
                                         </span>
                                       </div>
                                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white shrink-0 shadow-xs flex items-center gap-1">
@@ -1788,7 +1788,7 @@ export const SubjectRooms: React.FC = () => {
                             </div>
 
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
-                              {doc.originalName || doc.name}
+                              {doc.name || doc.originalName}
                             </h4>
                             <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
                               <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
@@ -1932,7 +1932,7 @@ export const SubjectRooms: React.FC = () => {
                             </div>
 
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
-                              {doc.originalName || doc.name}
+                              {doc.name || doc.originalName}
                             </h4>
                             <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
                               <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>

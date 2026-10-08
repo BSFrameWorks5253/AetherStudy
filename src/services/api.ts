@@ -804,17 +804,30 @@ export const api = {
 
   // 13. Peer Discussion Chat (Discord / WhatsApp Style)
   async getChatMessages(standard: string, channelId: string): Promise<ChatMessage[]> {
+    const localKey = `aether_chat_${standard}_${channelId}`;
     try {
       const res = await fetch(`${API_BASE}/chat/messages?standard=${encodeURIComponent(standard)}&channelId=${encodeURIComponent(channelId)}`);
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem(`aether_chat_${standard}_${channelId}`, JSON.stringify(data));
-        return data;
+        if (Array.isArray(data)) {
+          const cached = localStorage.getItem(localKey);
+          const localList: ChatMessage[] = cached ? JSON.parse(cached) : [];
+          const combinedMap = new Map<string, ChatMessage>();
+          data.forEach((m) => combinedMap.set(m.id, m));
+          localList.forEach((m) => {
+            if (!combinedMap.has(m.id)) combinedMap.set(m.id, m);
+          });
+          const merged = Array.from(combinedMap.values()).sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          );
+          localStorage.setItem(localKey, JSON.stringify(merged));
+          return merged;
+        }
       }
     } catch (e) {
       console.warn('Chat fetch network error, using local buffer:', e);
     }
-    const cached = localStorage.getItem(`aether_chat_${standard}_${channelId}`);
+    const cached = localStorage.getItem(localKey);
     return cached ? JSON.parse(cached) : [
       {
         id: 'seed-msg-1',
@@ -831,6 +844,8 @@ export const api = {
   },
 
   async sendChatMessage(msg: { standard: string; channelId: string; senderEmail: string; senderName: string; senderRole: UserRole; content: string }): Promise<ChatMessage> {
+    const localKey = `aether_chat_${msg.standard}_${msg.channelId}`;
+    let savedMsg: ChatMessage | null = null;
     try {
       const res = await fetch(`${API_BASE}/chat/messages`, {
         method: 'POST',
@@ -838,13 +853,14 @@ export const api = {
         body: JSON.stringify(msg),
       });
       if (res.ok) {
-        return await res.json();
+        savedMsg = await res.json();
       }
     } catch (e) {
       console.warn('Chat send network error, storing in local buffer:', e);
     }
-    const newMsg: ChatMessage = {
-      id: 'chat-local-' + Date.now(),
+
+    const finalMsg: ChatMessage = savedMsg || {
+      id: 'chat-local-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       standard: msg.standard,
       channelId: msg.channelId,
       senderEmail: msg.senderEmail,
@@ -854,12 +870,14 @@ export const api = {
       timestamp: new Date().toISOString(),
       reactions: {},
     };
-    const key = `aether_chat_${msg.standard}_${msg.channelId}`;
-    const cached = localStorage.getItem(key);
+
+    const cached = localStorage.getItem(localKey);
     const list: ChatMessage[] = cached ? JSON.parse(cached) : [];
-    list.push(newMsg);
-    localStorage.setItem(key, JSON.stringify(list));
-    return newMsg;
+    if (!list.some((m) => m.id === finalMsg.id)) {
+      list.push(finalMsg);
+      localStorage.setItem(localKey, JSON.stringify(list));
+    }
+    return finalMsg;
   },
 
   async reactToChatMessage(id: string, emoji: string, standard: string, channelId: string): Promise<Record<string, number>> {

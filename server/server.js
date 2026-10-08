@@ -879,9 +879,15 @@ const initialChatMessages = [
 app.get('/api/chat/messages', (req, res) => {
   const { standard = '12', channelId = 'general' } = req.query;
   const messages = readJsonFile('chat-messages.json', initialChatMessages);
-  const filtered = messages.filter(
-    (m) => (m.standard === standard || standard === 'ALL') && (m.channelId === channelId)
-  );
+  const filtered = messages.filter((m) => {
+    const channelMatches = m.channelId === channelId;
+    const stdMatches =
+      !m.standard ||
+      m.standard === 'ALL' ||
+      standard === 'ALL' ||
+      m.standard === standard;
+    return channelMatches && stdMatches;
+  });
   res.json(filtered);
 });
 
