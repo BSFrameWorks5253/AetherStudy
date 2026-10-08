@@ -168,7 +168,7 @@ export const Timetable: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-y-auto p-4 md:p-8 relative">
       {/* Top Banner and Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
         <div>
           <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-wider mb-1">
             <Calendar className="w-4 h-4" />
@@ -186,7 +186,7 @@ export const Timetable: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 shrink-0">
           <select
             value={selectedSubjectFilter}
             onChange={(e) => setSelectedSubjectFilter(e.target.value)}
@@ -214,7 +214,7 @@ export const Timetable: React.FC = () => {
       </div>
 
       {/* Weekday Switcher Tabs */}
-      <div className="grid grid-cols-7 gap-1 sm:gap-2 p-1.5 liquid-glass rounded-2xl mb-6 shadow-sm select-none">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 p-1.5 liquid-glass rounded-2xl mb-6 shadow-sm select-none shrink-0">
         {DAYS.map((day) => {
           const count = schedule.filter((s) => s.day === day).length;
           const isSelected = activeDay === day;

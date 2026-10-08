@@ -904,8 +904,8 @@ export const SubjectRooms: React.FC = () => {
         ======================================================== */
         <div className="flex flex-col h-full w-full overflow-y-auto animate-fade-in p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
           {/* Room Header Banner */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative shrink-0 min-h-fit">
+            <div className="flex items-center space-x-3.5 sm:space-x-4 min-w-0 flex-1">
               <button
                 onClick={handleBackToOverview}
                 className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0"
@@ -922,23 +922,23 @@ export const SubjectRooms: React.FC = () => {
                 )}
               </div>
 
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+              <div className="min-w-0 flex-1 py-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-normal">
                     {activeRoom}
                   </h2>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/80 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/80 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">
                     Standard {activeStandard}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   {currentRoomMeta?.description || 'Dedicated Subject Room • Textbooks & Study Materials'}
                 </p>
               </div>
             </div>
 
             {/* Quick Room Actions */}
-            <div className="flex items-center space-x-2 shrink-0">
+            <div className="flex items-center space-x-2 shrink-0 self-start md:self-center">
               {canUpload && (
                 <button
                   onClick={() => {
@@ -948,14 +948,14 @@ export const SubjectRooms: React.FC = () => {
                   className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Upload PDF to {activeRoom}</span>
+                  <span>Upload PDF</span>
                 </button>
               )}
             </div>
           </div>
 
           {/* Subject Room Sub-Navigation Tabs */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 shrink-0">
             <button
               onClick={() => setActiveCategoryTab('syllabus')}
               className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
@@ -1409,7 +1409,7 @@ export const SubjectRooms: React.FC = () => {
         ======================================================== */
         <div className="flex flex-col h-full w-full overflow-y-auto p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
           {/* Header Title Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">

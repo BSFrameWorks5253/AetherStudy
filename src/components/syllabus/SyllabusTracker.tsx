@@ -371,7 +371,7 @@ export const SyllabusTracker: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-y-auto p-4 md:p-8 relative">
       {/* Header and Summary stats */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 shrink-0">
         <div>
           <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-wider mb-1">
             <FolderTree className="w-4 h-4" />
@@ -390,10 +390,10 @@ export const SyllabusTracker: React.FC = () => {
         </div>
 
         {/* Global Progress Metrics Card with Circular Meter */}
-        <div className="flex items-center bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xs space-x-6 border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xs space-x-6 border border-slate-200 dark:border-slate-800 shrink-0">
           <CircularProgress
             percentage={percentage}
-            size={115}
+            size={130}
             strokeWidth={10}
             label="Revision"
             sublabel={`${completedChapters}/${totalChapters}`}
@@ -420,7 +420,7 @@ export const SyllabusTracker: React.FC = () => {
       </div>
 
       {/* Subject Filter Bar and Add Topic Trigger */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6 shrink-0">
         <div className="flex items-center space-x-1.5 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto no-scrollbar shadow-xs max-w-full">
           <button
             onClick={() => setSelectedSubject('All')}
