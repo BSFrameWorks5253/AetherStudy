@@ -214,7 +214,7 @@ export const Timetable: React.FC = () => {
       </div>
 
       {/* Weekday Switcher Tabs */}
-      <div className="flex space-x-2 p-1.5 liquid-glass rounded-2xl mb-6 overflow-x-auto no-scrollbar shadow-sm">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 p-1.5 liquid-glass rounded-2xl mb-6 shadow-sm select-none">
         {DAYS.map((day) => {
           const count = schedule.filter((s) => s.day === day).length;
           const isSelected = activeDay === day;
@@ -222,15 +222,16 @@ export const Timetable: React.FC = () => {
             <button
               key={day}
               onClick={() => setActiveDay(day)}
-              className={`flex-1 min-w-[105px] py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
+              className={`py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between ${
                 isSelected
                   ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40'
               }`}
             >
-              <span>{day.slice(0, 3)}</span>
+              <span className="hidden sm:inline">{day.slice(0, 3)}</span>
+              <span className="sm:hidden text-[10px] font-bold tracking-tight">{day.slice(0, 3)}</span>
               <span
-                className={`text-[10px] px-2 py-0.5 rounded-full ${
+                className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full mt-0.5 sm:mt-0 ${
                   isSelected ? 'bg-white/20 text-white' : 'bg-black/5 dark:bg-white/10 text-slate-500 dark:text-slate-400'
                 }`}
               >
@@ -244,14 +245,26 @@ export const Timetable: React.FC = () => {
       {/* Time Slots List */}
       <div className="space-y-3">
         {currentDaySlots.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-14 liquid-glass rounded-3xl text-center">
-            <Clock className="w-12 h-12 text-slate-400 dark:text-slate-600 mb-3" />
-            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">
+          <div className="flex flex-col items-center justify-center p-10 md:p-14 liquid-glass rounded-3xl text-center border border-slate-200/50 dark:border-slate-800/50">
+            <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-3 border border-brand-100 dark:border-brand-900/40 shadow-xs">
+              <Clock className="w-7 h-7" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
               No study blocks planned for {activeDay}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
-              Schedule your focused blocks now to lock in productive flow.
+              Schedule your focused revision blocks to lock in productive flow.
             </p>
+            <button
+              onClick={() => {
+                setNewDay(activeDay);
+                setShowAddModal(true);
+              }}
+              className="mt-4 flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Block for {activeDay.slice(0, 3)}</span>
+            </button>
           </div>
         ) : (
           currentDaySlots.map((slot) => {

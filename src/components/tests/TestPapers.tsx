@@ -284,14 +284,15 @@ export const TestPapers: React.FC = () => {
                 <div className="flex items-center liquid-glass-subtle p-1 rounded-2xl">
                   <button
                     onClick={() => setSolveViewMode('question')}
-                    className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                       solveViewMode === 'question'
                         ? 'bg-brand-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <FileText className="w-3.5 h-3.5" />
-                    <span>Question Paper</span>
+                    <span className="hidden sm:inline">Question Paper</span>
+                    <span className="sm:hidden">Questions</span>
                   </button>
 
                   <button
@@ -299,7 +300,7 @@ export const TestPapers: React.FC = () => {
                     className={`hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                       solveViewMode === 'split'
                         ? 'bg-brand-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                     title="Compare Question Paper and Answer Key side-by-side"
                   >
@@ -309,14 +310,15 @@ export const TestPapers: React.FC = () => {
 
                   <button
                     onClick={() => setSolveViewMode('answer')}
-                    className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                       solveViewMode === 'answer'
                         ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <CheckCircle className="w-3.5 h-3.5" />
-                    <span>Answer Key / Solutions</span>
+                    <span className="hidden sm:inline">Answer Key / Solutions</span>
+                    <span className="sm:hidden">Solutions</span>
                   </button>
                 </div>
               </div>

@@ -37,14 +37,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'workspace' as ActiveTab,
       label: 'Study Desk',
-      mobileLabel: 'Study Desk',
+      mobileLabel: 'Desk',
       description: 'Subject Rooms & PDFs',
       icon: BookOpen,
     },
     {
       id: 'community' as ActiveTab,
       label: 'Peer Lounge',
-      mobileLabel: 'Peer Chat',
+      mobileLabel: 'Chat',
       description: `Std ${activeStandard} Live Chat`,
       icon: MessageSquare,
     },
@@ -53,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {
             id: 'tests' as ActiveTab,
             label: 'Exam Vault (PYQs)',
-            mobileLabel: 'PYQs & Tests',
+            mobileLabel: 'Vault',
             description: 'Board Papers & Solutions',
             icon: FileCheck2,
           },
@@ -62,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'timetable' as ActiveTab,
       label: 'Study Timetable',
-      mobileLabel: 'Timetable',
+      mobileLabel: 'Planner',
       description: 'Schedule & Timer',
       icon: CalendarDays,
     },
@@ -236,7 +236,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Mobile Bottom Navigation Bar (< 768px viewports, hidden in active chat thread) */}
       <nav
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 justify-around shadow-xl backdrop-blur-md transition-all ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-1 py-1.5 justify-around items-center shadow-xl backdrop-blur-md transition-all ${
           activeTab === 'community' && isMobileChatOpen ? 'hidden' : 'flex'
         }`}
       >
@@ -248,45 +248,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all ${
                 isActive
-                  ? 'text-brand-600 dark:text-brand-400 font-bold'
+                  ? 'text-brand-600 dark:text-brand-400'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
               }`}
             >
               <div
                 className={`p-1 rounded-xl transition-all ${
-                  isActive ? 'bg-brand-50 dark:bg-brand-950/80 text-brand-600 dark:text-brand-400' : ''
+                  isActive ? 'bg-brand-50 dark:bg-brand-950/80 text-brand-600 dark:text-brand-400 scale-105' : ''
                 }`}
               >
                 <Icon className="w-5 h-5" />
               </div>
-              <span className="text-[10px] mt-0.5 tracking-tight font-medium">
+              <span className={`text-[10px] mt-0.5 tracking-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
                 {item.mobileLabel}
               </span>
             </button>
           );
         })}
-
-        {/* Mobile Sign Out Button */}
-        {isAuthenticated && (
-          <button
-            onClick={() => {
-              if (window.confirm('Log out of AetherStudy? You can log back in anytime.')) {
-                logout();
-              }
-            }}
-            className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-rose-500 hover:text-rose-700 transition-all"
-            title="Sign Out"
-          >
-            <div className="p-1 rounded-xl">
-              <LogOut className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-0.5 tracking-tight font-medium">
-              Log Out
-            </span>
-          </button>
-        )}
       </nav>
     </>
   );

@@ -421,10 +421,10 @@ export const SyllabusTracker: React.FC = () => {
 
       {/* Subject Filter Bar and Add Topic Trigger */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex items-center space-x-1.5 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto shadow-xs">
+        <div className="flex items-center space-x-1.5 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto no-scrollbar shadow-xs max-w-full">
           <button
             onClick={() => setSelectedSubject('All')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
               selectedSubject === 'All'
                 ? 'bg-brand-600 text-white shadow-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -436,7 +436,7 @@ export const SyllabusTracker: React.FC = () => {
             <button
               key={sub}
               onClick={() => setSelectedSubject(sub)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 selectedSubject === sub
                   ? 'bg-brand-600 text-white shadow-md'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -595,14 +595,18 @@ export const SyllabusTracker: React.FC = () => {
                       topic.chapters.map((chapter) => (
                         <div
                           key={chapter.id}
-                          className="flex items-center justify-between px-3.5 py-2.5 rounded-xl liquid-glass border border-white/50 dark:border-white/5 transition-colors group"
+                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all group ${
+                            chapter.isCompleted
+                              ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40 shadow-xs'
+                              : 'liquid-glass border-slate-200/60 dark:border-slate-800/60 hover:border-brand-500/30'
+                          }`}
                         >
                           <div
                             onClick={() => handleToggleChapter(topic.id, chapter.id)}
-                            className="flex items-center space-x-3 cursor-pointer flex-1"
+                            className="flex items-center space-x-3 cursor-pointer flex-1 min-w-0"
                           >
                             <button
-                              className="text-slate-400 hover:text-brand-500 transition-colors"
+                              className="text-slate-400 hover:text-brand-500 transition-transform active:scale-90 shrink-0"
                               title={chapter.isCompleted ? 'Mark incomplete' : 'Mark completed'}
                             >
                               {chapter.isCompleted ? (
@@ -614,17 +618,22 @@ export const SyllabusTracker: React.FC = () => {
                             <span
                               className={`text-xs ${
                                 chapter.isCompleted
-                                  ? 'line-through text-slate-400 dark:text-slate-500'
-                                  : 'text-slate-800 dark:text-slate-100 font-medium'
+                                  ? 'text-slate-600 dark:text-slate-300 font-medium line-through decoration-emerald-500/70'
+                                  : 'text-slate-800 dark:text-slate-100 font-semibold'
                               }`}
                             >
                               {chapter.title}
                             </span>
+                            {chapter.isCompleted && (
+                              <span className="hidden sm:inline-flex items-center text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full shrink-0">
+                                Done
+                              </span>
+                            )}
                           </div>
 
                           <button
                             onClick={() => handleDeleteChapter(topic.id, chapter.id)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-all"
+                            className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 rounded transition-all shrink-0 ml-2"
                             title="Remove Chapter"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

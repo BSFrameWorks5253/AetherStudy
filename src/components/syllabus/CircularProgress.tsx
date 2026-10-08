@@ -30,7 +30,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           r={radius}
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-surface-800"
+          className="text-slate-200 dark:text-slate-800"
           fill="transparent"
         />
 
@@ -59,11 +59,11 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
 
       {/* Center Percentage Display */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="text-2xl font-black tracking-tight text-white font-mono">
+        <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white font-mono">
           {Math.round(clampedPercentage)}%
         </span>
-        {label && <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{label}</span>}
-        {sublabel && <span className="text-[9px] text-slate-500 mt-0.5">{sublabel}</span>}
+        {label && <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">{label}</span>}
+        {sublabel && <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">{sublabel}</span>}
       </div>
     </div>
   );

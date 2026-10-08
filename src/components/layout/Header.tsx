@@ -71,18 +71,24 @@ export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false 
     }
   };
 
+  // Split title into short mobile header vs full desktop title
+  const [shortTitle] = title.includes('•') ? title.split('•').map(s => s.trim()) : [title];
+
   return (
     <>
       <header className={`h-14 md:h-16 px-3 md:px-6 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 items-center justify-between select-none z-30 shadow-xs relative backdrop-blur-md ${isMobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
         {/* Module Title */}
-        <div className="flex items-center space-x-3 truncate">
-          <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate">
+        <div className="flex items-center space-x-2 min-w-0 flex-1 mr-2">
+          <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate sm:hidden">
+            {shortTitle}
+          </span>
+          <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate hidden sm:inline">
             {title}
           </span>
         </div>
 
         {/* Header Right Actions */}
-        <div className="flex items-center space-x-2 sm:space-x-2.5">
+        <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
           {/* Super Admin Grade Preview Switcher */}
           {isAuthenticated && isSuperAdmin && (
             <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/60 text-xs font-semibold text-purple-900 dark:text-purple-200 shadow-xs">
@@ -117,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false 
             <div className="flex items-center space-x-1.5">
               <button
                 onClick={() => setShowAuthModal(true)}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-xs"
+                className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-xs shrink-0"
                 title="Account Settings & Permissions"
               >
                 <User className={`w-3.5 h-3.5 ${isSuperAdmin ? 'text-purple-600 dark:text-purple-400' : 'text-brand-600 dark:text-brand-400'}`} />
@@ -125,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false 
                   {currentUser?.email.split('@')[0]}
                 </span>
                 <span
-                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full ${
                     isSuperAdmin
                       ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300'
                       : currentUser?.role === 'ADMIN'
@@ -143,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false 
                     logout();
                   }
                 }}
-                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 text-xs font-bold transition-all shadow-xs"
+                className="hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 text-xs font-bold transition-all shadow-xs"
                 title="Log Out of this account"
               >
                 <LogOut className="w-3.5 h-3.5" />

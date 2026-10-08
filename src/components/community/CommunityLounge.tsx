@@ -416,13 +416,14 @@ export const CommunityLounge: React.FC<CommunityLoungeProps> = ({
 
           {/* Messages Stream */}
           {messages.map((msg) => {
+            const userHandle = (currentUser?.email || '').split('@')[0].trim().toLowerCase();
             const isMe =
               Boolean(isAuthenticated) &&
               Boolean(currentUser?.email) &&
               (
                 msg.senderEmail.trim().toLowerCase() === (currentUser?.email || '').trim().toLowerCase() ||
-                msg.senderName.trim().toLowerCase() === (currentUser?.email || '').split('@')[0].trim().toLowerCase() ||
-                (Boolean(isSuperAdmin) && (msg.senderRole === 'SUPER_ADMIN' || msg.senderName.toLowerCase().includes('admin')))
+                (Boolean(userHandle) && msg.senderName.trim().toLowerCase() === userHandle) ||
+                msg.senderName.trim().toLowerCase() === 'bs.framework5253'
               );
             const isMsgSuperAdmin = msg.senderRole === 'SUPER_ADMIN';
             const senderColor = getSenderColor(msg.senderName);
