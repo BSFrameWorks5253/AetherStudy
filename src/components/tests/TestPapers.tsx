@@ -137,17 +137,17 @@ export const TestPapers: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
       {/* Top Header & Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between px-4 py-3 liquid-glass border-b border-white/40 dark:border-white/10 gap-3 z-20 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 gap-3 z-20 shadow-xs">
         <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-cyan flex items-center justify-center text-white shadow-md">
+          <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-xs">
             <GraduationCap className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-none">
-              PYQ & Exam Test Vault
+            <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-none">
+              Previous Year Papers (PYQ Vault)
             </h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-              Solve Previous Year Questions with paired official Answer Keys
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Official Board Question Papers with Step-by-Step Model Solutions
             </p>
           </div>
         </div>
@@ -158,7 +158,7 @@ export const TestPapers: React.FC = () => {
           <select
             value={selectedSubject}
             onChange={(e) => setSelectedSubject(e.target.value)}
-            className="liquid-glass-subtle text-xs font-semibold rounded-xl px-3 py-2 outline-none"
+            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="All">All Subjects ({subjects.length})</option>
             {subjects.map((s) => (
@@ -172,7 +172,7 @@ export const TestPapers: React.FC = () => {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="liquid-glass-subtle text-xs font-semibold rounded-xl px-3 py-2 outline-none"
+            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="All">All Years</option>
             {availableYears.map((y) => (

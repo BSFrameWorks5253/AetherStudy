@@ -12,8 +12,8 @@ import {
   Download,
   Copy,
   Check,
-  Sparkles,
-  Server,
+  Columns,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface MarkdownEditorProps {
@@ -76,28 +76,28 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     return lines.map((line, idx) => {
       if (line.startsWith('### ')) {
         return (
-          <h3 key={idx} className="text-base font-bold text-brand-600 dark:text-brand-300 mt-4 mb-2 tracking-tight">
+          <h3 key={idx} className="text-base font-bold text-brand-700 dark:text-brand-300 mt-4 mb-2 tracking-tight">
             {line.replace('### ', '')}
           </h3>
         );
       }
       if (line.startsWith('## ')) {
         return (
-          <h2 key={idx} className="text-lg font-bold text-slate-800 dark:text-white mt-5 mb-2 border-b border-black/10 dark:border-white/10 pb-1">
+          <h2 key={idx} className="text-lg font-bold text-slate-900 dark:text-white mt-5 mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">
             {line.replace('## ', '')}
           </h2>
         );
       }
       if (line.startsWith('# ')) {
         return (
-          <h1 key={idx} className="text-2xl font-black text-slate-900 dark:text-white mt-6 mb-3 border-b border-black/10 dark:border-white/10 pb-2">
+          <h1 key={idx} className="text-2xl font-black text-slate-900 dark:text-white mt-6 mb-3 border-b border-slate-200 dark:border-slate-800 pb-2">
             {line.replace('# ', '')}
           </h1>
         );
       }
       if (line.startsWith('> ')) {
         return (
-          <blockquote key={idx} className="border-l-4 border-brand-500 pl-3 py-1.5 my-2.5 bg-brand-500/10 text-slate-700 dark:text-slate-300 italic rounded-r-lg">
+          <blockquote key={idx} className="border-l-4 border-brand-500 pl-3.5 py-2 my-3 bg-brand-50 dark:bg-brand-950/40 text-slate-800 dark:text-slate-200 italic rounded-r-xl border border-brand-200/50 dark:border-brand-900/50">
             {line.replace('> ', '')}
           </blockquote>
         );
@@ -106,14 +106,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         const checked = line.startsWith('- [x] ');
         const itemText = line.replace(/- \[[ x]\] /, '');
         return (
-          <div key={idx} className="flex items-center space-x-2 my-1.5 text-sm text-slate-700 dark:text-slate-200">
+          <div key={idx} className="flex items-center space-x-2.5 my-1.5 text-sm text-slate-800 dark:text-slate-200">
             <input
               type="checkbox"
               checked={checked}
               readOnly
-              className="rounded border-slate-300 dark:border-slate-700 text-brand-500"
+              className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-slate-300 dark:border-slate-700 cursor-default"
             />
-            <span className={checked ? 'line-through text-slate-400 dark:text-slate-500' : ''}>
+            <span className={checked ? 'line-through text-slate-400 dark:text-slate-500' : 'font-medium'}>
               {itemText}
             </span>
           </div>
@@ -121,86 +121,89 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       }
       if (line.startsWith('- ') || line.startsWith('* ')) {
         return (
-          <li key={idx} className="ml-4 list-disc text-sm text-slate-700 dark:text-slate-200 my-0.5">
+          <li key={idx} className="ml-5 list-disc text-sm text-slate-800 dark:text-slate-200 my-1 leading-relaxed">
             {line.replace(/^[-*]\s+/, '')}
           </li>
         );
       }
       if (line.startsWith('```')) {
-        return <div key={idx} className="border-t border-black/10 dark:border-white/10 my-2" />;
+        return <div key={idx} className="border-t border-slate-200 dark:border-slate-800 my-2.5" />;
       }
       if (!line.trim()) {
         return <div key={idx} className="h-2.5" />;
       }
-      return <p key={idx} className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed my-1">{line}</p>;
+      return (
+        <p key={idx} className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed my-1.5">
+          {line}
+        </p>
+      );
     });
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden relative">
-      {/* Liquid Glass Toolbar */}
-      <div className="flex flex-wrap items-center justify-between px-3 py-2 liquid-glass border-b border-white/40 dark:border-white/10 gap-2 select-none z-10 shadow-sm">
-        {/* Formatting Actions */}
-        <div className="flex items-center space-x-1">
+    <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-slate-900 select-text border-l border-slate-200 dark:border-slate-800">
+      {/* Top Formatting Ribbon */}
+      <div className="flex flex-wrap items-center justify-between px-3 py-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 gap-2 shrink-0">
+        {/* Formatting Buttons */}
+        <div className="flex items-center space-x-0.5">
           <button
             onClick={() => insertSyntax('**', '**')}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Bold"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+            title="Bold (**text**)"
           >
             <Bold className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => insertSyntax('*', '*')}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Italic"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+            title="Italic (*text*)"
           >
             <Italic className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => insertSyntax('## ')}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Heading"
+            onClick={() => insertSyntax('### ')}
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+            title="Heading 3"
           >
             <Heading className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => insertSyntax('`', '`')}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Code"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+            title="Inline Code (`code`)"
           >
             <Code className="w-3.5 h-3.5" />
           </button>
-          <div className="h-4 w-[1px] bg-slate-300 dark:bg-slate-700 mx-1" />
           <button
             onClick={() => insertSyntax('- ')}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="List"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+            title="Bulleted List"
           >
             <List className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => insertSyntax('- [ ] ')}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Task"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+            title="Checklist Item"
           >
             <CheckSquare className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => insertSyntax('> ')}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Quote"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+            title="Blockquote"
           >
             <Quote className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* View Switcher */}
-        <div className="flex items-center bg-white/40 dark:bg-slate-800/60 border border-white/50 dark:border-white/10 p-0.5 rounded-xl shadow-sm">
+        {/* View Switcher Tabs */}
+        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
           <button
             onClick={() => setActiveTab('edit')}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
               activeTab === 'edit'
-                ? 'bg-brand-600 text-white shadow-sm'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -209,20 +212,20 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('split')}
-            className={`hidden md:flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+            className={`hidden md:flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
               activeTab === 'split'
-                ? 'bg-brand-600 text-white shadow-sm'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Sparkles className="w-3 h-3" />
+            <Columns className="w-3 h-3" />
             Split
           </button>
           <button
             onClick={() => setActiveTab('preview')}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
               activeTab === 'preview'
-                ? 'bg-brand-600 text-white shadow-sm'
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -231,55 +234,49 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           </button>
         </div>
 
-        {/* Server Sync Indicator & Actions */}
-        <div className="flex items-center space-x-2">
-          {/* Server Persistence Indicator */}
-          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/50 dark:border-white/10 text-[11px] shadow-sm">
-            <Server className={`w-3 h-3 ${isConnected ? 'text-emerald-500' : 'text-amber-500'}`} />
-            <span className="font-medium text-slate-600 dark:text-slate-300">
-              {isSaving ? 'Syncing to Server...' : isConnected ? 'Server Stored' : 'Offline Buffer'}
+        {/* Persistence Status & Actions */}
+        <div className="flex items-center space-x-1.5">
+          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-[11px]">
+            <CheckCircle2 className={`w-3.5 h-3.5 ${isSaving ? 'text-amber-500 animate-spin' : isConnected ? 'text-emerald-500' : 'text-slate-400'}`} />
+            <span className="font-semibold text-slate-700 dark:text-slate-300">
+              {isSaving ? 'Saving...' : 'Auto-Saved'}
             </span>
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isSaving ? 'bg-amber-400 animate-ping' : isConnected ? 'bg-emerald-400' : 'bg-amber-400'
-              }`}
-            />
           </div>
 
           <button
             onClick={handleCopy}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Copy Markdown"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+            title="Copy Note Content"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={handleDownload}
-            className="p-1.5 rounded-lg hover:bg-white/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            title="Export Markdown"
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+            title="Export as Markdown (.md)"
           >
             <Download className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Editor Body */}
+      {/* Editor Body with Pure High Contrast */}
       <div className="flex-1 flex overflow-hidden">
         {(activeTab === 'edit' || activeTab === 'split') && (
-          <div className={`h-full ${activeTab === 'split' ? 'w-1/2 border-r border-black/10 dark:border-white/10' : 'w-full'}`}>
+          <div className={`h-full ${activeTab === 'split' ? 'w-1/2 border-r border-slate-200 dark:border-slate-800' : 'w-full'}`}>
             <textarea
               ref={textareaRef}
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              placeholder="# Research Notes&#10;&#10;Start typing markdown notes here... Real-time persistent server storage."
-              className="w-full h-full p-5 bg-transparent font-mono text-sm text-slate-900 dark:text-slate-100 resize-none outline-none focus:ring-0 leading-relaxed placeholder:text-slate-400 dark:placeholder:text-slate-600 overflow-y-auto selection:bg-brand-500/30"
+              placeholder="# Study Notes&#10;&#10;Type your lecture notes, summaries, or formulas here..."
+              className="w-full h-full p-5 bg-white dark:bg-slate-900 font-mono text-sm text-slate-900 dark:text-slate-100 resize-none outline-none focus:ring-0 leading-relaxed placeholder:text-slate-400 dark:placeholder:text-slate-600 overflow-y-auto selection:bg-brand-500/20"
               spellCheck={false}
             />
           </div>
         )}
 
         {(activeTab === 'preview' || activeTab === 'split') && (
-          <div className={`h-full overflow-y-auto p-5 liquid-glass-subtle ${activeTab === 'split' ? 'w-1/2' : 'w-full'}`}>
+          <div className={`h-full overflow-y-auto p-5 bg-slate-50 dark:bg-slate-950/60 ${activeTab === 'split' ? 'w-1/2' : 'w-full'}`}>
             {value.trim() ? (
               <div className="max-w-2xl mx-auto space-y-1">
                 {renderSimpleMarkdown(value)}
@@ -287,7 +284,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
                 <Edit3 className="w-8 h-8 mb-2 stroke-[1.5]" />
-                Preview will appear here as you write.
+                Your formatted notes preview will appear here as you type.
               </div>
             )}
           </div>
@@ -295,17 +292,18 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       </div>
 
       {/* Footer Metrics */}
-      <div className="flex items-center justify-between px-4 py-1.5 liquid-glass-subtle border-t border-white/30 dark:border-white/10 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+      <div className="flex items-center justify-between px-4 py-1.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 font-medium shrink-0">
         <div className="flex items-center space-x-3">
           <span>{words} words</span>
-          <span>{chars} chars</span>
+          <span>{chars} characters</span>
           <span>~{readTime} min read</span>
         </div>
-        <div className="flex items-center space-x-1.5">
-          <span className="w-2 h-2 rounded-full bg-brand-500" />
-          <span>Server Database Connected</span>
+        <div className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span>Synced</span>
         </div>
       </div>
     </div>
   );
 };
+export default MarkdownEditor;

@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
   }
 
-  const { email, otp, token } = req.body || {};
+  const { email, otp, token, standard } = req.body || {};
 
   if (!email || !otp || !token) {
     return res.status(400).json({ error: 'Email, verification code, and validation token are all required.' });
@@ -51,7 +51,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 4. Server-Side RBAC Authority: Determine authorization role strictly on server
     const isSuper = Boolean(SUPER_ADMIN_EMAIL) && normalizedEmail === SUPER_ADMIN_EMAIL;
-    const role = isSuper ? 'SUPER_ADMIN' : 'USER';
+    let role: 'SUPER_ADMIN' | 'ADMIN' | 'USER' = isSuper ? 'SUPER_ADMIN' : 'USER';
+
+    if (!isSuper) {
+      try {
+        const GITHUB_REPO = process.env.GITHUB_REPO || 'BSFrameWorks5253/AetherStudy';
+        const GH_ACCESS_TOKEN = process.env.GH_ACCESS_TOKEN;
+        if (GH_ACCESS_TOKEN) {
+          const resUsers = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/data/users.json`, {
+            headers: {
+              Authorization: `Bearer ${GH_ACCESS_TOKEN}`,
+              Accept: 'application/vnd.github.v3+json',
+              'User-Agent': 'AetherStudy-Auth',
+            },
+          });
+          if (resUsers.ok) {
+            const json = (await resUsers.json()) as { content: string };
+            const users = JSON.parse(Buffer.from(json.content, 'base64').toString('utf8'));
+            const found = users.find((u: any) => u.email.toLowerCase() === normalizedEmail);
+            if (found && found.role === 'ADMIN') role = 'ADMIN';
+          }
+        }
+      } catch (e) {
+        console.warn('Role lookup fallback:', e);
+      }
+    }
 
     // 5. Generate secure session token
     const sessionToken = crypto
@@ -59,12 +83,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .update(`${normalizedEmail}.${Date.now()}`)
       .digest('hex');
 
+    const userStandard = isSuper ? 'ALL' : (standard || '12');
+
     return res.status(200).json({
       success: true,
       message: 'Authentication validated successfully.',
       user: {
         email: normalizedEmail,
         role,
+        standard: userStandard,
         sessionToken,
       },
     });

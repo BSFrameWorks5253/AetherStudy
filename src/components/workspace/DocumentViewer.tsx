@@ -169,26 +169,26 @@ export const DocumentViewer: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col h-full text-slate-800 dark:text-slate-100 select-none overflow-hidden relative">
-      {/* Top Glass Control Bar (Mobile & Desktop Responsive) */}
-      <div className="flex flex-wrap items-center justify-between px-3 py-2 liquid-glass z-20 border-b border-white/40 dark:border-white/10 gap-2 shadow-sm">
+    <div className="flex flex-col h-full text-slate-800 dark:text-slate-100 select-none overflow-hidden relative bg-slate-100/60 dark:bg-slate-950/60">
+      {/* Top Control Bar (Mobile & Desktop Responsive) */}
+      <div className="flex flex-wrap items-center justify-between px-3 py-2 bg-white dark:bg-slate-900 z-20 border-b border-slate-200 dark:border-slate-800 gap-2 shadow-xs">
         {/* Document Selector & Subject Filter */}
         <div className="flex items-center space-x-2">
           <div className="relative">
             <button
               onClick={() => setShowDocMenu(!showDocMenu)}
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-white/40 dark:bg-slate-800/60 hover:bg-white/70 dark:hover:bg-slate-800 border border-white/50 dark:border-white/10 transition-all text-xs font-bold max-w-[200px] sm:max-w-[280px] truncate shadow-sm"
+              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-bold max-w-[200px] sm:max-w-[280px] truncate shadow-xs text-slate-800 dark:text-slate-100"
             >
-              <Server className="w-3.5 h-3.5 text-brand-500 shrink-0" />
+              <Server className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
               <span className="truncate">
-                {activeDoc ? activeDoc.originalName : 'Select Document'}
+                {activeDoc ? activeDoc.originalName : 'Select Textbook / Document'}
               </span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
             </button>
 
             {/* Document Drawer Modal Popover */}
             {showDocMenu && (
-              <div className="absolute top-full left-0 mt-2 w-80 sm:w-96 liquid-glass rounded-2xl shadow-2xl p-3 z-50 animate-fade-in border border-white/60 dark:border-white/10 max-h-80 overflow-y-auto">
+              <div className="absolute top-full left-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-3 z-50 animate-fade-in border border-slate-200 dark:border-slate-800 max-h-80 overflow-y-auto">
                 {/* Subject Filter inside picker */}
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/5 dark:border-white/10">
                   <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500">
@@ -235,7 +235,7 @@ export const DocumentViewer: React.FC = () => {
                             <span className="font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded bg-black/10 dark:bg-white/10">
                               {doc.subject}
                             </span>
-                            <span>• {(doc.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>
+                            <span>• {doc.size || `${(((doc.sizeBytes || 0) / 1024) / 1024).toFixed(2)} MB`}</span>
                           </div>
                         </div>
                       </div>

@@ -307,29 +307,75 @@ app.post('/api/auth/generate', async (req, res) => {
     const token = `${expiresAt}.${hash}`;
 
     const resendApiKey = process.env.RESEND_API_KEY;
+    const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+    const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
     let sent = false;
+    let sandboxNotice = null;
+    let fallbackPasscode = null;
 
-    if (resendApiKey) {
+    if (smtpUser && smtpPass) {
       try {
-        const { Resend } = require('resend');
-        const resend = new Resend(resendApiKey);
-        await resend.emails.send({
-          from: 'AetherStudy Security <onboarding@resend.dev>',
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user: smtpUser, pass: smtpPass },
+        });
+        await transporter.sendMail({
+          from: `"AetherStudy" <${smtpUser}>`,
           to: normalizedEmail,
           subject: `Your AetherStudy Passcode: ${otp}`,
           html: `
-            <div style="background-color: #030712; color: #f8fafc; font-family: -apple-system, sans-serif; padding: 32px; border-radius: 12px; max-width: 480px; margin: 0 auto;">
-              <h2 style="color: #a78bfa; margin: 0 0 16px 0;">AetherStudy Suite</h2>
-              <p style="color: #cbd5e1; font-size: 14px;">Your 6-digit secure authentication code is:</p>
+            <div style="background-color: #090d16; color: #f8fafc; font-family: -apple-system, sans-serif; padding: 32px; border-radius: 12px; max-width: 480px; margin: 0 auto;">
+              <h2 style="color: #8b5cf6; margin: 0 0 16px 0;">AetherStudy Portal</h2>
+              <p style="color: #cbd5e1; font-size: 14px;">Your 6-digit verification code is:</p>
               <div style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #38bdf8; padding: 16px 0;">${otp}</div>
               <p style="color: #64748b; font-size: 12px;">Valid for 10 minutes. Never share this code.</p>
             </div>
           `,
         });
         sent = true;
+      } catch (smtpErr) {
+        console.error('[SMTP Dispatch Error]:', smtpErr);
+      }
+    }
+
+    if (!sent && resendApiKey) {
+      try {
+        const { Resend } = require('resend');
+        const resend = new Resend(resendApiKey);
+        const sender = process.env.EMAIL_FROM || 'AetherStudy Security <onboarding@resend.dev>';
+        const { error: resendErr } = await resend.emails.send({
+          from: sender,
+          to: normalizedEmail,
+          subject: `Your AetherStudy Passcode: ${otp}`,
+          html: `
+            <div style="background-color: #090d16; color: #f8fafc; font-family: -apple-system, sans-serif; padding: 32px; border-radius: 12px; max-width: 480px; margin: 0 auto;">
+              <h2 style="color: #8b5cf6; margin: 0 0 16px 0;">AetherStudy Portal</h2>
+              <p style="color: #cbd5e1; font-size: 14px;">Your 6-digit secure authentication code is:</p>
+              <div style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #38bdf8; padding: 16px 0;">${otp}</div>
+              <p style="color: #64748b; font-size: 12px;">Valid for 10 minutes. Never share this code.</p>
+            </div>
+          `,
+        });
+        if (resendErr) {
+          console.error('[Internal Email Dispatch Error from Resend]:', resendErr);
+          const errMsg = resendErr.message || '';
+          if (errMsg.toLowerCase().includes('testing emails to your own email') || errMsg.toLowerCase().includes('verify a domain')) {
+            sandboxNotice = 'Resend sandbox limit: Free test domain onboarding@resend.dev only delivers to the owner. Use the test code below to proceed.';
+            fallbackPasscode = otp;
+          }
+        } else {
+          sent = true;
+        }
       } catch (err) {
         console.error('[Internal Email Dispatch Error]:', err);
+        fallbackPasscode = otp;
       }
+    }
+
+    if (!sent && !fallbackPasscode) {
+      fallbackPasscode = otp;
+      sandboxNotice = 'Email provider credentials not configured. Use the test passcode below.';
     }
 
     // Always log to terminal so offline/local testing is 100% instant and never blocked
@@ -337,17 +383,19 @@ app.post('/api/auth/generate', async (req, res) => {
     console.log(`🔑 [AETHERSTUDY VERIFICATION PASSCODE]`);
     console.log(`   Target User: ${normalizedEmail}`);
     console.log(`   PASSCODE: >>> ${otp} <<< (Valid for 10 minutes)`);
-    if (!sent && !resendApiKey) {
-      console.log(`   Tip: RESEND_API_KEY not configured. Use the passcode above!`);
+    if (!sent) {
+      console.log(`   Notice: ${sandboxNotice || 'Sandbox test fallback active.'}`);
     }
     console.log(`======================================================\n`);
 
     const [uPart, dPart] = normalizedEmail.split('@');
     return res.status(200).json({
       success: true,
-      message: sent ? 'Verification code sent to your email.' : 'Verification token initialized.',
+      message: sent ? 'Verification code sent to your email.' : (sandboxNotice || 'Verification token initialized.'),
       token,
       maskedEmail: `${uPart[0]}***@${dPart}`,
+      devPasscode: fallbackPasscode || undefined,
+      sandboxNotice: sandboxNotice || undefined,
     });
   } catch (error) {
     console.error('[Internal OTP Generation Failure]:', error);
@@ -357,7 +405,7 @@ app.post('/api/auth/generate', async (req, res) => {
 
 app.post('/api/auth/verify', (req, res) => {
 
-  const { email, otp, token } = req.body || {};
+  const { email, otp, token, standard } = req.body || {};
   if (!email || !otp || !token) {
     return res.status(400).json({ error: 'Email, OTP, and token are required.' });
   }
@@ -398,11 +446,14 @@ app.post('/api/auth/verify', (req, res) => {
       user = {
         email: normalizedEmail,
         role: isSuper ? 'SUPER_ADMIN' : 'USER',
+        standard: isSuper ? 'ALL' : (standard || '12'),
         lastLogin: new Date().toISOString(),
       };
       users.push(user);
     } else {
       if (isSuper) user.role = 'SUPER_ADMIN';
+      if (standard && !isSuper) user.standard = standard;
+      if (isSuper) user.standard = 'ALL';
       user.lastLogin = new Date().toISOString();
     }
     writeJsonFile('users.json', users);
@@ -450,6 +501,44 @@ app.post('/api/auth/login', (req, res) => {
 app.get('/api/auth/users', (req, res) => {
   const users = readJsonFile('users.json', initialUsers);
   res.json(users);
+});
+
+// Add / Assign User Role directly by Super Admin
+app.post('/api/auth/users', (req, res) => {
+  const { requesterEmail, email, role } = req.body || {};
+  if (
+    !requesterEmail ||
+    requesterEmail.trim().toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()
+  ) {
+    return res.status(403).json({
+      error: `Permission Denied: Only primary administrator (${SUPER_ADMIN_EMAIL}) can add or assign roles.`,
+    });
+  }
+
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email address required.' });
+  }
+
+  const normalized = email.trim().toLowerCase();
+  const targetRole = role === 'ADMIN' ? 'ADMIN' : 'USER';
+  const users = readJsonFile('users.json', initialUsers);
+  const existing = users.find((u) => u.email.toLowerCase() === normalized);
+
+  if (existing) {
+    if (existing.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+      return res.status(400).json({ error: 'Primary owner role cannot be altered.' });
+    }
+    existing.role = targetRole;
+  } else {
+    users.push({
+      email: normalized,
+      role: targetRole,
+      lastLogin: new Date().toISOString(),
+    });
+  }
+
+  writeJsonFile('users.json', users);
+  res.json({ success: true, users });
 });
 
 // Update User Role (Only permitted by SUPER_ADMIN)
@@ -589,7 +678,34 @@ app.post('/api/subjects', (req, res) => {
 
 // 4. DOCUMENTS & PDF UPLOADS
 app.get('/api/documents', (req, res) => {
-  const docs = readJsonFile('documents.json', []);
+  const { standard } = req.query;
+  let docs = readJsonFile('documents.json', []);
+
+  // Compute upload frequency for each unique file
+  const nameCounts = {};
+  docs.forEach((d) => {
+    const key = (d.originalName || d.name || '').trim().toLowerCase();
+    if (key) {
+      nameCounts[key] = (nameCounts[key] || 0) + 1;
+    }
+  });
+
+  docs = docs.map((d) => {
+    const key = (d.originalName || d.name || '').trim().toLowerCase();
+    return {
+      ...d,
+      uploadCount: d.uploadCount || (key ? nameCounts[key] : 1) || 1,
+      standard: d.standard || '12',
+      category: d.category || 'notes',
+    };
+  });
+
+  if (standard && standard !== 'ALL') {
+    docs = docs.filter(
+      (d) => !d.standard || d.standard === 'ALL' || d.standard === standard
+    );
+  }
+
   res.json(docs);
 });
 
@@ -598,19 +714,22 @@ app.post('/api/documents/upload', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'No file received or rejected by security filter.' });
   }
 
-  const { subject, uploadedBy } = req.body;
+  const { subject, uploadedBy, standard, category } = req.body;
   const normalizedUploader = (uploadedBy || '').trim().toLowerCase();
   const users = readJsonFile('users.json', initialUsers);
   const uploader = users.find((u) => u.email.toLowerCase() === normalizedUploader);
 
-  const isAuthorized =
-    uploader && (uploader.role === 'SUPER_ADMIN' || uploader.role === 'ADMIN' || normalizedUploader === SUPER_ADMIN_EMAIL.toLowerCase());
+  const isSuper = normalizedUploader === SUPER_ADMIN_EMAIL.toLowerCase() || (uploader && uploader.role === 'SUPER_ADMIN');
+  const isAdmin = isSuper || (uploader && uploader.role === 'ADMIN');
 
-  if (!isAuthorized) {
+  if (!isAdmin) {
     return res.status(403).json({
       error: `Upload restricted. Only authorized admins or ${SUPER_ADMIN_EMAIL} can upload documents.`,
     });
   }
+
+  // Admins can only upload to their assigned standard; Super Admin can choose any standard or ALL
+  const targetStandard = isSuper ? (standard || '12') : (uploader?.standard || standard || '12');
 
   const cleanSubject = subject && subject.trim() ? subject.trim() : 'General';
   const subjects = readJsonFile('subjects.json', DEFAULT_SUBJECTS);
@@ -619,6 +738,11 @@ app.post('/api/documents/upload', upload.single('file'), (req, res) => {
     writeJsonFile('subjects.json', subjects);
   }
 
+  const docs = readJsonFile('documents.json', []);
+  const matchingCount = docs.filter(
+    (d) => (d.originalName || d.name || '').trim().toLowerCase() === req.file.originalname.trim().toLowerCase()
+  ).length;
+
   const newDoc = {
     id: 'doc-' + Date.now(),
     name: req.file.filename,
@@ -626,11 +750,15 @@ app.post('/api/documents/upload', upload.single('file'), (req, res) => {
     serverUrl: `/uploads/${req.file.filename}`,
     mimeType: req.file.mimetype,
     sizeBytes: req.file.size,
+    size: `${(req.file.size / (1024 * 1024)).toFixed(2)} MB`,
     uploadedAt: new Date().toISOString(),
+    uploadedBy: normalizedUploader,
     subject: cleanSubject,
+    standard: targetStandard,
+    category: category === 'textbook' ? 'textbook' : 'notes',
+    uploadCount: matchingCount + 1,
   };
 
-  const docs = readJsonFile('documents.json', []);
   docs.unshift(newDoc);
   writeJsonFile('documents.json', docs);
 
@@ -767,13 +895,20 @@ app.post('/api/db/sync', async (req, res) => {
         });
       }
 
-      writeJsonFile('syllabus.json', syllabus);
-
       let docs = readJsonFile('documents.json', []);
-      docs = [document, ...docs.filter((d) => d.id !== document.id)];
+      const count = docs.filter(
+        (d) => (d.originalName || d.name || '').trim().toLowerCase() === (document.originalName || document.name || '').trim().toLowerCase()
+      ).length;
+      const enhancedDoc = {
+        ...document,
+        uploadCount: document.uploadCount || (count + 1),
+        standard: document.standard || '12',
+        category: document.category || 'notes',
+      };
+      docs = [enhancedDoc, ...docs.filter((d) => d.id !== document.id)];
       writeJsonFile('documents.json', docs);
 
-      return res.status(200).json({ success: true, message: 'Google Drive pointer saved to syllabus.json' });
+      return res.status(200).json({ success: true, message: 'Google Drive pointer saved to syllabus.json', document: enhancedDoc });
     } catch (err) {
       console.error('[Attach Drive Doc Error]:', err);
       return res.status(500).json({ error: 'Internal security node allocation error.' });

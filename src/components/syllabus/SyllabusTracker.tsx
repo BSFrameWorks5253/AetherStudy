@@ -20,47 +20,51 @@ import {
 const INITIAL_SYLLABUS: SyllabusTopic[] = [
   {
     id: 'top-1',
-    subject: 'Distributed Systems',
-    title: '1. Consensus Algorithms & Fault-Tolerance',
+    subject: 'English',
+    title: 'Section I: Prose & Literary Studies',
     isExpanded: true,
     chapters: [
-      { id: 'ch-1-1', title: 'Paxos: Single-Decree Synod & Multi-Paxos Lease Protocols', isCompleted: true },
-      { id: 'ch-1-2', title: 'Raft: Randomized Leader Election & Log Replication Safety', isCompleted: true },
-      { id: 'ch-1-3', title: 'Practical Byzantine Fault Tolerance (PBFT) & View Changes', isCompleted: false },
-      { id: 'ch-1-4', title: 'Vector Clocks, Lamport Timestamps & Causal Consistency', isCompleted: false },
+      { id: 'ch-1-1', title: '1.1 An Astrologer’s Day — R. K. Narayan', isCompleted: true },
+      { id: 'ch-1-2', title: '1.2 On Saying “Please” — A. G. Gardiner', isCompleted: true },
+      { id: 'ch-1-3', title: '1.3 The Cop and the Anthem — O. Henry', isCompleted: false },
+      { id: 'ch-1-4', title: '1.4 Big Data - Big Insights', isCompleted: false },
+      { id: 'ch-1-5', title: '1.5 The New Dress — Virginia Woolf', isCompleted: false },
     ],
   },
   {
     id: 'top-2',
-    subject: 'Quantum Information Science',
-    title: '2. Quantum Circuits & Error Correction',
+    subject: 'Physics',
+    title: 'Part 1: Classical & Fluid Mechanics',
     isExpanded: true,
     chapters: [
-      { id: 'ch-2-1', title: 'Bloch Sphere Geometry, Pauli Matrices & Clifford Group', isCompleted: true },
-      { id: 'ch-2-2', title: 'Shor’s 9-Qubit Code & CSS Quantum Stabilizer Formalism', isCompleted: false },
-      { id: 'ch-2-3', title: 'Surface Codes: Anyonic Excitations & Toric Code Topology', isCompleted: false },
+      { id: 'ch-2-1', title: 'Chapter 1: Rotational Dynamics & Moment of Inertia', isCompleted: true },
+      { id: 'ch-2-2', title: 'Chapter 2: Mechanical Properties of Fluids & Surface Tension', isCompleted: false },
+      { id: 'ch-2-3', title: 'Chapter 3: Kinetic Theory of Gases & Radiation', isCompleted: false },
+      { id: 'ch-2-4', title: 'Chapter 4: Thermodynamics & Carnot Cycle', isCompleted: false },
     ],
   },
   {
     id: 'top-3',
-    subject: 'Machine Learning Theory',
-    title: '3. Attention Mechanics & Diffusion Models',
+    subject: 'Chemistry',
+    title: 'Part 1: Physical & Inorganic Foundations',
     isExpanded: false,
     chapters: [
-      { id: 'ch-3-1', title: 'Scaled Dot-Product Attention & Rotary Positional Embeddings (RoPE)', isCompleted: true },
-      { id: 'ch-3-2', title: 'Stochastic Differential Equations & Score-Based Generative Models', isCompleted: false },
-      { id: 'ch-3-3', title: 'FlashAttention: IO-Aware Tiling on GPU Shared SRAM', isCompleted: false },
+      { id: 'ch-3-1', title: 'Chapter 1: Solid State & Crystal Lattices', isCompleted: true },
+      { id: 'ch-3-2', title: 'Chapter 2: Solutions & Colligative Properties', isCompleted: false },
+      { id: 'ch-3-3', title: 'Chapter 3: Ionic Equilibria & Buffer Solutions', isCompleted: false },
+      { id: 'ch-3-4', title: 'Chapter 4: Chemical Thermodynamics & Enthalpy', isCompleted: false },
     ],
   },
   {
     id: 'top-4',
-    subject: 'Computer Systems & OS',
-    title: '4. Memory Consistency & Hardware Concurrency',
+    subject: 'Mathematics',
+    title: 'Paper I: Algebra & Calculus',
     isExpanded: false,
     chapters: [
-      { id: 'ch-4-1', title: 'MESI / MOESI Cache Coherence & False Sharing Mitigation', isCompleted: true },
-      { id: 'ch-4-2', title: 'Sequential Consistency vs TSO (Total Store Ordering) Barriers', isCompleted: false },
-      { id: 'ch-4-3', title: 'Non-Blocking Lock-Free FIFO Queues & ABA Prevention', isCompleted: false },
+      { id: 'ch-4-1', title: 'Chapter 1: Mathematical Logic & Truth Tables', isCompleted: true },
+      { id: 'ch-4-2', title: 'Chapter 2: Matrices & Inversion Method', isCompleted: false },
+      { id: 'ch-4-3', title: 'Chapter 3: Trigonometric Functions & General Solutions', isCompleted: false },
+      { id: 'ch-4-4', title: 'Chapter 4: Differentiation & Derivatives', isCompleted: false },
     ],
   },
 ];
@@ -189,42 +193,42 @@ export const SyllabusTracker: React.FC = () => {
             <FolderTree className="w-4 h-4" />
             <span>Curriculum Decomposition & Mastery</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            Syllabus Tracker
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Curriculum & Revision Tracker
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
-            <span>Nested mastery tree with live math metrics.</span>
-            <span className="flex items-center gap-1 font-mono text-[11px] px-2 py-0.5 rounded-full liquid-glass-subtle">
+            <span>Track chapter completion, key concepts, and revision milestones.</span>
+            <span className="flex items-center gap-1 font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
               <Server className={`w-3 h-3 ${isConnected ? 'text-emerald-500' : 'text-amber-500'}`} />
-              {isSaving ? 'Syncing...' : isConnected ? 'Server Stored' : 'Offline Buffer'}
+              {isSaving ? 'Saving...' : isConnected ? 'Auto-Synced' : 'Saved Locally'}
             </span>
           </p>
         </div>
 
         {/* Global Progress Metrics Card with Circular Meter */}
-        <div className="flex items-center liquid-glass rounded-3xl p-5 shadow-xl space-x-6 border border-white/60 dark:border-white/10">
+        <div className="flex items-center bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xs space-x-6 border border-slate-200 dark:border-slate-800">
           <CircularProgress
             percentage={percentage}
             size={115}
             strokeWidth={10}
-            label="Mastery"
+            label="Revision"
             sublabel={`${completedChapters}/${totalChapters}`}
           />
 
           <div className="flex flex-col space-y-2">
             <div className="flex items-center space-x-2 text-xs">
               <span className="w-2.5 h-2.5 rounded-full bg-brand-500" />
-              <span className="text-slate-500 dark:text-slate-400">Total Topic Modules:</span>
+              <span className="text-slate-500 dark:text-slate-400">Total Subject Modules:</span>
               <span className="font-bold text-slate-900 dark:text-white">{filteredTopics.length}</span>
             </div>
             <div className="flex items-center space-x-2 text-xs">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <span className="text-slate-500 dark:text-slate-400">Mastered Chapters:</span>
+              <span className="text-slate-500 dark:text-slate-400">Completed Chapters:</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400">{completedChapters}</span>
             </div>
             <div className="flex items-center space-x-2 text-xs">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              <span className="text-slate-500 dark:text-slate-400">Remaining Targets:</span>
+              <span className="text-slate-500 dark:text-slate-400">Pending Revision:</span>
               <span className="font-bold text-amber-600 dark:text-amber-400">{totalChapters - completedChapters}</span>
             </div>
           </div>
@@ -233,7 +237,7 @@ export const SyllabusTracker: React.FC = () => {
 
       {/* Subject Filter Bar and Add Topic Trigger */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex items-center space-x-1.5 p-1.5 liquid-glass rounded-2xl overflow-x-auto shadow-sm">
+        <div className="flex items-center space-x-1.5 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto shadow-xs">
           <button
             onClick={() => setSelectedSubject('All')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${

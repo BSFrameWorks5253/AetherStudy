@@ -4,13 +4,18 @@ import { TestPaper } from '../types/testPaper';
 export interface ServerDocument {
   id: string;
   name: string;
-  originalName: string;
-  serverUrl: string;
+  originalName?: string;
+  serverUrl?: string;
   streamUrl?: string;
-  mimeType: string;
-  sizeBytes: number;
+  mimeType?: string;
+  sizeBytes?: number;
+  size?: string;
   uploadedAt: string;
   subject: string;
+  uploadedBy?: string;
+  standard?: string;
+  category?: 'textbook' | 'notes';
+  uploadCount?: number;
 }
 
 export interface ServerHealth {
@@ -30,7 +35,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
 
 export const api = {
   // 1. Passwordless Authentication & Server-Side OTP
-  async generateOtp(email: string): Promise<{ success: boolean; message: string; token: string; maskedEmail: string }> {
+  async generateOtp(email: string): Promise<{ success: boolean; message: string; token: string; maskedEmail: string; devPasscode?: string; sandboxNotice?: string }> {
     const res = await fetch(`${API_BASE}/auth/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -43,11 +48,11 @@ export const api = {
     return res.json();
   },
 
-  async verifyOtp(email: string, otp: string, token: string): Promise<{ success: boolean; user: UserProfile }> {
+  async verifyOtp(email: string, otp: string, token: string, standard?: string): Promise<{ success: boolean; user: UserProfile }> {
     const res = await fetch(`${API_BASE}/auth/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp, token }),
+      body: JSON.stringify({ email, otp, token, standard }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -88,6 +93,23 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to update user role');
+    }
+    return res.json();
+  },
+
+  async addAdminUser(
+    requesterEmail: string,
+    email: string,
+    role: UserRole = 'ADMIN'
+  ): Promise<{ success: boolean; users: UserProfile[] }> {
+    const res = await fetch(`${API_BASE}/auth/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requesterEmail, email, role }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to add user');
     }
     return res.json();
   },
@@ -138,8 +160,11 @@ export const api = {
   },
 
   // 4. Documents Storage API
-  async getDocuments(): Promise<ServerDocument[]> {
-    const res = await fetch(`${API_BASE}/documents`);
+  async getDocuments(standard?: string): Promise<ServerDocument[]> {
+    const url = standard && standard !== 'ALL'
+      ? `${API_BASE}/documents?standard=${encodeURIComponent(standard)}`
+      : `${API_BASE}/documents`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error('Failed to fetch documents from server');
     return res.json();
   },
@@ -147,12 +172,16 @@ export const api = {
   async uploadDocument(
     file: File,
     subject: string = 'General',
-    uploadedBy: string = ''
+    uploadedBy: string = '',
+    standard?: string,
+    category?: 'textbook' | 'notes'
   ): Promise<ServerDocument> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('subject', subject);
     formData.append('uploadedBy', uploadedBy);
+    if (standard) formData.append('standard', standard);
+    if (category) formData.append('category', category);
 
     const res = await fetch(`${API_BASE}/documents/upload`, {
       method: 'POST',

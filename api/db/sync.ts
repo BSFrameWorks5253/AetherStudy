@@ -152,14 +152,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           await writeToGitHub('syllabus.json', syllabus, syllabusSha);
           const docsRes = await fetchFromGitHub('documents.json');
           let docs = Array.isArray(docsRes?.data) ? docsRes.data : [];
-          docs = [document, ...docs.filter((d: any) => d.id !== document.id)];
+          const existingCount = docs.filter(
+            (d: any) => (d.originalName || d.name || '').trim().toLowerCase() === (document.originalName || document.name || '').trim().toLowerCase()
+          ).length;
+          const enhancedDoc = {
+            ...document,
+            uploadCount: document.uploadCount || (existingCount + 1),
+            standard: document.standard || '12',
+            category: document.category || 'notes',
+          };
+          docs = [enhancedDoc, ...docs.filter((d: any) => d.id !== document.id)];
           await writeToGitHub('documents.json', docs, docsRes?.sha);
         } else {
           if (!fs.existsSync(LOCAL_DATA_DIR)) fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
           fs.writeFileSync(path.join(LOCAL_DATA_DIR, 'syllabus.json'), JSON.stringify(syllabus, null, 2), 'utf8');
           const localDocsPath = path.join(LOCAL_DATA_DIR, 'documents.json');
           let docs = fs.existsSync(localDocsPath) ? JSON.parse(fs.readFileSync(localDocsPath, 'utf8')) : [];
-          docs = [document, ...docs.filter((d: any) => d.id !== document.id)];
+          const existingCount = docs.filter(
+            (d: any) => (d.originalName || d.name || '').trim().toLowerCase() === (document.originalName || document.name || '').trim().toLowerCase()
+          ).length;
+          const enhancedDoc = {
+            ...document,
+            uploadCount: document.uploadCount || (existingCount + 1),
+            standard: document.standard || '12',
+            category: document.category || 'notes',
+          };
+          docs = [enhancedDoc, ...docs.filter((d: any) => d.id !== document.id)];
           fs.writeFileSync(localDocsPath, JSON.stringify(docs, null, 2), 'utf8');
         }
 
