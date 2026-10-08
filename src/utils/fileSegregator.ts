@@ -18,6 +18,7 @@ export interface SegregatedFile {
   session?: string; // 'March', 'July', etc.
   pyqRole?: 'question' | 'solution'; // question paper vs answer key/solution
   pairKey?: string; // unique hash to link QP with Solution
+  selected?: boolean;
 }
 
 export interface PairedPYQ {
