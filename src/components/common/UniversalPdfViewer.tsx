@@ -43,12 +43,15 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [numPages, setNumPages] = useState<number>(0);
-  const [scale, setScale] = useState<number>(1.2);
+  const [scale, setScale] = useState<number>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) return 0.85;
+    return 1.15;
+  });
   const [rotation, setRotation] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [fallbackMode, setFallbackMode] = useState<'canvas' | 'gdocs' | 'iframe'>('canvas');
+  const [fallbackMode, setFallbackMode] = useState<'canvas' | 'native' | 'gdocs'>('canvas');
 
   // Convert relative paths to absolute URLs so Web Workers can resolve them
   const safePdfUrl = React.useMemo(() => {
@@ -92,9 +95,10 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     setError(null);
     setCurrentPage(1);
 
+    const localCmap = `${window.location.origin}/cmaps/`;
     const loadingTask = pdfjsLib.getDocument({
       url: safePdfUrl,
-      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+      cMapUrl: localCmap,
       cMapPacked: true,
     });
 
@@ -107,9 +111,9 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       })
       .catch((err: any) => {
         if (isCancelled) return;
-        console.warn('PDF.js canvas load failed, enabling Web Engine fallback:', err);
+        console.warn('PDF.js canvas load failed, switching to native browser PDF engine:', err);
         setError('Canvas engine notice');
-        setFallbackMode('gdocs');
+        setFallbackMode('native');
         setLoading(false);
       });
 
@@ -142,7 +146,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       const context = canvas.getContext('2d');
       if (!context) return;
 
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const viewport = page.getViewport({ scale: scale, rotation: rotation });
 
       canvas.width = Math.floor(viewport.width * dpr);
@@ -166,8 +170,8 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         })
         .catch((err: any) => {
           if (err?.name === 'RenderingCancelledException') return;
-          console.warn('Canvas render error, falling back to Web Engine:', err);
-          setFallbackMode('gdocs');
+          console.warn('Canvas render error, falling back to Native Engine:', err);
+          setFallbackMode('native');
         });
     });
 
@@ -227,6 +231,58 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     );
   }
 
+  // Native Browser PDF Engine Fallback (Instant, native hardware rendering on all mobile phones & tablets)
+  if (fallbackMode === 'native') {
+    return (
+      <div className={`relative w-full h-full flex flex-col bg-slate-900 ${className}`}>
+        <div className="p-2.5 bg-slate-800 border-b border-slate-700 flex items-center justify-between text-xs text-slate-300 gap-2 shrink-0">
+          <div className="flex items-center space-x-2 truncate">
+            <Smartphone className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+            <span className="truncate font-semibold">{title}</span>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            <button
+              onClick={() => {
+                setError(null);
+                setFallbackMode('canvas');
+              }}
+              className="px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-[10px] font-bold text-white transition-colors"
+            >
+              Interactive Canvas
+            </button>
+            <button
+              onClick={() => setFallbackMode('gdocs')}
+              className="px-2 py-1 rounded-lg bg-purple-700 hover:bg-purple-600 text-[10px] font-bold text-white transition-colors"
+            >
+              Google Engine
+            </button>
+            <a
+              href={safePdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-xs"
+            >
+              <ExternalLink className="w-3 h-3" /> Open in PDF App ↗
+            </a>
+          </div>
+        </div>
+        <div className="w-full flex-1 relative bg-slate-950 flex flex-col">
+          <object
+            data={safePdfUrl}
+            type="application/pdf"
+            className="w-full h-full flex-1 bg-white"
+          >
+            <iframe
+              src={safePdfUrl}
+              title={title}
+              className="w-full h-full bg-white border-0"
+            />
+          </object>
+        </div>
+      </div>
+    );
+  }
+
   // Google Docs Engine Fallback (Guaranteed to work on all mobile phones & browsers)
   if (fallbackMode === 'gdocs') {
     const gdocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(safePdfUrl)}&embedded=true`;
@@ -246,6 +302,12 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
               className="px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-[10px] font-bold text-white transition-colors"
             >
               Retry Canvas
+            </button>
+            <button
+              onClick={() => setFallbackMode('native')}
+              className="px-2 py-1 rounded-lg bg-blue-700 hover:bg-blue-600 text-[10px] font-bold text-white transition-colors"
+            >
+              Direct Embed
             </button>
             <a
               href={safePdfUrl}

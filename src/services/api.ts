@@ -400,9 +400,9 @@ export const api = {
       }
     } catch {}
 
-    // 2. Overlay client cached documents
+    // 2. Overlay client cached documents (ignoring legacy colliding IDs)
     localDocs.forEach((d) => {
-      if (d.id) {
+      if (d && d.id && !d.id.startsWith('doc-TWF0')) {
         docMap.set(d.id, d);
       }
     });

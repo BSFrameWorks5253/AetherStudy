@@ -2094,7 +2094,7 @@
       "streamUrl": "/Material/Mind Faces - I.T Notes FYJC/Chapter 1 - Basics of Info Technology.pdf",
       "serverUrl": "/Material/Mind Faces - I.T Notes FYJC/Chapter 1 - Basics of Info Technology.pdf",
       "subject": "Information Technology (IT)",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "13.4 MB",
       "sizeBytes": 14050918,
@@ -2109,7 +2109,7 @@
       "streamUrl": "/Material/Mind Faces - HSC Grammar/Mind Faces - 12th HSC Grammar.pdf",
       "serverUrl": "/Material/Mind Faces - HSC Grammar/Mind Faces - 12th HSC Grammar.pdf",
       "subject": "Marathi",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "9.8 MB",
       "sizeBytes": 10276044,
@@ -2124,7 +2124,7 @@
       "streamUrl": "/Material/Mind Faces - HSC Grammar/Mind Faces - 12th HSC Grammar.pdf",
       "serverUrl": "/Material/Mind Faces - HSC Grammar/Mind Faces - 12th HSC Grammar.pdf",
       "subject": "Hindi",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "10.2 MB",
       "sizeBytes": 10695475,
@@ -2139,7 +2139,7 @@
       "streamUrl": "/Material/Mind Faces - HSC Grammar/Mind Faces - 12th HSC Grammar.pdf",
       "serverUrl": "/Material/Mind Faces - HSC Grammar/Mind Faces - 12th HSC Grammar.pdf",
       "subject": "English (Yuvakbharati)",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "8.9 MB",
       "sizeBytes": 9332326,
@@ -2154,7 +2154,7 @@
       "streamUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Mathematics_and_Statistics_QP.pdf",
       "serverUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Mathematics_and_Statistics_QP.pdf",
       "subject": "Mathematics & Statistics (Commerce)",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "18.1 MB",
       "sizeBytes": 18979225,
@@ -2169,7 +2169,7 @@
       "streamUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Secretarial_Practice_QP.pdf",
       "serverUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Secretarial_Practice_QP.pdf",
       "subject": "Secretarial Practice (SP)",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "11.5 MB",
       "sizeBytes": 12058624,
@@ -2184,7 +2184,7 @@
       "streamUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Economics_QP.pdf",
       "serverUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Economics_QP.pdf",
       "subject": "Economics (ECO)",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "15.4 MB",
       "sizeBytes": 16148070,
@@ -2199,7 +2199,7 @@
       "streamUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Organisation_of_Commerce_and_Management_QP.pdf",
       "serverUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Organisation_of_Commerce_and_Management_QP.pdf",
       "subject": "Organization of Commerce & Management (OCM)",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "12.8 MB",
       "sizeBytes": 13421772,
@@ -2214,7 +2214,7 @@
       "streamUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Book_Keeping_and_Accountancy_QP.pdf",
       "serverUrl": "/data/hsc-commerce-papers/Questions/2024/HSC_Commerce_2024_March_Book_Keeping_and_Accountancy_QP.pdf",
       "subject": "Book-Keeping & Accountancy (Accounts)",
-      "standard": "12",
+      "standard": "ALL",
       "category": "textbook",
       "size": "14.2 MB",
       "sizeBytes": 14889728,
@@ -2223,7 +2223,7 @@
       "uploadedAt": "2026-10-08T17:19:18.957Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvRWNv",
+      "id": "doc-7cc40579f685",
       "name": "Economics: Eco Chapter 1   Mind Faces (Textual)",
       "originalName": "Eco Chapter 1 - Mind Faces (Textual).pdf",
       "streamUrl": "/Material/Economics Tetxual - Mind Faces (Finals)/Eco Chapter 1 - Mind Faces (Textual).pdf",
@@ -2238,7 +2238,7 @@
       "uploadedAt": "2026-10-08T16:48:39.876Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvRWNv",
+      "id": "doc-2bd72cda2589",
       "name": "Economics: Mind Faces   Eco Chpt 2 (Textual)",
       "originalName": "Mind Faces - Eco Chpt 2 (Textual)_.pdf",
       "streamUrl": "/Material/Economics Tetxual - Mind Faces (Finals)/Mind Faces - Eco Chpt 2 (Textual)_.pdf",
@@ -2253,7 +2253,7 @@
       "uploadedAt": "2026-10-08T16:48:39.879Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvRWNv",
+      "id": "doc-b71de349e5ca",
       "name": "Economics: Mind Faces Eco Chp 3 Textual",
       "originalName": "Mind Faces Eco Chp 3 Textual.pdf",
       "streamUrl": "/Material/Economics Tetxual - Mind Faces (Finals)/Mind Faces Eco Chp 3 Textual.pdf",
@@ -2268,7 +2268,7 @@
       "uploadedAt": "2026-10-08T16:48:39.879Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvRWNv",
+      "id": "doc-403be3958d9f",
       "name": "Economics: Mind Faces Eco Chp 4 Textual",
       "originalName": "Mind Faces Eco Chp 4 Textual.pdf",
       "streamUrl": "/Material/Economics Tetxual - Mind Faces (Finals)/Mind Faces Eco Chp 4 Textual.pdf",
@@ -2283,7 +2283,7 @@
       "uploadedAt": "2026-10-08T16:48:39.879Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvRWNv",
+      "id": "doc-5967476e30c0",
       "name": "Economics: Mind Faces Eco Chp 5 Textual",
       "originalName": "Mind Faces Eco Chp 5 Textual.pdf",
       "streamUrl": "/Material/Economics Tetxual - Mind Faces (Finals)/Mind Faces Eco Chp 5 Textual.pdf",
@@ -2298,7 +2298,7 @@
       "uploadedAt": "2026-10-08T16:48:39.879Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-0b4b59ae3f0c",
       "name": "Accounts: 1  B.K Chapter 1   Mind Faces",
       "originalName": "1- B.K Chapter 1 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/1- B.K Chapter 1 - Mind Faces.pdf",
@@ -2313,7 +2313,7 @@
       "uploadedAt": "2026-10-08T16:48:39.880Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-008601cd9b9c",
       "name": "Accounts: B.K   Chapter 2 Mind Faces",
       "originalName": "B.K - Chapter 2 Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K - Chapter 2 Mind Faces.pdf",
@@ -2328,7 +2328,7 @@
       "uploadedAt": "2026-10-08T16:48:39.880Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-f5225ee157e5",
       "name": "Accounts: B.K   Chapter 3   Mind Faces",
       "originalName": "B.K - Chapter 3 - Mind Faces_.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K - Chapter 3 - Mind Faces_.pdf",
@@ -2343,7 +2343,7 @@
       "uploadedAt": "2026-10-08T16:48:39.880Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-4f8ac11c4bce",
       "name": "Accounts: B.K Chapter 10   Mind Faces",
       "originalName": "B.K Chapter 10 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K Chapter 10 - Mind Faces.pdf",
@@ -2358,7 +2358,7 @@
       "uploadedAt": "2026-10-08T16:48:39.881Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-d3ff7ad91f81",
       "name": "Accounts: B.K Chapter 4   Mind Faces",
       "originalName": "B.K Chapter 4 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K Chapter 4 - Mind Faces.pdf",
@@ -2373,7 +2373,7 @@
       "uploadedAt": "2026-10-08T16:48:39.881Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-4aad62fe2616",
       "name": "Accounts: B.K Chapter 5   Mind Faces",
       "originalName": "B.K Chapter 5 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K Chapter 5 - Mind Faces.pdf",
@@ -2388,7 +2388,7 @@
       "uploadedAt": "2026-10-08T16:48:39.881Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-4df16a56fe5c",
       "name": "Accounts: B.K Chapter 6   Mind Faces",
       "originalName": "B.K Chapter 6 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K Chapter 6 - Mind Faces.pdf",
@@ -2403,7 +2403,7 @@
       "uploadedAt": "2026-10-08T16:48:39.881Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-b06279af77a8",
       "name": "Accounts: B.K Chapter 7   Mind Faces",
       "originalName": "B.K Chapter 7 - Mind Faces_.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K Chapter 7 - Mind Faces_.pdf",
@@ -2418,7 +2418,7 @@
       "uploadedAt": "2026-10-08T16:48:39.881Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-1aeb05a247f6",
       "name": "Accounts: B.K Chapter 8   Mind Faces",
       "originalName": "B.K Chapter 8 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K Chapter 8 - Mind Faces.pdf",
@@ -2433,7 +2433,7 @@
       "uploadedAt": "2026-10-08T16:48:39.882Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-132d11fd439b",
       "name": "Accounts: B.K Chapter 9   Mind Faces",
       "originalName": "B.K Chapter 9 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/B.K Chapter 9 - Mind Faces.pdf",
@@ -2448,7 +2448,7 @@
       "uploadedAt": "2026-10-08T16:48:39.882Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-0ddba8b555c7",
       "name": "Accounts: BK Chapter 1 Quick Mind Faces",
       "originalName": "BK Chapter 1 Quick Mind Faces_.pdf",
       "streamUrl": "/Material/Mind Faces - BK Notes FYJC/BK Chapter 1 Quick Mind Faces_.pdf",
@@ -2463,7 +2463,7 @@
       "uploadedAt": "2026-10-08T16:48:39.882Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-044ba3e3b447",
       "name": "Economics: Mind Faces   Eco Chp 1 (Basic Concepts in Economics)",
       "originalName": "Mind Faces - Eco Chp 1 (Basic Concepts in Economics).pdf",
       "streamUrl": "/Material/Mind Faces - Eco Conceptual/Mind Faces - Eco Chp 1 (Basic Concepts in Economics).pdf",
@@ -2478,7 +2478,7 @@
       "uploadedAt": "2026-10-08T16:48:39.882Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-3fd62f8cddb8",
       "name": "Economics: Mind Faces Eco Chp 2  Money (Conceptual)",
       "originalName": "Mind Faces Eco Chp 2- Money (Conceptual).pdf",
       "streamUrl": "/Material/Mind Faces - Eco Conceptual/Mind Faces Eco Chp 2- Money (Conceptual).pdf",
@@ -2493,7 +2493,7 @@
       "uploadedAt": "2026-10-08T16:48:39.883Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-dcede87e9243",
       "name": "Economics: Mind Faces Eco conceptual   Chp 4",
       "originalName": "Mind Faces Eco conceptual - Chp 4.pdf",
       "streamUrl": "/Material/Mind Faces - Eco Conceptual/Mind Faces Eco conceptual - Chp 4.pdf",
@@ -2508,7 +2508,7 @@
       "uploadedAt": "2026-10-08T16:48:39.883Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-36377398beb4",
       "name": "Economics: Mind Faces Eco conceptual   Chp 5",
       "originalName": "Mind Faces Eco conceptual - Chp 5.pdf",
       "streamUrl": "/Material/Mind Faces - Eco Conceptual/Mind Faces Eco conceptual - Chp 5.pdf",
@@ -2523,7 +2523,7 @@
       "uploadedAt": "2026-10-08T16:48:39.883Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-b709441c0819",
       "name": "English: Mind Faces   12th HSC Grammar",
       "originalName": "Mind Faces - 12th HSC Grammar.pdf",
       "streamUrl": "/Material/Mind Faces - HSC Grammar/Mind Faces - 12th HSC Grammar.pdf",
@@ -2538,7 +2538,7 @@
       "uploadedAt": "2026-10-08T16:48:39.884Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-30da1163a3f0",
       "name": "English: Mind Faces   12th HSC Drama Novels Notes",
       "originalName": "Mind Faces - 12th HSC Drama Novels Notes.pdf",
       "streamUrl": "/Material/Mind Faces - HSC Novels (Drama)/Mind Faces - 12th HSC Drama Novels Notes.pdf",
@@ -2553,7 +2553,7 @@
       "uploadedAt": "2026-10-08T16:48:39.885Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-82a5d90f9d85",
       "name": "English: Mind Faces   12th HSC Poems",
       "originalName": "Mind Faces - 12th HSC Poems.pdf",
       "streamUrl": "/Material/Mind Faces - HSC POEMS/Mind Faces - 12th HSC Poems.pdf",
@@ -2568,7 +2568,7 @@
       "uploadedAt": "2026-10-08T16:48:39.885Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-cbb9ec41ac3e",
       "name": "English: Mind Faces   12th HSC Prose",
       "originalName": "Mind Faces - 12th HSC Prose.pdf",
       "streamUrl": "/Material/Mind Faces - HSC PROSE/Mind Faces - 12th HSC Prose.pdf",
@@ -2583,7 +2583,7 @@
       "uploadedAt": "2026-10-08T16:48:39.885Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-4b02ddc9ea90",
       "name": "English: Mind Faces   12th HSC Writing Skills",
       "originalName": "Mind Faces - 12th HSC Writing Skills .pdf",
       "streamUrl": "/Material/Mind Faces - HSC Writing skills/Mind Faces - 12th HSC Writing Skills .pdf",
@@ -2598,7 +2598,7 @@
       "uploadedAt": "2026-10-08T16:48:39.885Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-9c447912bfeb",
       "name": "IT: Chapter 1   Basics of Info Technology",
       "originalName": "Chapter 1 - Basics of Info Technology.pdf",
       "streamUrl": "/Material/Mind Faces - I.T Notes FYJC/Chapter 1 - Basics of Info Technology.pdf",
@@ -2613,7 +2613,7 @@
       "uploadedAt": "2026-10-08T16:48:39.890Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-c172c922d8b4",
       "name": "IT: Cyber law notes mind faces",
       "originalName": "Cyber law notes mind faces.pdf",
       "streamUrl": "/Material/Mind Faces - I.T Notes FYJC/Cyber law notes mind faces.pdf",
@@ -2628,7 +2628,7 @@
       "uploadedAt": "2026-10-08T16:48:39.890Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-74ed9b43ef8c",
       "name": "IT: IT Chapter 1   Question Bank",
       "originalName": "IT Chapter 1 - Question Bank_.pdf",
       "streamUrl": "/Material/Mind Faces - I.T Notes FYJC/IT Chapter 1 - Question Bank_.pdf",
@@ -2643,7 +2643,7 @@
       "uploadedAt": "2026-10-08T16:48:39.890Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-d73eed7c6833",
       "name": "IT: IT Chapter 1&2 Mixed bag",
       "originalName": "IT Chapter 1&2 Mixed bag.pdf",
       "streamUrl": "/Material/Mind Faces - I.T Notes FYJC/IT Chapter 1&2 Mixed bag.pdf",
@@ -2658,7 +2658,7 @@
       "uploadedAt": "2026-10-08T16:48:39.890Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-c21570b72efa",
       "name": "IT: IT Chapter 2 notes exercise",
       "originalName": "IT Chapter 2 notes exercise.pdf",
       "streamUrl": "/Material/Mind Faces - I.T Notes FYJC/IT Chapter 2 notes exercise.pdf",
@@ -2673,7 +2673,7 @@
       "uploadedAt": "2026-10-08T16:48:39.890Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-59673c401ec5",
       "name": "IT: Mind Faces   IT Chapter 3 FYJC",
       "originalName": "Mind Faces - IT Chapter 3 FYJC.pdf",
       "streamUrl": "/Material/Mind Faces - I.T Notes FYJC/Mind Faces - IT Chapter 3 FYJC.pdf",
@@ -2688,7 +2688,7 @@
       "uploadedAt": "2026-10-08T16:48:39.890Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-b7f2c803bf73",
       "name": "Mathematics: Math Chapter 1   Mind Faces",
       "originalName": "Math Chapter 1 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 1 - Mind Faces.pdf",
@@ -2703,7 +2703,7 @@
       "uploadedAt": "2026-10-08T16:48:39.890Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-cb174f1fb84f",
       "name": "Mathematics: Math Chapter 2   Mind Faces",
       "originalName": "Math Chapter 2 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 2 - Mind Faces.pdf",
@@ -2718,7 +2718,7 @@
       "uploadedAt": "2026-10-08T16:48:39.891Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-5b6d54251653",
       "name": "Mathematics: Math Chapter 3   Mind Faces",
       "originalName": "Math Chapter 3 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 3 - Mind Faces.pdf",
@@ -2733,7 +2733,7 @@
       "uploadedAt": "2026-10-08T16:48:39.891Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-c5bbd7d93fc2",
       "name": "Mathematics: Math Chapter 4   Mind Faces",
       "originalName": "Math Chapter 4 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 4 - Mind Faces.pdf",
@@ -2748,7 +2748,7 @@
       "uploadedAt": "2026-10-08T16:48:39.891Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-3d80b8170e68",
       "name": "Mathematics: Math Chapter 5   Mind Faces",
       "originalName": "Math Chapter 5 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 5 - Mind Faces.pdf",
@@ -2763,7 +2763,7 @@
       "uploadedAt": "2026-10-08T16:48:39.893Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-a4ce03771ff4",
       "name": "Mathematics: Math Chapter 6   Mind Faces",
       "originalName": "Math Chapter 6 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 6 - Mind Faces.pdf",
@@ -2778,7 +2778,7 @@
       "uploadedAt": "2026-10-08T16:48:39.893Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-f01e31cf562f",
       "name": "Mathematics: Math Chapter 7   Mind Faces",
       "originalName": "Math Chapter 7 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 7 - Mind Faces.pdf",
@@ -2793,7 +2793,7 @@
       "uploadedAt": "2026-10-08T16:48:39.893Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-6cab48285d3a",
       "name": "Mathematics: Math Chapter 8   Mind Faces",
       "originalName": "Math Chapter 8 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 8 - Mind Faces.pdf",
@@ -2808,7 +2808,7 @@
       "uploadedAt": "2026-10-08T16:48:39.893Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-e1b1c0f25254",
       "name": "Mathematics: Math Chapter 9   Mind Faces",
       "originalName": "Math Chapter 9 - Mind Faces.pdf",
       "streamUrl": "/Material/Mind Faces - Math 1 - (Commerce)/Math Chapter 9 - Mind Faces.pdf",
@@ -2823,7 +2823,7 @@
       "uploadedAt": "2026-10-08T16:48:39.893Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-d224d00dbc9d",
       "name": "Mathematics: Mind Faces   Bivariate Frequency",
       "originalName": "Mind Faces - Bivariate Frequency_.pdf",
       "streamUrl": "/Material/Mind Faces - Maths 2 Comm FYJC/Mind Faces - Bivariate Frequency_.pdf",
@@ -2838,7 +2838,7 @@
       "uploadedAt": "2026-10-08T16:48:39.893Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-dd2cd0031168",
       "name": "Mathematics: Mind Faces   Coorelation",
       "originalName": "Mind Faces - Coorelation.pdf",
       "streamUrl": "/Material/Mind Faces - Maths 2 Comm FYJC/Mind Faces - Coorelation.pdf",
@@ -2853,7 +2853,7 @@
       "uploadedAt": "2026-10-08T16:48:39.894Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-b58a35cc1605",
       "name": "Mathematics: Mind Faces   Measures of Dispersion",
       "originalName": "Mind Faces - Measures of Dispersion.pdf",
       "streamUrl": "/Material/Mind Faces - Maths 2 Comm FYJC/Mind Faces - Measures of Dispersion.pdf",
@@ -2868,7 +2868,7 @@
       "uploadedAt": "2026-10-08T16:48:39.894Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-2e4817029088",
       "name": "Mathematics: Mind Faces   Partition values",
       "originalName": "Mind Faces - Partition values_.pdf",
       "streamUrl": "/Material/Mind Faces - Maths 2 Comm FYJC/Mind Faces - Partition values_.pdf",
@@ -2883,7 +2883,7 @@
       "uploadedAt": "2026-10-08T16:48:39.894Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-52369cac806e",
       "name": "Mathematics: Mind Faces   Skewness",
       "originalName": "Mind Faces - Skewness_.pdf",
       "streamUrl": "/Material/Mind Faces - Maths 2 Comm FYJC/Mind Faces - Skewness_.pdf",
@@ -2898,7 +2898,7 @@
       "uploadedAt": "2026-10-08T16:48:39.894Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-6c560f15b1fe",
       "name": "OCM: Mind Faces   OCM Chapter 1 (Extra)",
       "originalName": "Mind Faces - OCM Chapter 1 (Extra).pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces - OCM Chapter 1 (Extra).pdf",
@@ -2913,7 +2913,7 @@
       "uploadedAt": "2026-10-08T16:48:39.894Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-52c198fdac93",
       "name": "OCM: Mind Faces   OCM Chapter 1",
       "originalName": "Mind Faces - OCM Chapter 1_.pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces - OCM Chapter 1_.pdf",
@@ -2928,7 +2928,7 @@
       "uploadedAt": "2026-10-08T16:48:39.894Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-6d231ac01ac6",
       "name": "OCM: Mind Faces   OCM Chapter 2 notes",
       "originalName": "Mind Faces - OCM Chapter 2 notes.pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces - OCM Chapter 2 notes.pdf",
@@ -2943,7 +2943,7 @@
       "uploadedAt": "2026-10-08T16:48:39.895Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-2435fd418cbd",
       "name": "OCM: Mind Faces   OCM Chapter 3",
       "originalName": "Mind Faces - OCM Chapter 3_.pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces - OCM Chapter 3_.pdf",
@@ -2958,7 +2958,7 @@
       "uploadedAt": "2026-10-08T16:48:39.895Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-ba31cd7f6d99",
       "name": "OCM: Mind Faces   OCM Chapter 4",
       "originalName": "Mind Faces - OCM Chapter 4.pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces - OCM Chapter 4.pdf",
@@ -2973,7 +2973,7 @@
       "uploadedAt": "2026-10-08T16:48:39.895Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-7579eaa5403e",
       "name": "OCM: Mind Faces   OCM Chapter 5",
       "originalName": "Mind Faces - OCM Chapter 5.pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces - OCM Chapter 5.pdf",
@@ -2988,7 +2988,7 @@
       "uploadedAt": "2026-10-08T16:48:39.895Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-0d9d1dfd7075",
       "name": "OCM: Mind Faces   OCM Chapter 6",
       "originalName": "Mind Faces - OCM Chapter 6.pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces - OCM Chapter 6.pdf",
@@ -3003,7 +3003,7 @@
       "uploadedAt": "2026-10-08T16:48:39.895Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-2f53ba8ac316",
       "name": "OCM: Mind Faces   OCM Chapter 7",
       "originalName": "Mind Faces - OCM Chapter 7.pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces - OCM Chapter 7.pdf",
@@ -3018,7 +3018,7 @@
       "uploadedAt": "2026-10-08T16:48:39.895Z"
     },
     {
-      "id": "doc-TWF0ZXJpYWwvTWlu",
+      "id": "doc-b4eb9ff836d9",
       "name": "OCM: Mind Faces OCM   Chapter 8",
       "originalName": "Mind Faces OCM - Chapter 8.pdf",
       "streamUrl": "/Material/Mind Faces - OCM Finals Notes Fyjc/Mind Faces OCM - Chapter 8.pdf",
