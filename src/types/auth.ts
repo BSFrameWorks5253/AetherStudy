@@ -1,7 +1,5 @@
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'USER';
 
-export const SUPER_ADMIN_EMAIL = (import.meta.env.VITE_SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
-
 export interface UserProfile {
   email: string;
   role: UserRole;

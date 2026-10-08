@@ -286,63 +286,78 @@ if (!fs.existsSync(path.join(DATA_DIR, 'test-papers.json'))) {
 // ---------------- REST API ROUTES ----------------
 
 // 1. AUTHENTICATION & RBAC (Secure Server-Side OTP & Passwordless Sign-In)
-const OTP_SECRET = process.env.OTP_SECRET || 'aether-antigravity-secure-session-key-2026';
+const OTP_SECRET = process.env.OTP_SECRET;
 
 app.post('/api/auth/generate', async (req, res) => {
+  if (!OTP_SECRET) {
+    console.error('[CRITICAL SECURITY ERROR]: OTP_SECRET is missing from backend environment.');
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
+  }
+
   const { email } = req.body || {};
   if (!email || typeof email !== 'string' || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email address is required.' });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const crypto = require('crypto');
-  const otp = crypto.randomInt(100000, 999999).toString();
-  const expiresAt = Date.now() + 10 * 60 * 1000;
 
-  const hmac = crypto.createHmac('sha256', OTP_SECRET);
-  hmac.update(`${normalizedEmail}.${otp}.${expiresAt}`);
-  const hash = hmac.digest('hex');
-  const token = `${expiresAt}.${hash}`;
+  try {
+    const crypto = require('crypto');
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
 
-  const resendApiKey = process.env.RESEND_API_KEY;
-  let sent = false;
+    const hmac = crypto.createHmac('sha256', OTP_SECRET);
+    hmac.update(`${normalizedEmail}.${otp}.${expiresAt}`);
+    const hash = hmac.digest('hex');
+    const token = `${expiresAt}.${hash}`;
 
-  if (resendApiKey) {
-    try {
-      const { Resend } = require('resend');
-      const resend = new Resend(resendApiKey);
-      await resend.emails.send({
-        from: 'AetherStudy Security <onboarding@resend.dev>',
-        to: normalizedEmail,
-        subject: `Your AetherStudy Passcode: ${otp}`,
-        html: `
-          <div style="background-color: #030712; color: #f8fafc; font-family: -apple-system, sans-serif; padding: 32px; border-radius: 12px; max-width: 480px; margin: 0 auto;">
-            <h2 style="color: #a78bfa; margin: 0 0 16px 0;">AetherStudy Suite</h2>
-            <p style="color: #cbd5e1; font-size: 14px;">Your 6-digit secure authentication code is:</p>
-            <div style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #38bdf8; padding: 16px 0;">${otp}</div>
-            <p style="color: #64748b; font-size: 12px;">Valid for 10 minutes. Never share this code.</p>
-          </div>
-        `,
-      });
-      sent = true;
-    } catch (err) {
-      console.warn('Resend email dispatch error:', err);
+    const resendApiKey = process.env.RESEND_API_KEY;
+    let sent = false;
+
+    if (resendApiKey) {
+      try {
+        const { Resend } = require('resend');
+        const resend = new Resend(resendApiKey);
+        await resend.emails.send({
+          from: 'AetherStudy Security <onboarding@resend.dev>',
+          to: normalizedEmail,
+          subject: `Your AetherStudy Passcode: ${otp}`,
+          html: `
+            <div style="background-color: #030712; color: #f8fafc; font-family: -apple-system, sans-serif; padding: 32px; border-radius: 12px; max-width: 480px; margin: 0 auto;">
+              <h2 style="color: #a78bfa; margin: 0 0 16px 0;">AetherStudy Suite</h2>
+              <p style="color: #cbd5e1; font-size: 14px;">Your 6-digit secure authentication code is:</p>
+              <div style="font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #38bdf8; padding: 16px 0;">${otp}</div>
+              <p style="color: #64748b; font-size: 12px;">Valid for 10 minutes. Never share this code.</p>
+            </div>
+          `,
+        });
+        sent = true;
+      } catch (err) {
+        console.error('[Internal Email Dispatch Error]:', err);
+      }
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.log(`[AUTH DISPATCH SIMULATION] Passcode generated for ${normalizedEmail}. (Expires in 10m)`);
     }
+
+    const [uPart, dPart] = normalizedEmail.split('@');
+    return res.status(200).json({
+      success: true,
+      message: sent ? 'Verification code sent to your email.' : 'Verification token initialized.',
+      token,
+      maskedEmail: `${uPart[0]}***@${dPart}`,
+    });
+  } catch (error) {
+    console.error('[Internal OTP Generation Failure]:', error);
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
   }
-
-  // Always log to secure server console so developer can test without Resend API key setup
-  console.log(`\n[AETHER AUTH OTP] Sent to ${normalizedEmail}: >>> ${otp} <<< (Expires: 10 mins)\n`);
-
-  const [uPart, dPart] = normalizedEmail.split('@');
-  res.json({
-    success: true,
-    message: sent ? 'Verification code sent to your email.' : 'Verification code generated.',
-    token,
-    maskedEmail: `${uPart[0]}***@${dPart}`,
-  });
 });
 
 app.post('/api/auth/verify', (req, res) => {
+  if (!OTP_SECRET) {
+    console.error('[CRITICAL SECURITY ERROR]: OTP_SECRET is missing from backend environment.');
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
+  }
+
   const { email, otp, token } = req.body || {};
   if (!email || !otp || !token) {
     return res.status(400).json({ error: 'Email, OTP, and token are required.' });
@@ -361,40 +376,46 @@ app.post('/api/auth/verify', (req, res) => {
     return res.status(400).json({ error: 'Verification code expired. Please request a new code.' });
   }
 
-  const crypto = require('crypto');
-  const hmac = crypto.createHmac('sha256', OTP_SECRET);
-  hmac.update(`${normalizedEmail}.${submittedOtp}.${expiresAt}`);
-  const computedHash = hmac.digest('hex');
+  try {
+    const crypto = require('crypto');
+    const hmac = crypto.createHmac('sha256', OTP_SECRET);
+    hmac.update(`${normalizedEmail}.${submittedOtp}.${expiresAt}`);
+    const computedHash = hmac.digest('hex');
 
-  const isMatch =
-    computedHash.length === expectedHash.length &&
-    crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(expectedHash, 'hex'));
+    const isMatch =
+      computedHash.length === expectedHash.length &&
+      crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(expectedHash, 'hex'));
 
-  if (!isMatch) {
-    return res.status(401).json({ error: 'Invalid verification code.' });
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid verification passcode. Access denied.' });
+    }
+
+    const users = readJsonFile('users.json', initialUsers);
+    let user = users.find((u) => u.email.toLowerCase() === normalizedEmail);
+
+    const isSuper = Boolean(SUPER_ADMIN_EMAIL) && normalizedEmail === SUPER_ADMIN_EMAIL;
+
+    if (!user) {
+      user = {
+        email: normalizedEmail,
+        role: isSuper ? 'SUPER_ADMIN' : 'USER',
+        lastLogin: new Date().toISOString(),
+      };
+      users.push(user);
+    } else {
+      if (isSuper) user.role = 'SUPER_ADMIN';
+      user.lastLogin = new Date().toISOString();
+    }
+    writeJsonFile('users.json', users);
+
+    return res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.error('[Internal OTP Verification Failure]:', error);
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
   }
-
-  const users = readJsonFile('users.json', initialUsers);
-  let user = users.find((u) => u.email.toLowerCase() === normalizedEmail);
-
-  if (!user) {
-    const isSuper = normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase();
-    user = {
-      email: normalizedEmail,
-      role: isSuper ? 'SUPER_ADMIN' : 'USER',
-      lastLogin: new Date().toISOString(),
-    };
-    users.push(user);
-  } else {
-    if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) user.role = 'SUPER_ADMIN';
-    user.lastLogin = new Date().toISOString();
-  }
-  writeJsonFile('users.json', users);
-
-  res.json({
-    success: true,
-    user,
-  });
 });
 
 app.post('/api/auth/login', (req, res) => {

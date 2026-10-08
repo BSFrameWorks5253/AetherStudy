@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { SUPER_ADMIN_EMAIL } from '../../types/auth';
 import {
   ShieldCheck,
   Mail,
@@ -337,9 +336,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </p>
                 <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
                   {usersList.map((u) => {
-                    const isSuper =
-                      u.role === 'SUPER_ADMIN' ||
-                      (Boolean(SUPER_ADMIN_EMAIL) && u.email.toLowerCase() === SUPER_ADMIN_EMAIL);
+                    const isSuper = u.role === 'SUPER_ADMIN';
 
                     return (
                       <div

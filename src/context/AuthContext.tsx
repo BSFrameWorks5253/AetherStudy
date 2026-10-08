@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserProfile, UserRole, SUPER_ADMIN_EMAIL } from '../types/auth';
+import { UserProfile, UserRole } from '../types/auth';
 import { api } from '../services/api';
 
 export interface AuthContextType {
@@ -31,9 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [usersList, setUsersList] = useState<UserProfile[]>([]);
 
-  const isSuperAdmin =
-    currentUser?.role === 'SUPER_ADMIN' ||
-    Boolean(SUPER_ADMIN_EMAIL && currentUser?.email.toLowerCase() === SUPER_ADMIN_EMAIL);
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const isAdmin = currentUser?.role === 'ADMIN' || isSuperAdmin;
   const canUpload = isAdmin;
 

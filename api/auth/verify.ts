@@ -1,18 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 
-const OTP_SECRET = process.env.OTP_SECRET || 'aether-antigravity-secure-session-key-2026';
-const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // 1. Strictly enforce POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
   }
 
+  const OTP_SECRET = process.env.OTP_SECRET;
+  if (!OTP_SECRET) {
+    console.error('[CRITICAL SECURITY ERROR]: OTP_SECRET environment variable is not defined.');
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
+  }
+
+  const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
+
   const { email, otp, token } = req.body || {};
 
   if (!email || !otp || !token) {
-    return res.status(400).json({ error: 'Email, OTP, and validation token are all required.' });
+    return res.status(400).json({ error: 'Email, verification code, and validation token are all required.' });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -27,28 +33,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const expiresAt = Number(expiresAtStr);
     if (isNaN(expiresAt) || Date.now() > expiresAt) {
-      return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new code.' });
     }
 
-    // Recompute HMAC on the server using identical inputs
+    // 2. Recompute HMAC on the server using identical cryptographic inputs
     const hmac = crypto.createHmac('sha256', OTP_SECRET);
     hmac.update(`${normalizedEmail}.${submittedOtp}.${expiresAt}`);
     const computedHash = hmac.digest('hex');
 
-    // Constant-time comparison to prevent timing attacks
+    // 3. Constant-time comparison to prevent timing side-channel attacks
     const isMatch =
       computedHash.length === expectedHash.length &&
       crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(expectedHash, 'hex'));
 
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid verification code. Please check and try again.' });
+      return res.status(401).json({ error: 'Invalid verification passcode. Access denied.' });
     }
 
-    // Determine authorization role
+    // 4. Server-Side RBAC Authority: Determine authorization role strictly on server
     const isSuper = Boolean(SUPER_ADMIN_EMAIL) && normalizedEmail === SUPER_ADMIN_EMAIL;
     const role = isSuper ? 'SUPER_ADMIN' : 'USER';
 
-    // Generate secure session token
+    // 5. Generate secure session token
     const sessionToken = crypto
       .createHmac('sha256', OTP_SECRET)
       .update(`${normalizedEmail}.${Date.now()}`)
@@ -64,7 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
   } catch (error: any) {
-    console.error('[OTP Verification Error]:', error);
-    return res.status(500).json({ error: error.message || 'Internal verification failure.' });
+    // 6. Error masking: Log internally, return generic security message to client
+    console.error('[OTP Verification Internal Error]:', error);
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
   }
 }
