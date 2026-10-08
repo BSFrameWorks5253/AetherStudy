@@ -18,6 +18,7 @@ import {
   Filter,
   Download,
 } from 'lucide-react';
+import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
 import { useAuth } from '../../context/AuthContext';
 
 export const DocumentViewer: React.FC = () => {
@@ -449,11 +450,10 @@ export const DocumentViewer: React.FC = () => {
               transformOrigin: 'center center',
             }}
           >
-            <iframe
-              src={activeDoc.streamUrl || activeDoc.serverUrl}
+            <UniversalPdfViewer
+              url={activeDoc.streamUrl || activeDoc.serverUrl || ''}
               title={activeDoc.originalName || activeDoc.name}
-              allow="autoplay; fullscreen"
-              className="w-full h-full rounded-2xl shadow-2xl border border-white/40 dark:border-white/10 bg-white"
+              className="w-full h-full"
             />
           </div>
         )}

@@ -4,6 +4,7 @@ import { api, ServerDocument } from '../../services/api';
 import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import { CardSkeleton, PdfLoaderOverlay } from '../common/LoadingSkeleton';
+import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
 import {
   BookOpen,
   FileText,
@@ -265,6 +266,16 @@ export const ALL_SYLLABUS_CHAPTERS: Record<string, Record<string, ChapterItem[]>
   '11': COMMERCE_STD11_CHAPTERS,
 };
 
+export const toRomanStandard = (std?: string | number): string => {
+  if (!std) return 'XII';
+  const clean = std.toString().trim().toUpperCase();
+  if (clean === '12' || clean === 'XII') return 'XII';
+  if (clean === '11' || clean === 'XI') return 'XI';
+  if (clean === '10' || clean === 'X') return 'X';
+  if (clean === '9' || clean === 'IX') return 'IX';
+  return clean;
+};
+
 // Match uploaded study documents to specific chapters
 export const getDocsForChapter = (ch: ChapterItem, docs: ServerDocument[]): ServerDocument[] => {
   if (!docs || docs.length === 0) return [];
@@ -368,6 +379,22 @@ const DEFAULT_STANDARD_SUBJECTS: Record<string, SubjectMeta[]> = {
       colorGradient: 'from-rose-600 to-pink-700',
       badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800',
     },
+    {
+      name: 'Hindi',
+      code: 'HIN-XII',
+      description: 'Yuvakbharati Hindi Prose, Poetry, Kahani & Vyakaran (Grammar)',
+      icon: BookOpen,
+      colorGradient: 'from-orange-600 to-amber-700',
+      badgeColor: 'bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+    },
+    {
+      name: 'Marathi',
+      code: 'MAR-XII',
+      description: 'Yuvakbharati Marathi Gadya, Padya, Katha & Vyakaran (Grammar)',
+      icon: BookOpen,
+      colorGradient: 'from-teal-600 to-emerald-700',
+      badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+    },
   ],
   '10': [
     {
@@ -460,6 +487,22 @@ const DEFAULT_STANDARD_SUBJECTS: Record<string, SubjectMeta[]> = {
       colorGradient: 'from-rose-600 to-pink-700',
       badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800',
     },
+    {
+      name: 'Hindi',
+      code: 'HIN-XI',
+      description: 'FYJC Foundation in Hindi Sahitya, Poetry & Applied Grammar',
+      icon: BookOpen,
+      colorGradient: 'from-orange-600 to-amber-700',
+      badgeColor: 'bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+    },
+    {
+      name: 'Marathi',
+      code: 'MAR-XI',
+      description: 'FYJC Foundation in Marathi Sahitya, Poetry & Applied Grammar',
+      icon: BookOpen,
+      colorGradient: 'from-teal-600 to-emerald-700',
+      badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+    },
   ],
   '9': [
     {
@@ -535,33 +578,6 @@ export const SubjectRooms: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [readingDoc, isPdfLoading]);
-
-  const getViewerUrl = (rawUrl?: string): string => {
-    if (!rawUrl) return '';
-    // If it's already a Google Drive file link, convert to preview mode
-    if (rawUrl.includes('drive.google.com')) {
-      if (rawUrl.includes('/view')) return rawUrl.replace('/view', '/preview');
-      if (!rawUrl.includes('/preview')) {
-        const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (match && match[1]) {
-          return `https://drive.google.com/file/d/${match[1]}/preview`;
-        }
-      }
-      return rawUrl;
-    }
-
-    // Convert relative paths (/Material/..., /data/...) to absolute URLs
-    const absoluteUrl = rawUrl.startsWith('http')
-      ? rawUrl
-      : `${window.location.origin}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
-
-    // If Google Docs viewer engine is manually selected by the user
-    if (useMobileViewer) {
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(absoluteUrl)}&embedded=true`;
-    }
-
-    return rawUrl;
-  };
 
   const getDirectPdfUrl = (rawUrl?: string): string => {
     if (!rawUrl) return '';
@@ -655,8 +671,8 @@ export const SubjectRooms: React.FC = () => {
         const codePrefix = subName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'SUB';
         customList.push({
           name: subName,
-          code: `${codePrefix}-${stdKey}`,
-          description: `Custom curated learning room for ${subName} (Class ${activeStandard})`,
+          code: `${codePrefix}-${toRomanStandard(stdKey)}`,
+          description: `Custom curated learning room for ${subName} (Class ${toRomanStandard(activeStandard)})`,
           icon: Layers,
           colorGradient: theme.gradient,
           badgeColor: theme.badge,
@@ -1139,7 +1155,7 @@ export const SubjectRooms: React.FC = () => {
                   <span>•</span>
                   <span>{readingDoc.category === 'textbook' ? 'Textbook' : 'Study Notes'}</span>
                   <span>•</span>
-                  <span>Class {readingDoc.standard || activeStandard}</span>
+                  <span>Class {toRomanStandard(readingDoc.standard || activeStandard)}</span>
                   {isSuperAdmin && (
                     <>
                       <span>•</span>
@@ -1263,12 +1279,10 @@ export const SubjectRooms: React.FC = () => {
                 transformOrigin: 'center center',
               }}
             >
-              <iframe
-                src={getViewerUrl(readingDoc.streamUrl || readingDoc.serverUrl)}
+              <UniversalPdfViewer
+                url={readingDoc.streamUrl || readingDoc.serverUrl || ''}
                 title={readingDoc.originalName || readingDoc.name}
-                allow="autoplay; fullscreen"
-                className="w-full h-full rounded-2xl bg-white"
-                onLoad={() => setIsPdfLoading(false)}
+                className="w-full h-full"
               />
             </div>
           </div>
@@ -1747,7 +1761,7 @@ export const SubjectRooms: React.FC = () => {
                             <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
                               <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
                               <span>•</span>
-                              <span>Class {doc.standard || activeStandard}</span>
+                              <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
                             </div>
                           </div>
 
@@ -1891,7 +1905,7 @@ export const SubjectRooms: React.FC = () => {
                             <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
                               <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
                               <span>•</span>
-                              <span>Class {doc.standard || activeStandard}</span>
+                              <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
                             </div>
                           </div>
 
