@@ -154,16 +154,31 @@ if (!fs.existsSync(path.join(DATA_DIR, 'users.json'))) {
 
 // ---------------- SUBJECTS SEEDING ----------------
 const DEFAULT_SUBJECTS = [
-  'Distributed Systems',
-  'Quantum Information Science',
-  'Machine Learning Theory',
-  'Computer Systems & OS',
-  'Mathematics & Linear Algebra',
+  'Book-Keeping & Accountancy (Accounts)',
+  'Organization of Commerce & Management (OCM)',
+  'Economics (ECO)',
+  'Mathematics & Statistics (Commerce)',
+  'English (Yuvakbharati)',
+  'Information Technology (IT)',
+  'Secretarial Practice (SP)',
+  'Hindi',
+  'Marathi',
 ];
 
-if (!fs.existsSync(path.join(DATA_DIR, 'subjects.json'))) {
-  writeJsonFile('subjects.json', DEFAULT_SUBJECTS);
-}
+const LEGACY_DUMMY_SUBJECTS = new Set([
+  'distributed systems',
+  'quantum information science',
+  'machine learning theory',
+  'computer systems & os',
+  'mathematics & linear algebra',
+]);
+
+const currentSubjs = readJsonFile('subjects.json', []);
+const cleanInitSubjs = currentSubjs.filter(
+  (s) => s && !LEGACY_DUMMY_SUBJECTS.has(s.trim().toLowerCase())
+);
+const mergedInitSubjs = Array.from(new Set([...DEFAULT_SUBJECTS, ...cleanInitSubjs]));
+writeJsonFile('subjects.json', mergedInitSubjs);
 
 // ---------------- SAMPLE TEST PAPER & ANSWER KEY SEEDING ----------------
 const sampleQPPath = path.join(UPLOADS_DIR, 'MIT_6_824_2024_Final_Exam_Questions.html');
@@ -652,6 +667,15 @@ app.post(
     testPapers.unshift(newPaper);
     writeJsonFile('test-papers.json', testPapers);
 
+    // Auto-create new subject if not existing
+    if (newPaper.subject) {
+      const subjs = readJsonFile('subjects.json', DEFAULT_SUBJECTS);
+      if (!subjs.some((s) => s.toLowerCase() === newPaper.subject.toLowerCase())) {
+        subjs.push(newPaper.subject);
+        writeJsonFile('subjects.json', subjs);
+      }
+    }
+
     res.status(201).json(newPaper);
   }
 );
@@ -846,8 +870,28 @@ app.post('/api/chat/messages/:id/react', (req, res) => {
 
 // 3. SUBJECTS MANAGEMENT API
 app.get('/api/subjects', (req, res) => {
-  const subjects = readJsonFile('subjects.json', DEFAULT_SUBJECTS);
-  res.json(subjects);
+  const fileSubjs = readJsonFile('subjects.json', DEFAULT_SUBJECTS);
+  const docs = readJsonFile('documents.json', []);
+  const papers = readJsonFile('test-papers.json', []);
+
+  // Collect any subjects dynamically from documents & test papers
+  const dynamicSet = new Set(DEFAULT_SUBJECTS);
+  fileSubjs.forEach((s) => {
+    if (s && !LEGACY_DUMMY_SUBJECTS.has(s.trim().toLowerCase())) dynamicSet.add(s.trim());
+  });
+  docs.forEach((d) => {
+    if (d && d.subject && !LEGACY_DUMMY_SUBJECTS.has(d.subject.trim().toLowerCase())) {
+      dynamicSet.add(d.subject.trim());
+    }
+  });
+  papers.forEach((p) => {
+    if (p && p.subject && !LEGACY_DUMMY_SUBJECTS.has(p.subject.trim().toLowerCase())) {
+      dynamicSet.add(p.subject.trim());
+    }
+  });
+
+  const merged = Array.from(dynamicSet);
+  res.json(merged);
 });
 
 app.post('/api/subjects', (req, res) => {
@@ -857,8 +901,10 @@ app.post('/api/subjects', (req, res) => {
   }
 
   const cleanName = name.trim();
-  const subjects = readJsonFile('subjects.json', DEFAULT_SUBJECTS);
-  if (!subjects.includes(cleanName)) {
+  const subjects = readJsonFile('subjects.json', DEFAULT_SUBJECTS).filter(
+    (s) => s && !LEGACY_DUMMY_SUBJECTS.has(s.trim().toLowerCase())
+  );
+  if (!subjects.some((s) => s.toLowerCase() === cleanName.toLowerCase())) {
     subjects.push(cleanName);
     writeJsonFile('subjects.json', subjects);
   }

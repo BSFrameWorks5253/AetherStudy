@@ -251,35 +251,92 @@ export const api = {
 
   // 3. Subjects Management
   async getSubjects(): Promise<string[]> {
-    try {
-      const res = await fetch(`${API_BASE}/subjects`);
-      if (res.ok) {
-        const subjs = await res.json();
-        if (Array.isArray(subjs) && subjs.length > 0) return subjs;
-      }
-    } catch {}
+    const LEGACY_DUMMIES = new Set([
+      'distributed systems',
+      'quantum information science',
+      'machine learning theory',
+      'computer systems & os',
+      'mathematics & linear algebra',
+    ]);
 
-    return [
-      'Accounts',
-      'Economics',
-      'Mathematics',
-      'OCM',
-      'IT',
-      'English',
-      'Secretarial Practice',
+    const baseCommerce = [
+      'Book-Keeping & Accountancy (Accounts)',
+      'Organization of Commerce & Management (OCM)',
+      'Economics (ECO)',
+      'Mathematics & Statistics (Commerce)',
+      'Information Technology (IT)',
+      'English (Yuvakbharati)',
+      'Secretarial Practice (SP)',
       'Hindi',
       'Marathi',
     ];
+
+    let serverSubjs: string[] = [];
+    try {
+      const res = await fetch(`${API_BASE}/subjects`);
+      if (res.ok) {
+        const fetched = await res.json();
+        if (Array.isArray(fetched)) {
+          serverSubjs = fetched.filter((s) => s && !LEGACY_DUMMIES.has(s.trim().toLowerCase()));
+        }
+      }
+    } catch {}
+
+    // Extract any unique subjects that exist in stored documents or catalog
+    const localDocs = api.getLocalDocuments();
+    const docSubjects = localDocs
+      .map((d) => d.subject)
+      .filter((s): s is string => Boolean(s) && !LEGACY_DUMMIES.has(s.trim().toLowerCase()));
+
+    // Also read any custom subjects saved locally
+    let customSaved: string[] = [];
+    try {
+      const saved = localStorage.getItem('aether_custom_subjects');
+      if (saved) customSaved = JSON.parse(saved);
+    } catch {}
+
+    const subjectMap = new Map<string, string>();
+    // First, seed with base commerce subjects
+    baseCommerce.forEach((s) => subjectMap.set(s.toLowerCase(), s));
+    // Overlay server subjects
+    serverSubjs.forEach((s) => {
+      if (!subjectMap.has(s.toLowerCase())) subjectMap.set(s.toLowerCase(), s);
+    });
+    // Overlay document subjects
+    docSubjects.forEach((s) => {
+      if (!subjectMap.has(s.toLowerCase())) subjectMap.set(s.toLowerCase(), s);
+    });
+    // Overlay custom saved subjects
+    customSaved.forEach((s) => {
+      if (!subjectMap.has(s.toLowerCase())) subjectMap.set(s.toLowerCase(), s);
+    });
+
+    return Array.from(subjectMap.values());
   },
 
   async createSubject(name: string): Promise<{ subjects: string[]; created: string }> {
-    const res = await fetch(`${API_BASE}/subjects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) throw new Error('Failed to create new subject');
-    return res.json();
+    const cleanName = name.trim();
+    // Persist to local custom subjects so it is instantly available offline and everywhere
+    try {
+      const saved = localStorage.getItem('aether_custom_subjects');
+      const list: string[] = saved ? JSON.parse(saved) : [];
+      if (!list.some((s) => s.toLowerCase() === cleanName.toLowerCase())) {
+        list.push(cleanName);
+        localStorage.setItem('aether_custom_subjects', JSON.stringify(list));
+      }
+    } catch {}
+
+    try {
+      const res = await fetch(`${API_BASE}/subjects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: cleanName }),
+      });
+      if (res.ok) return res.json();
+    } catch {}
+
+    const allSubjs = await api.getSubjects();
+    return { subjects: allSubjs, created: cleanName };
   },
 
   // 4. Documents Storage API

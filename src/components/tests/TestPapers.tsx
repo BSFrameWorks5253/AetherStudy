@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { TestPaper } from '../../types/testPaper';
 import { useAuth } from '../../context/AuthContext';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
+import { matchSubjectDoc } from '../workspace/SubjectRooms';
 import {
   GraduationCap,
   FileText,
@@ -132,7 +133,7 @@ export const TestPapers: React.FC = () => {
   const availableYears = Array.from(new Set(testPapers.map((p) => p.year))).sort((a, b) => b - a);
 
   const filteredPapers = testPapers.filter((p) => {
-    const matchSubject = selectedSubject === 'All' || p.subject === selectedSubject;
+    const matchSubject = selectedSubject === 'All' || matchSubjectDoc(selectedSubject, p.subject || '');
     const matchYear = selectedYear === 'All' || p.year.toString() === selectedYear;
     return matchSubject && matchYear;
   });

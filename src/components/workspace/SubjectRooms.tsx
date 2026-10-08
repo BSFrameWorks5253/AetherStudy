@@ -427,34 +427,57 @@ export const SubjectRooms: React.FC = () => {
     }
   }, [activeStandard]);
 
-  // Combined subject list for the active standard (Hardcoded Std 12 Commerce)
+  // Dynamic color palette generator for custom created subjects
+  const DYNAMIC_GRADIENTS = [
+    { gradient: 'from-violet-600 to-indigo-700', badge: 'bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 border-violet-200 dark:border-violet-800' },
+    { gradient: 'from-emerald-600 to-teal-700', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
+    { gradient: 'from-rose-600 to-pink-700', badge: 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800' },
+    { gradient: 'from-amber-600 to-orange-700', badge: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800' },
+    { gradient: 'from-cyan-600 to-blue-700', badge: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800' },
+    { gradient: 'from-fuchsia-600 to-purple-700', badge: 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-950/60 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800' },
+  ];
+
+  // Combined subject list for the active standard (Base Subjects + Automatically Created Subjects)
   const availableSubjects: SubjectMeta[] = useMemo(() => {
     const stdKey = activeStandard === 'ALL' ? '12' : activeStandard;
-    if (stdKey === '12') {
-      // Strictly hardcoded Standard 12 Commerce subjects as requested
-      return DEFAULT_STANDARD_SUBJECTS['12'];
-    }
     const baseList = DEFAULT_STANDARD_SUBJECTS[stdKey] || DEFAULT_STANDARD_SUBJECTS['12'];
 
-    // Map base subjects
-    const existingNames = new Set(baseList.map((s) => s.name.toLowerCase()));
-    const customList: SubjectMeta[] = [];
+    // Collect all candidate subjects from:
+    // 1. Server subjects list (/api/subjects)
+    // 2. Uploaded documents in state (doc.subject)
+    const candidateSubjects = new Set<string>();
+    serverSubjects.forEach((s) => {
+      if (s && s.trim()) candidateSubjects.add(s.trim());
+    });
+    documents.forEach((d) => {
+      if (d.subject && d.subject.trim()) candidateSubjects.add(d.subject.trim());
+    });
 
-    serverSubjects.forEach((subName) => {
-      if (!existingNames.has(subName.toLowerCase())) {
+    const customList: SubjectMeta[] = [];
+    let colorIdx = 0;
+
+    candidateSubjects.forEach((subName) => {
+      // Check if subName matches any base subject
+      const alreadyInBase = baseList.some(
+        (baseSub) => matchSubjectDoc(baseSub.name, subName)
+      );
+      if (!alreadyInBase) {
+        const theme = DYNAMIC_GRADIENTS[colorIdx % DYNAMIC_GRADIENTS.length];
+        colorIdx++;
+        const codePrefix = subName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'SUB';
         customList.push({
           name: subName,
-          code: `${subName.slice(0, 3).toUpperCase()}-${stdKey}`,
-          description: `Curated learning room for ${subName}`,
+          code: `${codePrefix}-${stdKey}`,
+          description: `Custom curated learning room for ${subName} (Class ${activeStandard})`,
           icon: Layers,
-          colorGradient: 'from-slate-700 to-slate-900',
-          badgeColor: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+          colorGradient: theme.gradient,
+          badgeColor: theme.badge,
         });
       }
     });
 
     return [...baseList, ...customList];
-  }, [activeStandard, serverSubjects]);
+  }, [activeStandard, serverSubjects, documents]);
 
   // Filter documents by active standard (Available for ALL user IDs, not just super admin)
   const standardFilteredDocuments = useMemo(() => {
@@ -1507,9 +1530,12 @@ export const SubjectRooms: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {availableSubjects.map((sub) => {
               const Icon = sub.icon;
-              const subDocs = standardFilteredDocuments.filter(
+              const directDocs = standardFilteredDocuments.filter(
                 (d) => matchSubjectDoc(sub.name, d.subject || '')
               );
+              const subDocs = directDocs.length > 0
+                ? directDocs
+                : documents.filter((d) => matchSubjectDoc(sub.name, d.subject || ''));
               const tBooks = subDocs.filter((d) => d.category === 'textbook').length;
               const nDocs = subDocs.filter((d) => d.category !== 'textbook').length;
 
