@@ -4,14 +4,27 @@ import { Header } from './components/layout/Header';
 import { LiquidBackground } from './components/layout/LiquidBackground';
 import { SplitWorkspace } from './components/workspace/SplitWorkspace';
 import { TestPapers } from './components/tests/TestPapers';
-import { Timetable } from './components/timetable/Timetable';
-import { SyllabusTracker } from './components/syllabus/SyllabusTracker';
+import { TimetableGrid } from './components/timetable/TimetableGrid';
+import { TrackerTree } from './components/syllabus/TrackerTree';
+import { AuthModal } from './components/auth/AuthModal';
+import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const { theme } = useTheme();
+  const { isAuthenticated } = useAuth();
+
+  // STEP 5 GUARD: If unauthenticated, render the secure AuthModal exclusively
+  if (!isAuthenticated) {
+    return (
+      <div className={`relative flex h-screen w-screen items-center justify-center overflow-hidden antialiased select-none ${theme}`}>
+        <LiquidBackground />
+        <AuthModal isOpen={true} isGuardMode={true} />
+      </div>
+    );
+  }
 
   const getTitle = () => {
     switch (activeTab) {
@@ -41,19 +54,17 @@ export const App: React.FC = () => {
 
       {/* Main Workspace Stage */}
       <div className="flex flex-col flex-1 h-full min-w-0 overflow-hidden relative z-10">
-        {/* Top Header Bar with Clean Integrated Timer & Auth */}
+        {/* Universal Control Header Bar */}
         <Header title={getTitle()} />
 
         {/* Dynamic Active Module Container */}
         <main className="flex-1 relative overflow-hidden pb-16 md:pb-0">
           {activeTab === 'workspace' && <SplitWorkspace />}
           {activeTab === 'tests' && <TestPapers />}
-          {activeTab === 'timetable' && <Timetable />}
-          {activeTab === 'syllabus' && <SyllabusTracker />}
+          {activeTab === 'timetable' && <TimetableGrid />}
+          {activeTab === 'syllabus' && <TrackerTree />}
         </main>
       </div>
-
-      {/* Floating widget permanently removed to give 100% unobstructed view! */}
     </div>
   );
 };

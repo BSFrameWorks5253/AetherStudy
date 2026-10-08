@@ -1,6 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserProfile, UserRole, SUPER_ADMIN_EMAIL, AuthContextType } from '../types/auth';
+import { UserProfile, UserRole, SUPER_ADMIN_EMAIL } from '../types/auth';
 import { api } from '../services/api';
+
+export interface AuthContextType {
+  currentUser: UserProfile | null;
+  isAuthenticated: boolean;
+  isSuperAdmin: boolean;
+  isAdmin: boolean;
+  canUpload: boolean;
+  login: (email: string) => Promise<UserProfile>;
+  sendOtp: (email: string) => Promise<{ token: string; maskedEmail: string }>;
+  verifyOtp: (email: string, otp: string, token: string) => Promise<UserProfile>;
+  logout: () => void;
+  usersList: UserProfile[];
+  updateUserRole: (targetEmail: string, newRole: UserRole) => Promise<boolean>;
+  refreshUsers: () => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -19,6 +34,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isSuperAdmin = currentUser?.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
   const isAdmin = currentUser?.role === 'ADMIN' || isSuperAdmin;
   const canUpload = isAdmin;
+
+  const sendOtp = async (email: string) => {
+    const res = await api.generateOtp(email);
+    return { token: res.token, maskedEmail: res.maskedEmail };
+  };
+
+  const verifyOtp = async (email: string, otp: string, token: string): Promise<UserProfile> => {
+    const res = await api.verifyOtp(email, otp, token);
+    setCurrentUser(res.user);
+    localStorage.setItem('aetherstudy_user', JSON.stringify(res.user));
+    return res.user;
+  };
 
   const login = async (email: string): Promise<UserProfile> => {
     const profile = await api.login(email);
@@ -75,6 +102,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         canUpload,
         login,
+        sendOtp,
+        verifyOtp,
         logout,
         usersList,
         updateUserRole,

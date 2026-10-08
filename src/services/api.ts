@@ -28,7 +28,33 @@ export interface ServerHealth {
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
 
 export const api = {
-  // 1. Passwordless Authentication & RBAC
+  // 1. Passwordless Authentication & Server-Side OTP
+  async generateOtp(email: string): Promise<{ success: boolean; message: string; token: string; maskedEmail: string }> {
+    const res = await fetch(`${API_BASE}/auth/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to dispatch verification code');
+    }
+    return res.json();
+  },
+
+  async verifyOtp(email: string, otp: string, token: string): Promise<{ success: boolean; user: UserProfile }> {
+    const res = await fetch(`${API_BASE}/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, token }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Invalid verification code');
+    }
+    return res.json();
+  },
+
   async login(email: string): Promise<UserProfile> {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
