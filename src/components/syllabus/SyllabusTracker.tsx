@@ -173,20 +173,92 @@ export const SyllabusTracker: React.FC = () => {
   // Sync directly with hidden GitHub Database pipeline with local server fallback
   const [syllabus, setSyllabus, isSaving, isConnected] = useServerStorage<SyllabusTopic[]>(
     async () => {
+      let rawServerData: SyllabusTopic[] | null = null;
       try {
         const ghSyllabus = await api.syncGet<SyllabusTopic[]>('syllabus.json');
-        if (Array.isArray(ghSyllabus) && ghSyllabus.length > 0) return ghSyllabus;
+        if (Array.isArray(ghSyllabus) && ghSyllabus.length > 0 && ghSyllabus.some((t) => t.chapters && t.chapters.length > 0)) {
+          rawServerData = ghSyllabus;
+        }
       } catch {
         // Fallback
       }
-      return await api.getSyllabus<SyllabusTopic[]>();
+
+      if (!rawServerData) {
+        try {
+          const res = await api.getSyllabus<SyllabusTopic[]>();
+          if (Array.isArray(res) && res.length > 0 && res.some((t) => t.chapters && t.chapters.length > 0)) {
+            rawServerData = res;
+          }
+        } catch {
+          // Fallback
+        }
+      }
+
+      // Read local chapter checklist progress
+      let localCompletedMap: Record<string, boolean> = {};
+      try {
+        const cached = localStorage.getItem('aether_syllabus_completed_map');
+        if (cached) localCompletedMap = JSON.parse(cached);
+      } catch {}
+
+      // If server has completion states, merge them
+      const serverCompletedMap: Record<string, boolean> = {};
+      if (Array.isArray(rawServerData)) {
+        rawServerData.forEach((t) => {
+          if (Array.isArray(t?.chapters)) {
+            t.chapters.forEach((c) => {
+              if (c?.id && typeof c.isCompleted === 'boolean') {
+                serverCompletedMap[c.id] = c.isCompleted;
+              }
+            });
+          }
+        });
+      }
+
+      const combinedMap = { ...serverCompletedMap, ...localCompletedMap };
+
+      // Ensure every official Maharashtra HSC topic and chapter is preserved
+      const authoritativeSyllabus: SyllabusTopic[] = INITIAL_SYLLABUS.map((topic) => {
+        const serverMatch = rawServerData?.find((st) => st.id === topic.id || st.title === topic.title);
+        const materials = serverMatch?.materials || topic.materials;
+
+        return {
+          ...topic,
+          materials,
+          chapters: topic.chapters.map((ch) => ({
+            ...ch,
+            isCompleted: combinedMap[ch.id] !== undefined ? combinedMap[ch.id] : ch.isCompleted,
+          })),
+        };
+      });
+
+      // Retain any extra valid custom topics added by user
+      if (Array.isArray(rawServerData)) {
+        const initialIds = new Set(INITIAL_SYLLABUS.map((t) => t.id));
+        rawServerData.forEach((st) => {
+          if (st && st.id && !initialIds.has(st.id) && Array.isArray(st.chapters) && st.chapters.length > 0) {
+            authoritativeSyllabus.push(st);
+          }
+        });
+      }
+
+      return authoritativeSyllabus;
     },
     async (topics) => {
+      // Save completed chapter states to localStorage
+      try {
+        const completedMap: Record<string, boolean> = {};
+        topics.forEach((t) => {
+          t.chapters.forEach((c) => {
+            completedMap[c.id] = c.isCompleted;
+          });
+        });
+        localStorage.setItem('aether_syllabus_completed_map', JSON.stringify(completedMap));
+      } catch {}
+
       try {
         await api.syncPut('syllabus.json', topics);
-      } catch {
-        // Fallback
-      }
+      } catch {}
       return await api.saveSyllabus(topics);
     },
     INITIAL_SYLLABUS
@@ -195,7 +267,7 @@ export const SyllabusTracker: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<string>('All');
   
   // Topic creation state
-  const [newTopicSubject, setNewTopicSubject] = useState<string>('Distributed Systems');
+  const [newTopicSubject, setNewTopicSubject] = useState<string>('Accounts');
   const [newTopicTitle, setNewTopicTitle] = useState<string>('');
   const [isAddingTopic, setIsAddingTopic] = useState<boolean>(false);
 
@@ -224,15 +296,27 @@ export const SyllabusTracker: React.FC = () => {
   }, [filteredTopics]);
 
   const handleToggleChapter = (topicId: string, chapterId: string) => {
-    setSyllabus((prev) =>
-      prev.map((t) => {
+    setSyllabus((prev) => {
+      const updated = prev.map((t) => {
         if (t.id !== topicId) return t;
         return {
           ...t,
           chapters: t.chapters.map((c) => (c.id === chapterId ? { ...c, isCompleted: !c.isCompleted } : c)),
         };
-      })
-    );
+      });
+
+      try {
+        const completedMap: Record<string, boolean> = {};
+        updated.forEach((t) => {
+          t.chapters.forEach((c) => {
+            completedMap[c.id] = c.isCompleted;
+          });
+        });
+        localStorage.setItem('aether_syllabus_completed_map', JSON.stringify(completedMap));
+      } catch {}
+
+      return updated;
+    });
   };
 
   const handleToggleExpand = (topicId: string) => {

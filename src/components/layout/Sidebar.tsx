@@ -9,6 +9,7 @@ import {
   ChevronRight,
   GraduationCap,
   MessageSquare,
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -27,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   onToggleCollapse,
 }) => {
-  const { isSuperAdmin, activeStandard } = useAuth();
+  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout } = useAuth();
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || isSuperAdmin;
 
   const navItems = [
@@ -159,32 +160,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
         </div>
 
-        {/* Footer Status */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+        {/* Footer Status & User Account Controls */}
+        <div className="p-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+          {/* User Account & Logout Control */}
+          {isAuthenticated && currentUser && (
+            <div
+              className={`p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center ${
+                isCollapsed ? 'justify-center' : 'justify-between'
+              }`}
+            >
+              {!isCollapsed ? (
+                <>
+                  <div className="flex items-center space-x-2 truncate min-w-0 mr-1.5">
+                    <div className="w-8 h-8 rounded-xl bg-brand-100 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs shrink-0">
+                      {currentUser.email.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="truncate">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {currentUser.email.split('@')[0]}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 capitalize truncate">
+                        {isSuperAdmin
+                          ? 'Owner'
+                          : currentUser.role === 'ADMIN'
+                          ? 'Admin'
+                          : `Class ${activeStandard}`}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Log out of AetherStudy? You can log back in anytime.')) {
+                        logout();
+                      }
+                    }}
+                    className="p-1.5 rounded-xl text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shrink-0"
+                    title="Sign Out"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Log out of AetherStudy? You can log back in anytime.')) {
+                      logout();
+                    }
+                  }}
+                  className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
           {!isCollapsed && (
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
-              <div className="flex items-center space-x-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Notes & Progress Saved</span>
+            <div className="p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-200/50 dark:border-slate-800/50">
+              <div className="flex items-center space-x-2 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-3 h-3" />
+                <span>Notes & Progress Synced</span>
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Changes to notes and chapters are automatically synced.
-              </p>
             </div>
           )}
 
           <div className="flex items-center justify-center text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-            {!isCollapsed ? (
-              <span>HSC Academic Year 2026-27</span>
-            ) : (
-              <span>XII</span>
-            )}
+            {!isCollapsed ? <span>HSC Maharashtra Board</span> : <span>XII</span>}
           </div>
         </div>
       </aside>
 
       {/* Mobile Bottom Navigation Bar (< 768px viewports) */}
-      <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-3 py-1.5 justify-around shadow-xl backdrop-blur-md">
+      <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 justify-around shadow-xl backdrop-blur-md">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -193,7 +242,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all ${
                 isActive
                   ? 'text-brand-600 dark:text-brand-400 font-bold'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
@@ -212,6 +261,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           );
         })}
+
+        {/* Mobile Sign Out Button */}
+        {isAuthenticated && (
+          <button
+            onClick={() => {
+              if (window.confirm('Log out of AetherStudy? You can log back in anytime.')) {
+                logout();
+              }
+            }}
+            className="flex flex-col items-center justify-center py-1 px-2 rounded-xl text-rose-500 hover:text-rose-700 transition-all"
+            title="Sign Out"
+          >
+            <div className="p-1 rounded-xl">
+              <LogOut className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] mt-0.5 tracking-tight font-medium">
+              Log Out
+            </span>
+          </button>
+        )}
       </nav>
     </>
   );
