@@ -36,16 +36,27 @@ export const SplitWorkspace: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Sync notes continuously with backend Server Storage
+  // Sync notes continuously with serverless GitHub JSON pipeline (1500ms debounce)
   const [notesData, setNotesData, isSaving, isConnected] = useServerStorage<{ content: string }>(
     async () => {
-      const res = await api.getNotes();
-      return res;
+      try {
+        const ghNotes = await api.syncGet<{ content: string }>('notes.json');
+        if (ghNotes && typeof ghNotes.content === 'string') return ghNotes;
+      } catch {
+        // Fallback to local server notes
+      }
+      return await api.getNotes();
     },
     async (val) => {
+      try {
+        await api.syncPut('notes.json', val);
+      } catch {
+        // Fallback to local server notes
+      }
       return await api.saveNotes(val.content);
     },
-    { content: FALLBACK_NOTES }
+    { content: FALLBACK_NOTES },
+    1500 // 1500ms auto-saving debounce wrapper
   );
 
   const [isDragging, setIsDragging] = useState<boolean>(false);

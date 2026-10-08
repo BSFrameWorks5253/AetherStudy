@@ -91,13 +91,23 @@ const COLOR_OPTIONS = [
 ];
 
 export const Timetable: React.FC = () => {
-  // Sync schedule directly with backend Server Storage
+  // Sync schedule directly with hidden GitHub Database pipeline with local server fallback
   const [schedule, setSchedule, isSaving, isConnected] = useServerStorage<TimeSlot[]>(
     async () => {
-      const res = await api.getTimetable<TimeSlot[]>();
-      return res;
+      try {
+        const ghTimetable = await api.syncGet<TimeSlot[]>('timetable.json');
+        if (Array.isArray(ghTimetable) && ghTimetable.length > 0) return ghTimetable;
+      } catch {
+        // Fallback
+      }
+      return await api.getTimetable<TimeSlot[]>();
     },
     async (slots) => {
+      try {
+        await api.syncPut('timetable.json', slots);
+      } catch {
+        // Fallback
+      }
       return await api.saveTimetable(slots);
     },
     INITIAL_SCHEDULE

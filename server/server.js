@@ -703,6 +703,172 @@ app.put('/api/pomodoro', (req, res) => {
   res.json(updated);
 });
 
+// 9. ZERO-COST HIDDEN GITHUB DATABASE SYNC ENDPOINT
+app.get('/api/db/sync', async (req, res) => {
+  const fileName = (req.query.file || 'syllabus.json').toString();
+  const GH_ACCESS_TOKEN = process.env.GH_ACCESS_TOKEN;
+  const GITHUB_REPO = process.env.GITHUB_REPO || 'BSFrameWorks5253/AetherStudy';
+
+  try {
+    if (GH_ACCESS_TOKEN) {
+      const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/data/${fileName}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${GH_ACCESS_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'AetherStudy-DB-Sync',
+        },
+      });
+      if (response.ok) {
+        const json = await response.json();
+        const rawContent = Buffer.from(json.content, 'base64').toString('utf8');
+        return res.json({ success: true, source: 'github', data: JSON.parse(rawContent), sha: json.sha });
+      }
+    }
+
+    const localData = readJsonFile(fileName, []);
+    return res.json({ success: true, source: 'local', data: localData });
+  } catch (error) {
+    console.error('[Database Sync GET Error]:', error);
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
+  }
+});
+
+app.post('/api/db/sync', async (req, res) => {
+  const { file, data } = req.body || {};
+  if (!file) return res.status(400).json({ error: 'Target file required.' });
+
+  const GH_ACCESS_TOKEN = process.env.GH_ACCESS_TOKEN;
+  const GITHUB_REPO = process.env.GITHUB_REPO || 'BSFrameWorks5253/AetherStudy';
+
+  try {
+    let savedToGitHub = false;
+    if (GH_ACCESS_TOKEN) {
+      const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/data/${file}`;
+      let sha = undefined;
+      const existing = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${GH_ACCESS_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'AetherStudy-DB-Sync',
+        },
+      });
+      if (existing.ok) {
+        const json = await existing.json();
+        sha = json.sha;
+      }
+
+      const putRes = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${GH_ACCESS_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'AetherStudy-DB-Sync',
+        },
+        body: JSON.stringify({
+          message: `db(sync): update ${file} [Zero-Cost GitHub DB]`,
+          content: Buffer.from(JSON.stringify(data, null, 2), 'utf8').toString('base64'),
+          sha,
+        }),
+      });
+      savedToGitHub = putRes.ok;
+    }
+
+    writeJsonFile(file, data);
+    return res.json({ success: true, source: savedToGitHub ? 'github' : 'local' });
+  } catch (error) {
+    console.error('[Database Sync POST Error]:', error);
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
+  }
+});
+
+// 10. GOOGLE DRIVE LARGE PDF STORAGE ROUTING ENDPOINT
+app.post('/api/storage/upload', async (req, res) => {
+  const { fileName, fileBase64, mimeType, subject, uploaderEmail } = req.body || {};
+  if (!fileName || !fileBase64) {
+    return res.status(400).json({ error: 'File name and file base64 buffer required.' });
+  }
+
+  try {
+    const base64Data = fileBase64.includes(';base64,') ? fileBase64.split(';base64,')[1] : fileBase64;
+    const fileBuffer = Buffer.from(base64Data, 'base64');
+    let streamUrl = '';
+    let driveFileId = `gdrive-${Date.now()}`;
+
+    const GOOGLE_CREDENTIALS = process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS;
+    if (GOOGLE_CREDENTIALS) {
+      try {
+        const { google } = require('googleapis');
+        const { Readable } = require('stream');
+        const credentials = GOOGLE_CREDENTIALS.startsWith('{')
+          ? JSON.parse(GOOGLE_CREDENTIALS)
+          : JSON.parse(fs.readFileSync(GOOGLE_CREDENTIALS, 'utf8'));
+
+        const auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
+        });
+        const drive = google.drive({ version: 'v3', auth });
+
+        const fileMeta = {
+          name: fileName,
+          description: `Subject: ${subject || 'General'} | Uploader: ${uploaderEmail || 'Admin'}`,
+        };
+        if (process.env.GOOGLE_DRIVE_FOLDER_ID) {
+          fileMeta.parents = [process.env.GOOGLE_DRIVE_FOLDER_ID];
+        }
+
+        const driveRes = await drive.files.create({
+          requestBody: fileMeta,
+          media: {
+            mimeType: mimeType || 'application/pdf',
+            body: Readable.from(fileBuffer),
+          },
+          fields: 'id, name, webViewLink',
+        });
+
+        driveFileId = driveRes.data.id || driveFileId;
+
+        await drive.permissions.create({
+          fileId: driveFileId,
+          requestBody: { role: 'reader', type: 'anyone' },
+        });
+
+        streamUrl = `https://drive.google.com/file/d/${driveFileId}/preview`;
+      } catch (gErr) {
+        console.error('[Google Drive Upload Error, fallback to local]:', gErr);
+      }
+    }
+
+    if (!streamUrl) {
+      const safeName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      fs.writeFileSync(path.join(UPLOADS_DIR, safeName), fileBuffer);
+      streamUrl = `/uploads/${safeName}`;
+    }
+
+    const docRecord = {
+      id: driveFileId,
+      name: fileName,
+      subject: subject || 'General',
+      size: `${(fileBuffer.length / (1024 * 1024)).toFixed(2)} MB`,
+      url: streamUrl,
+      streamUrl: streamUrl,
+      uploadedBy: uploaderEmail || 'admin',
+      uploadedAt: new Date().toISOString(),
+    };
+
+    const docs = readJsonFile('documents.json', []);
+    docs.unshift(docRecord);
+    writeJsonFile('documents.json', docs);
+
+    return res.status(200).json({ success: true, document: docRecord });
+  } catch (error) {
+    console.error('[Storage Upload Failure]:', error);
+    return res.status(500).json({ error: 'Internal security node allocation error.' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`[AetherStudy Server Storage Engine] Running on port ${PORT}`);
   console.log(`[Super Admin]: ${SUPER_ADMIN_EMAIL}`);

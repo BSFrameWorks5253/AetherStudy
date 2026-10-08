@@ -6,6 +6,7 @@ export interface ServerDocument {
   name: string;
   originalName: string;
   serverUrl: string;
+  streamUrl?: string;
   mimeType: string;
   sizeBytes: number;
   uploadedAt: string;
@@ -238,4 +239,60 @@ export const api = {
     if (!res.ok) throw new Error('Failed to save pomodoro to server');
     return res.json();
   },
+
+  // 9. Zero-Cost Hidden GitHub Database Sync API
+  async syncGet<T>(file: string): Promise<T> {
+    const res = await fetch(`${API_BASE}/db/sync?file=${encodeURIComponent(file)}`);
+    if (!res.ok) throw new Error('Database sync query failed');
+    const json = await res.json();
+    return json.data;
+  },
+
+  async syncPut<T>(file: string, data: T): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/db/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file, data }),
+    });
+    if (!res.ok) throw new Error('Database sync write failed');
+    return res.json();
+  },
+
+  // 10. Super Admin Google Drive Storage Upload API
+  async uploadToGoogleDrive(
+    file: File,
+    subject: string,
+    uploaderEmail: string
+  ): Promise<{ success: boolean; document: any }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const res = await fetch(`${API_BASE}/storage/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileBase64: base64,
+              mimeType: file.type || 'application/pdf',
+              subject,
+              uploaderEmail,
+            }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to upload document to Google Drive storage');
+          }
+          const data = await res.json();
+          resolve(data);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(file);
+    });
+  },
 };
+

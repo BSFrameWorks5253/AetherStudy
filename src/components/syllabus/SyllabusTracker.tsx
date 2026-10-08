@@ -65,13 +65,23 @@ const INITIAL_SYLLABUS: SyllabusTopic[] = [
 ];
 
 export const SyllabusTracker: React.FC = () => {
-  // Sync directly with backend Server Storage
+  // Sync directly with hidden GitHub Database pipeline with local server fallback
   const [syllabus, setSyllabus, isSaving, isConnected] = useServerStorage<SyllabusTopic[]>(
     async () => {
-      const res = await api.getSyllabus<SyllabusTopic[]>();
-      return res;
+      try {
+        const ghSyllabus = await api.syncGet<SyllabusTopic[]>('syllabus.json');
+        if (Array.isArray(ghSyllabus) && ghSyllabus.length > 0) return ghSyllabus;
+      } catch {
+        // Fallback
+      }
+      return await api.getSyllabus<SyllabusTopic[]>();
     },
     async (topics) => {
+      try {
+        await api.syncPut('syllabus.json', topics);
+      } catch {
+        // Fallback
+      }
       return await api.saveSyllabus(topics);
     },
     INITIAL_SYLLABUS

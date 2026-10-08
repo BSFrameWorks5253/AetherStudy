@@ -92,7 +92,13 @@ export const DocumentViewer: React.FC = () => {
     try {
       setIsUploading(true);
       const chosenSubject = uploadSubject || (subjects.length > 0 ? subjects[0] : 'General');
-      const newDoc = await api.uploadDocument(selectedFile, chosenSubject, currentUser?.email || '');
+      let newDoc: any;
+      try {
+        const driveRes = await api.uploadToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || '');
+        newDoc = driveRes.document;
+      } catch {
+        newDoc = await api.uploadDocument(selectedFile, chosenSubject, currentUser?.email || '');
+      }
       setDocuments((prev) => [newDoc, ...prev]);
       setActiveDoc(newDoc);
       setZoom(100);
@@ -339,8 +345,10 @@ export const DocumentViewer: React.FC = () => {
             }}
           >
             <iframe
-              src={activeDoc.serverUrl}
-              title={activeDoc.originalName}
+              src={activeDoc.streamUrl || activeDoc.serverUrl}
+              title={activeDoc.originalName || activeDoc.name}
+              allow="autoplay"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               className="w-full h-full rounded-2xl shadow-2xl border border-white/40 dark:border-white/10 bg-white"
             />
           </div>
