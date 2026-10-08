@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface SyncPayload {
   file: string; // e.g. 'syllabus.json', 'notes.json', 'timetable.json', 'documents.json'
