@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePomodoro } from '../../context/PomodoroContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { AuthModal } from '../auth/AuthModal';
+import { NotificationsModal } from '../notifications/NotificationsModal';
+import { api } from '../../services/api';
 import { formatSecondsToTime } from '../../utils/timeUtils';
 import {
   Maximize2,
@@ -15,6 +17,7 @@ import {
   Pause,
   RotateCcw,
   SkipForward,
+  Bell,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -40,6 +43,22 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
+
+  useEffect(() => {
+    const checkNotifs = async () => {
+      try {
+        const notifs = await api.getNotifications(isSuperAdmin ? undefined : activeStandard);
+        setUnreadNotifsCount(notifs.length);
+      } catch {
+        // silent
+      }
+    };
+    checkNotifs();
+    const interval = setInterval(checkNotifs, 15000);
+    return () => clearInterval(interval);
+  }, [activeStandard, isSuperAdmin]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -200,6 +219,20 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             )}
           </div>
 
+          {/* Official Announcements & Notifications Bell */}
+          <button
+            onClick={() => setShowNotificationsModal(true)}
+            className="relative p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-200 shadow-xs cursor-pointer"
+            title="Official Announcements & Notices"
+          >
+            <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            {unreadNotifsCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center animate-pulse shadow-sm">
+                {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+              </span>
+            )}
+          </button>
+
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
@@ -227,6 +260,15 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
       {/* Global Auth Modal */}
       {showAuthModal && (
         <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      )}
+
+      {/* Official Notifications & Admin Announcements Modal */}
+      {showNotificationsModal && (
+        <NotificationsModal
+          isOpen={showNotificationsModal}
+          onClose={() => setShowNotificationsModal(false)}
+          onNotificationsCountChange={(cnt) => setUnreadNotifsCount(cnt)}
+        />
       )}
     </>
   );

@@ -8,10 +8,11 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-export type ActiveTab = 'workspace' | 'tests' | 'timetable' | 'syllabus';
+export type ActiveTab = 'workspace' | 'community' | 'tests' | 'timetable' | 'syllabus';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -36,6 +37,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       mobileLabel: 'Study Desk',
       description: 'Subject Rooms & PDFs',
       icon: BookOpen,
+    },
+    {
+      id: 'community' as ActiveTab,
+      label: 'Peer Lounge',
+      mobileLabel: 'Peer Chat',
+      description: `Std ${activeStandard} Live Chat`,
+      icon: MessageSquare,
     },
     ...(isBoardExamGrade
       ? [

@@ -18,6 +18,29 @@ export interface ServerDocument {
   uploadCount?: number;
 }
 
+export interface AdminNotification {
+  id: string;
+  title: string;
+  message: string;
+  standard: string;
+  priority: 'urgent' | 'important' | 'info';
+  createdAt: string;
+  senderEmail: string;
+  senderName: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  standard: string;
+  channelId: string;
+  senderEmail: string;
+  senderName: string;
+  senderRole: UserRole;
+  content: string;
+  timestamp: string;
+  reactions?: Record<string, number>;
+}
+
 export interface ServerHealth {
   status: string;
   appName: string;
@@ -398,6 +421,182 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to attach document to syllabus in database');
     return res.json();
+  },
+
+  // 12. Notifications & Admin Announcements
+  async getNotifications(standard?: string): Promise<AdminNotification[]> {
+    try {
+      const url = standard && standard !== 'ALL' ? `${API_BASE}/notifications?standard=${encodeURIComponent(standard)}` : `${API_BASE}/notifications`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('aether_cached_notifs', JSON.stringify(data));
+        return data;
+      }
+    } catch (e) {
+      console.warn('Network issue fetching notifications, using local fallback:', e);
+    }
+    const cached = localStorage.getItem('aether_cached_notifs');
+    return cached ? JSON.parse(cached) : [
+      {
+        id: 'local-seed-1',
+        title: 'HSC Board Examination Practical Dates Announced',
+        message: 'Official guidelines for Standard 12 Commerce practical projects and assessments have been posted. Please consult your respective subject rooms for textbook references.',
+        standard: '12',
+        priority: 'urgent',
+        createdAt: new Date().toISOString(),
+        senderEmail: 'bs.framework5253@gmail.com',
+        senderName: 'Super Admin',
+      },
+      {
+        id: 'local-seed-2',
+        title: 'New HSC Commerce Textbooks & Notes Added',
+        message: 'Complete official textbook PDFs for Book-Keeping, OCM, Economics, and Maths & Statistics have been indexed in the Subject Rooms.',
+        standard: '12',
+        priority: 'important',
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        senderEmail: 'bs.framework5253@gmail.com',
+        senderName: 'AetherStudy Team',
+      },
+    ];
+  },
+
+  async createNotification(notif: { title: string; message: string; standard: string; priority: 'urgent' | 'important' | 'info'; senderEmail: string; senderName?: string }): Promise<AdminNotification> {
+    try {
+      const res = await fetch(`${API_BASE}/notifications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notif),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Notification POST endpoint unreachable, storing locally:', e);
+    }
+    const newNotif: AdminNotification = {
+      id: 'notif-local-' + Date.now(),
+      title: notif.title,
+      message: notif.message,
+      standard: notif.standard,
+      priority: notif.priority,
+      createdAt: new Date().toISOString(),
+      senderEmail: notif.senderEmail,
+      senderName: notif.senderName || 'Administrator',
+    };
+    const cached = localStorage.getItem('aether_cached_notifs');
+    const list: AdminNotification[] = cached ? JSON.parse(cached) : [];
+    list.unshift(newNotif);
+    localStorage.setItem('aether_cached_notifs', JSON.stringify(list));
+    return newNotif;
+  },
+
+  async deleteNotification(id: string, requesterEmail: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requesterEmail }),
+      });
+      if (res.ok) return true;
+    } catch (e) {
+      console.warn('Failed to delete notification on server:', e);
+    }
+    const cached = localStorage.getItem('aether_cached_notifs');
+    if (cached) {
+      const list: AdminNotification[] = JSON.parse(cached);
+      localStorage.setItem('aether_cached_notifs', JSON.stringify(list.filter(n => n.id !== id)));
+    }
+    return true;
+  },
+
+  // 13. Peer Discussion Chat (Discord / WhatsApp Style)
+  async getChatMessages(standard: string, channelId: string): Promise<ChatMessage[]> {
+    try {
+      const res = await fetch(`${API_BASE}/chat/messages?standard=${encodeURIComponent(standard)}&channelId=${encodeURIComponent(channelId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem(`aether_chat_${standard}_${channelId}`, JSON.stringify(data));
+        return data;
+      }
+    } catch (e) {
+      console.warn('Chat fetch network error, using local buffer:', e);
+    }
+    const cached = localStorage.getItem(`aether_chat_${standard}_${channelId}`);
+    return cached ? JSON.parse(cached) : [
+      {
+        id: 'seed-msg-1',
+        standard,
+        channelId,
+        senderEmail: 'student.hsc@example.com',
+        senderName: 'Rohit K.',
+        senderRole: 'USER',
+        content: `Welcome to the Standard ${standard} peer discussion room! Ask questions, share problem sums, and prepare together.`,
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+        reactions: { '👍': 3, '🔥': 2 },
+      }
+    ];
+  },
+
+  async sendChatMessage(msg: { standard: string; channelId: string; senderEmail: string; senderName: string; senderRole: UserRole; content: string }): Promise<ChatMessage> {
+    try {
+      const res = await fetch(`${API_BASE}/chat/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(msg),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Chat send network error, storing in local buffer:', e);
+    }
+    const newMsg: ChatMessage = {
+      id: 'chat-local-' + Date.now(),
+      standard: msg.standard,
+      channelId: msg.channelId,
+      senderEmail: msg.senderEmail,
+      senderName: msg.senderName,
+      senderRole: msg.senderRole,
+      content: msg.content,
+      timestamp: new Date().toISOString(),
+      reactions: {},
+    };
+    const key = `aether_chat_${msg.standard}_${msg.channelId}`;
+    const cached = localStorage.getItem(key);
+    const list: ChatMessage[] = cached ? JSON.parse(cached) : [];
+    list.push(newMsg);
+    localStorage.setItem(key, JSON.stringify(list));
+    return newMsg;
+  },
+
+  async reactToChatMessage(id: string, emoji: string, standard: string, channelId: string): Promise<Record<string, number>> {
+    try {
+      const res = await fetch(`${API_BASE}/chat/messages/${id}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.reactions;
+      }
+    } catch (e) {
+      console.warn('Failed to post reaction on server:', e);
+    }
+    const key = `aether_chat_${standard}_${channelId}`;
+    const cached = localStorage.getItem(key);
+    if (cached) {
+      const list: ChatMessage[] = JSON.parse(cached);
+      const target = list.find(m => m.id === id);
+      if (target) {
+        if (!target.reactions) target.reactions = {};
+        target.reactions[emoji] = (target.reactions[emoji] || 0) + 1;
+        localStorage.setItem(key, JSON.stringify(list));
+        return target.reactions;
+      }
+    }
+    return { [emoji]: 1 };
   },
 };
 

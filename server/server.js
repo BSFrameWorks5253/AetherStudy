@@ -659,6 +659,178 @@ app.delete('/api/test-papers/:id', (req, res) => {
   res.json({ success: true, remaining: updated.length });
 });
 
+// ---------------- NOTIFICATIONS & ADMIN ANNOUNCEMENTS ----------------
+const initialNotifications = [
+  {
+    id: 'notif-seed-1',
+    title: 'HSC Board Examination Practical Dates Announced',
+    message: 'Official guidelines for Standard 12 Commerce practical projects and assessments have been posted. Please consult your respective subject rooms for textbook references.',
+    standard: '12',
+    priority: 'urgent',
+    createdAt: new Date().toISOString(),
+    senderEmail: 'bs.framework5253@gmail.com',
+    senderName: 'Super Admin',
+  },
+  {
+    id: 'notif-seed-2',
+    title: 'New HSC Commerce Textbooks & Notes Added',
+    message: 'Complete official textbook PDFs for Book-Keeping, OCM, Economics, and Maths & Statistics have been indexed in the Subject Rooms.',
+    standard: '12',
+    priority: 'important',
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    senderEmail: 'bs.framework5253@gmail.com',
+    senderName: 'AetherStudy Team',
+  },
+];
+
+app.get('/api/notifications', (req, res) => {
+  const { standard } = req.query;
+  const notifs = readJsonFile('notifications.json', initialNotifications);
+  if (!standard || standard === 'ALL') {
+    return res.json(notifs);
+  }
+  const filtered = notifs.filter((n) => n.standard === 'ALL' || n.standard === standard);
+  res.json(filtered);
+});
+
+app.post('/api/notifications', (req, res) => {
+  const { title, message, standard, priority, senderEmail, senderName } = req.body;
+  if (!title || !message) {
+    return res.status(400).json({ error: 'Title and message are required.' });
+  }
+
+  const normalizedSender = (senderEmail || '').trim().toLowerCase();
+  const users = readJsonFile('users.json', initialUsers);
+  const sender = users.find((u) => u.email.toLowerCase() === normalizedSender);
+  const isAuthorized =
+    (sender && (sender.role === 'SUPER_ADMIN' || sender.role === 'ADMIN')) ||
+    normalizedSender === SUPER_ADMIN_EMAIL.toLowerCase();
+
+  if (!isAuthorized) {
+    return res.status(403).json({ error: 'Only administrators can broadcast notifications.' });
+  }
+
+  const newNotif = {
+    id: 'notif-' + Date.now(),
+    title: title.trim(),
+    message: message.trim(),
+    standard: standard || '12',
+    priority: priority || 'important',
+    createdAt: new Date().toISOString(),
+    senderEmail: normalizedSender,
+    senderName: senderName || (sender ? sender.name : 'Administrator'),
+  };
+
+  const notifs = readJsonFile('notifications.json', initialNotifications);
+  notifs.unshift(newNotif);
+  writeJsonFile('notifications.json', notifs);
+  res.status(201).json(newNotif);
+});
+
+app.delete('/api/notifications/:id', (req, res) => {
+  const { requesterEmail } = req.body;
+  const normalizedRequester = (requesterEmail || '').trim().toLowerCase();
+  const users = readJsonFile('users.json', initialUsers);
+  const requester = users.find((u) => u.email.toLowerCase() === normalizedRequester);
+  const isAuthorized =
+    (requester && (requester.role === 'SUPER_ADMIN' || requester.role === 'ADMIN')) ||
+    normalizedRequester === SUPER_ADMIN_EMAIL.toLowerCase();
+
+  if (!isAuthorized) {
+    return res.status(403).json({ error: 'Permission denied.' });
+  }
+
+  const notifs = readJsonFile('notifications.json', initialNotifications);
+  const updated = notifs.filter((n) => n.id !== req.params.id);
+  writeJsonFile('notifications.json', updated);
+  res.json({ success: true, remaining: updated.length });
+});
+
+// ---------------- STANDARD-SCOPED PEER CHAT (WHATSAPP/DISCORD STYLE) ----------------
+const initialChatMessages = [
+  {
+    id: 'chat-seed-1',
+    standard: '12',
+    channelId: 'general',
+    senderEmail: 'student.hsc@example.com',
+    senderName: 'Rohit K.',
+    senderRole: 'USER',
+    content: 'Hey everyone! Has anyone started practicing the Partnership Final Accounts adjustment sums for the preliminary exams?',
+    timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+    reactions: { '👍': 4, '💡': 2 },
+  },
+  {
+    id: 'chat-seed-2',
+    standard: '12',
+    channelId: 'general',
+    senderEmail: 'bs.framework5253@gmail.com',
+    senderName: 'Super Admin',
+    senderRole: 'SUPER_ADMIN',
+    content: 'Welcome to the Standard 12 HSC Peer Lounge! You can discuss solutions, ask doubts about Book-Keeping, OCM, Economics, and Maths, and prepare together.',
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    reactions: { '🔥': 6, '❤️': 5 },
+  },
+  {
+    id: 'chat-seed-3',
+    standard: '12',
+    channelId: 'accounts',
+    senderEmail: 'priya.accounts@example.com',
+    senderName: 'Priya S.',
+    senderRole: 'USER',
+    content: 'Can someone explain the treatment of Goods distributed as free samples in Trading A/c vs P&L A/c?',
+    timestamp: new Date(Date.now() - 1800000).toISOString(),
+    reactions: { '📚': 3 },
+  },
+];
+
+app.get('/api/chat/messages', (req, res) => {
+  const { standard = '12', channelId = 'general' } = req.query;
+  const messages = readJsonFile('chat-messages.json', initialChatMessages);
+  const filtered = messages.filter(
+    (m) => (m.standard === standard || standard === 'ALL') && (m.channelId === channelId)
+  );
+  res.json(filtered);
+});
+
+app.post('/api/chat/messages', (req, res) => {
+  const { standard, channelId, senderEmail, senderName, senderRole, content } = req.body;
+  if (!content || !content.trim()) {
+    return res.status(400).json({ error: 'Message content cannot be empty.' });
+  }
+
+  const newMsg = {
+    id: 'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+    standard: standard || '12',
+    channelId: channelId || 'general',
+    senderEmail: (senderEmail || 'student@example.com').trim().toLowerCase(),
+    senderName: (senderName || 'Student').trim(),
+    senderRole: senderRole || 'USER',
+    content: content.trim(),
+    timestamp: new Date().toISOString(),
+    reactions: {},
+  };
+
+  const messages = readJsonFile('chat-messages.json', initialChatMessages);
+  messages.push(newMsg);
+  if (messages.length > 500) messages.splice(0, messages.length - 500);
+  writeJsonFile('chat-messages.json', messages);
+  res.status(201).json(newMsg);
+});
+
+app.post('/api/chat/messages/:id/react', (req, res) => {
+  const { emoji } = req.body;
+  if (!emoji) return res.status(400).json({ error: 'Emoji is required' });
+
+  const messages = readJsonFile('chat-messages.json', initialChatMessages);
+  const msg = messages.find((m) => m.id === req.params.id);
+  if (!msg) return res.status(404).json({ error: 'Message not found' });
+
+  if (!msg.reactions) msg.reactions = {};
+  msg.reactions[emoji] = (msg.reactions[emoji] || 0) + 1;
+  writeJsonFile('chat-messages.json', messages);
+  res.json({ success: true, reactions: msg.reactions });
+});
+
 // 3. SUBJECTS MANAGEMENT API
 app.get('/api/subjects', (req, res) => {
   const subjects = readJsonFile('subjects.json', DEFAULT_SUBJECTS);

@@ -3,6 +3,7 @@ import { Sidebar, ActiveTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { LiquidBackground } from './components/layout/LiquidBackground';
 import { SplitWorkspace } from './components/workspace/SplitWorkspace';
+import { CommunityLounge } from './components/community/CommunityLounge';
 import { TestPapers } from './components/tests/TestPapers';
 import { TimetableGrid } from './components/timetable/TimetableGrid';
 import { TrackerTree } from './components/syllabus/TrackerTree';
@@ -21,7 +22,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleUrlChange = () => {
       const path = window.location.pathname;
-      if (path.startsWith('/tests')) {
+      if (path.startsWith('/community')) {
+        setActiveTab('community');
+      } else if (path.startsWith('/tests')) {
         setActiveTab('tests');
       } else if (path.startsWith('/timetable')) {
         setActiveTab('timetable');
@@ -46,6 +49,8 @@ export const App: React.FC = () => {
       if (!window.location.pathname.startsWith('/studyroom')) {
         window.history.pushState(null, '', '/studyroom');
       }
+    } else if (tab === 'community') {
+      window.history.pushState(null, '', '/community');
     } else if (tab === 'tests') {
       window.history.pushState(null, '', '/tests');
     } else if (tab === 'timetable') {
@@ -69,6 +74,8 @@ export const App: React.FC = () => {
     switch (activeTab) {
       case 'workspace':
         return `Subject Rooms Desk • Standard ${activeStandard}`;
+      case 'community':
+        return `Peer Discussion Lounge • Standard ${activeStandard} Live Chat`;
       case 'tests':
         return 'Board Exam Vault • Previous Year Papers & Model Answers';
       case 'timetable':
@@ -99,6 +106,7 @@ export const App: React.FC = () => {
         {/* Dynamic Active Module Container */}
         <main className="flex-1 relative overflow-hidden pb-16 md:pb-0">
           {activeTab === 'workspace' && <SplitWorkspace />}
+          {activeTab === 'community' && <CommunityLounge />}
           {activeTab === 'tests' && (
             isBoardExamGrade ? (
               <TestPapers />
