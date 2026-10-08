@@ -67,11 +67,7 @@ async function main() {
   console.log('   a production deployment on your connected Vercel project.');
   console.log('3. Vercel Dashboard: https://vercel.com/dashboard\n');
 
-  // Optional: If Vercel CLI is authenticated, also run vercel --prod
-  const hasVercelCli = runSilent('npx --no-install vercel --version');
-  if (hasVercelCli) {
-    console.log('💡 Tip: You can also deploy directly via Vercel CLI using: npx vercel --prod\n');
-  }
+  console.log('💡 Tip: Your connected Vercel project auto-builds every push to "main".\n');
 }
 
 main().catch((err) => {
