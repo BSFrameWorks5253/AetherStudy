@@ -14,6 +14,7 @@ import { useTheme } from './context/ThemeContext';
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState<boolean>(false);
   const { theme } = useTheme();
   const { isSuperAdmin, activeStandard } = useAuth();
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || isSuperAdmin;
@@ -45,6 +46,9 @@ export const App: React.FC = () => {
 
   const handleTabChange = (tab: ActiveTab) => {
     setActiveTab(tab);
+    if (tab !== 'community') {
+      setIsMobileChatOpen(false);
+    }
     if (tab === 'workspace') {
       if (!window.location.pathname.startsWith('/studyroom')) {
         window.history.pushState(null, '', '/studyroom');
@@ -76,7 +80,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className={`relative flex h-screen w-screen overflow-hidden antialiased select-none ${theme}`}>
+    <div className={`relative flex h-[100dvh] w-screen overflow-hidden antialiased select-none ${theme}`}>
       {/* Animated Organic Liquid Background */}
       <LiquidBackground />
 
@@ -86,17 +90,23 @@ export const App: React.FC = () => {
         onTabChange={handleTabChange}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMobileChatOpen={isMobileChatOpen}
       />
 
       {/* Main Workspace Stage */}
       <div className="flex flex-col flex-1 h-full min-w-0 overflow-hidden relative z-10">
         {/* Universal Control Header Bar */}
-        <Header title={getTitle()} />
+        <Header title={getTitle()} isMobileChatOpen={isMobileChatOpen} />
 
         {/* Dynamic Active Module Container */}
-        <main className="flex-1 relative overflow-hidden pb-16 md:pb-0">
+        <main className={`flex-1 relative overflow-hidden min-h-0 ${activeTab === 'community' && isMobileChatOpen ? 'pb-0' : 'pb-16 md:pb-0'}`}>
           {activeTab === 'workspace' && <SplitWorkspace />}
-          {activeTab === 'community' && <CommunityLounge />}
+          {activeTab === 'community' && (
+            <CommunityLounge
+              isMobileChatOpen={isMobileChatOpen}
+              onMobileChatToggle={setIsMobileChatOpen}
+            />
+          )}
           {activeTab === 'tests' && (
             isBoardExamGrade ? (
               <TestPapers />

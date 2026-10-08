@@ -20,6 +20,7 @@ interface SidebarProps {
   onTabChange: (tab: ActiveTab) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  isMobileChatOpen?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -27,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   isCollapsed,
   onToggleCollapse,
+  isMobileChatOpen = false,
 }) => {
   const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout } = useAuth();
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || isSuperAdmin;
@@ -232,8 +234,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation Bar (< 768px viewports) */}
-      <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 justify-around shadow-xl backdrop-blur-md">
+      {/* Mobile Bottom Navigation Bar (< 768px viewports, hidden in active chat thread) */}
+      <nav
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 justify-around shadow-xl backdrop-blur-md transition-all ${
+          activeTab === 'community' && isMobileChatOpen ? 'hidden' : 'flex'
+        }`}
+      >
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;

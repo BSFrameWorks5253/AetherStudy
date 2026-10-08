@@ -121,7 +121,15 @@ const getSenderColor = (name: string): string => {
   return SENDER_COLORS[Math.abs(hash) % SENDER_COLORS.length];
 };
 
-export const CommunityLounge: React.FC = () => {
+interface CommunityLoungeProps {
+  isMobileChatOpen?: boolean;
+  onMobileChatToggle?: (open: boolean) => void;
+}
+
+export const CommunityLounge: React.FC<CommunityLoungeProps> = ({
+  isMobileChatOpen: externalMobileChatOpen,
+  onMobileChatToggle,
+}) => {
   const { currentUser, isAuthenticated, isSuperAdmin, activeStandard } = useAuth();
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -130,7 +138,13 @@ export const CommunityLounge: React.FC = () => {
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
-  const [showMobileChat, setShowMobileChat] = useState<boolean>(false);
+  const [internalMobileChat, setInternalMobileChat] = useState<boolean>(false);
+
+  const showMobileChat = externalMobileChatOpen !== undefined ? externalMobileChatOpen : internalMobileChat;
+  const setShowMobileChat = (open: boolean) => {
+    setInternalMobileChat(open);
+    if (onMobileChatToggle) onMobileChatToggle(open);
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -403,9 +417,13 @@ export const CommunityLounge: React.FC = () => {
           {/* Messages Stream */}
           {messages.map((msg) => {
             const isMe =
-              isAuthenticated &&
-              currentUser?.email &&
-              msg.senderEmail.toLowerCase() === currentUser.email.toLowerCase();
+              Boolean(isAuthenticated) &&
+              Boolean(currentUser?.email) &&
+              (
+                msg.senderEmail.trim().toLowerCase() === (currentUser?.email || '').trim().toLowerCase() ||
+                msg.senderName.trim().toLowerCase() === (currentUser?.email || '').split('@')[0].trim().toLowerCase() ||
+                (Boolean(isSuperAdmin) && (msg.senderRole === 'SUPER_ADMIN' || msg.senderName.toLowerCase().includes('admin')))
+              );
             const isMsgSuperAdmin = msg.senderRole === 'SUPER_ADMIN';
             const senderColor = getSenderColor(msg.senderName);
 

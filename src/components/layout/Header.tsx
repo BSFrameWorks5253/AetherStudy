@@ -24,9 +24,10 @@ import {
 
 interface HeaderProps {
   title: string;
+  isMobileChatOpen?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title }) => {
+export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false }) => {
   const {
     timeLeft,
     isRunning,
@@ -72,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
   return (
     <>
-      <header className="h-16 px-4 md:px-6 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between select-none z-30 shadow-xs relative backdrop-blur-md">
+      <header className={`h-14 md:h-16 px-3 md:px-6 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 items-center justify-between select-none z-30 shadow-xs relative backdrop-blur-md ${isMobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
         {/* Module Title */}
         <div className="flex items-center space-x-3 truncate">
           <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate">
@@ -160,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           )}
 
           {/* Clean Integrated Header Pomodoro Timer with Click Popover */}
-          <div className="relative">
+          <div className="relative hidden sm:block">
             <button
               onClick={() => setShowTimerPopover(!showTimerPopover)}
               className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs shadow-xs cursor-pointer transition-all"
