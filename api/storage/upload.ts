@@ -96,10 +96,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const fileBuffer = Buffer.from(base64Data, 'base64');
     const targetMime = mimeType || 'application/pdf';
 
-    const driveClient = await getGoogleDriveClient();
-
     let streamUrl = '';
     let driveFileId = `gdrive-${Date.now()}`;
+
+    // Priority 1: Free Google Apps Script Web App (100% Free, Zero GCP Setup)
+    const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
+    if (APPS_SCRIPT_URL) {
+      try {
+        const gasRes = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName,
+            fileBase64: base64Data,
+            mimeType: targetMime,
+            subject: subject || 'General',
+            folderId: GOOGLE_DRIVE_FOLDER_ID || '',
+          }),
+        });
+        const gasJson = await gasRes.json();
+        if (gasJson && gasJson.success && (gasJson.streamUrl || gasJson.url)) {
+          streamUrl = gasJson.streamUrl || gasJson.url;
+          driveFileId = gasJson.id || driveFileId;
+        }
+      } catch (gasErr) {
+        console.error('[Google Apps Script Upload Error]:', gasErr);
+      }
+    }
+
+    const driveClient = !streamUrl ? await getGoogleDriveClient() : null;
 
     if (driveClient) {
       // 1. Create file in Google Drive

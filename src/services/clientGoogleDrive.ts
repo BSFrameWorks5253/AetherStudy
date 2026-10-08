@@ -22,6 +22,7 @@ export interface DriveUploadResult {
 }
 
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
+const GOOGLE_APPS_SCRIPT_URL = (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL as string) || '';
 
 let accessToken: string | null = null;
 let tokenClient: any = null;
@@ -77,12 +78,51 @@ export async function requestGoogleDriveToken(): Promise<string> {
   });
 }
 
-// Upload file directly from browser to Google Drive
+// Upload file directly from browser to Google Drive (via Apps Script or OAuth)
 export async function uploadDirectToGoogleDrive(
   file: File,
   subject: string,
   uploaderEmail: string
 ): Promise<DriveUploadResult> {
+  // Option 1: 100% Free Google Apps Script Web App (Zero GCP, Zero Service Accounts)
+  if (GOOGLE_APPS_SCRIPT_URL) {
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = reader.result as string;
+        resolve(res.includes(',') ? res.split(',')[1] : res);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const gasRes = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        fileName: file.name,
+        fileBase64: base64,
+        mimeType: file.type || 'application/pdf',
+        subject,
+      }),
+    });
+
+    const gasJson = await gasRes.json();
+    if (gasJson && gasJson.success) {
+      return {
+        id: gasJson.id,
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        streamUrl: gasJson.streamUrl || gasJson.url,
+        subject,
+        uploadedBy: uploaderEmail,
+        uploadedAt: new Date().toISOString(),
+      };
+    } else {
+      throw new Error(gasJson?.error || 'Apps Script Drive upload failed');
+    }
+  }
+
+  // Option 2: Free Consumer Google OAuth Popup
   const token = await requestGoogleDriveToken();
 
   const metadata = {
