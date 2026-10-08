@@ -31,7 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileChatOpen = false,
 }) => {
   const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout } = useAuth();
-  const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || isSuperAdmin;
+  const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
 
   const navItems = [
     {

@@ -18,8 +18,8 @@ export const App: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileChatOpen, setIsMobileChatOpen] = useState<boolean>(false);
   const { theme } = useTheme();
-  const { isSuperAdmin, activeStandard } = useAuth();
-  const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || isSuperAdmin;
+  const { isSuperAdmin, activeStandard, setActiveStandard } = useAuth();
+  const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
 
   // Sync top-level tab with current browser URL path
   useEffect(() => {
@@ -125,12 +125,20 @@ export const App: React.FC = () => {
                     Previous Year Question papers are reserved exclusively for Board Examination classes (Standard 10 and Standard 12).
                     Your active profile is enrolled in <strong className="text-slate-800 dark:text-slate-200">Standard {activeStandard}</strong>.
                   </p>
-                  <button
-                    onClick={() => handleTabChange('workspace')}
-                    className="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all"
-                  >
-                    Return to Subject Rooms
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      onClick={() => setActiveStandard('12')}
+                      className="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all cursor-pointer"
+                    >
+                      Switch to Class 12 & Enter Vault
+                    </button>
+                    <button
+                      onClick={() => handleTabChange('workspace')}
+                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+                    >
+                      Return to Subject Rooms
+                    </button>
+                  </div>
                 </div>
               )
             )}

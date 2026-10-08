@@ -1008,7 +1008,7 @@ export const SubjectRooms: React.FC = () => {
     if (!window.confirm('Are you sure you want to remove this study document?')) return;
 
     try {
-      await api.deleteDocument(id);
+      await api.deleteDocument(id, currentUser?.email);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
       if (readingDoc?.id === id) handleCloseReader();
     } catch (err: any) {

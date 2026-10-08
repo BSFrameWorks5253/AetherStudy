@@ -454,7 +454,7 @@ export const api = {
     return uploaded;
   },
 
-  async deleteDocument(id: string): Promise<boolean> {
+  async deleteDocument(id: string, requesterEmail?: string): Promise<boolean> {
     try {
       const local = api.getLocalDocuments();
       api.saveLocalDocuments(local.filter((d) => d.id !== id));
@@ -463,6 +463,8 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/documents/${id}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requesterEmail }),
       });
       return res.ok;
     } catch {

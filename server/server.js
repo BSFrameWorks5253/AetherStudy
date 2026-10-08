@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const { Resend } = require('resend');
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = process.env.PORT || 3001;
 const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10);
 const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
@@ -162,13 +163,14 @@ const upload = multer({
 
 // JSON Persistence Helper
 function readJsonFile(filename, defaultValue) {
-  const filePath = path.join(DATA_DIR, filename);
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(DATA_DIR, safeFilename);
   try {
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, 'utf8').trim();
       if (content) return JSON.parse(content);
     }
-    const seedPath = path.join(__dirname, 'data', filename);
+    const seedPath = path.join(__dirname, 'data', safeFilename);
     if (fs.existsSync(seedPath)) {
       const content = fs.readFileSync(seedPath, 'utf8').trim();
       if (content) {
@@ -179,18 +181,19 @@ function readJsonFile(filename, defaultValue) {
       }
     }
   } catch (err) {
-    console.error(`Error reading ${filename}:`, err);
+    console.error(`Error reading ${safeFilename}:`, err);
   }
   return defaultValue;
 }
 
 function writeJsonFile(filename, data) {
-  const filePath = path.join(DATA_DIR, filename);
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(DATA_DIR, safeFilename);
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
     return true;
   } catch (err) {
-    console.error(`Error writing ${filename}:`, err);
+    console.error(`Error writing ${safeFilename}:`, err);
     return false;
   }
 }
@@ -365,6 +368,17 @@ if (!fs.existsSync(path.join(DATA_DIR, 'test-papers.json'))) {
 
 // ---------------- REST API ROUTES ----------------
 
+// Health check endpoint for uptime monitors and production health status
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    appName: 'AetherStudy',
+    timestamp: new Date().toISOString(),
+    version: '2.0.0-production',
+    superAdminConfigured: Boolean(SUPER_ADMIN_EMAIL),
+  });
+});
+
 // 1. AUTHENTICATION & RBAC (Secure Server-Side OTP & Passwordless Sign-In)
 app.post('/api/auth/generate', async (req, res) => {
   const { email } = req.body || {};
@@ -385,10 +399,11 @@ app.post('/api/auth/generate', async (req, res) => {
 
     const resendApiKey = process.env.RESEND_API_KEY;
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || 'bs.framework5253@gmail.com';
-    const smtpPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'pfnkadvsxyzqukob').replace(/\s+/g, '');
+    const smtpPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
     let sent = false;
     let sandboxNotice = null;
     let fallbackPasscode = null;
+    const isDev = process.env.NODE_ENV !== 'production';
 
     if (smtpUser && smtpPass) {
       try {
@@ -471,7 +486,7 @@ app.post('/api/auth/generate', async (req, res) => {
       message: sent ? 'Verification code sent to your email.' : (sandboxNotice || 'Verification token initialized.'),
       token,
       maskedEmail: `${uPart[0]}***@${dPart}`,
-      devPasscode: fallbackPasscode || undefined,
+      devPasscode: isDev ? (fallbackPasscode || undefined) : undefined,
       sandboxNotice: sandboxNotice || undefined,
     });
   } catch (error) {
@@ -1078,6 +1093,21 @@ app.post('/api/documents/upload', upload.single('file'), (req, res) => {
 });
 
 app.delete('/api/documents/:id', (req, res) => {
+  const { requesterEmail } = req.body || {};
+  const normalizedRequester = (requesterEmail || '').trim().toLowerCase();
+  const users = readJsonFile('users.json', initialUsers);
+  const uploader = users.find((u) => u.email.toLowerCase() === normalizedRequester);
+
+  const isAuthorized =
+    normalizedRequester === SUPER_ADMIN_EMAIL.toLowerCase() ||
+    (uploader && (uploader.role === 'SUPER_ADMIN' || uploader.role === 'ADMIN'));
+
+  if (!isAuthorized) {
+    return res.status(403).json({
+      error: 'Deletion restricted. Only authorized administrators can delete study documents.',
+    });
+  }
+
   const docs = readJsonFile('documents.json', []);
   const updated = docs.filter((d) => d.id !== req.params.id);
   writeJsonFile('documents.json', updated);
@@ -1144,7 +1174,24 @@ app.put('/api/pomodoro', (req, res) => {
 
 // 9. ZERO-COST HIDDEN GITHUB DATABASE SYNC ENDPOINT
 app.get('/api/db/sync', async (req, res) => {
-  const fileName = (req.query.file || 'syllabus.json').toString();
+  const rawFile = (req.query.file || 'syllabus.json').toString();
+  const fileName = path.basename(rawFile);
+  const ALLOWED_DB_FILES = new Set([
+    'syllabus.json',
+    'timetable.json',
+    'notes.json',
+    'documents.json',
+    'test-papers.json',
+    'pomodoro.json',
+    'subjects.json',
+    'notifications.json',
+    'users.json',
+    'chat-messages.json',
+  ]);
+  if (!ALLOWED_DB_FILES.has(fileName)) {
+    return res.status(400).json({ error: 'Access to requested data file is restricted.' });
+  }
+
   const GH_ACCESS_TOKEN = process.env.GH_ACCESS_TOKEN;
   const GITHUB_REPO = process.env.GITHUB_REPO || 'BSFrameWorks5253/AetherStudy';
 
@@ -1285,6 +1332,20 @@ app.post('/api/storage/upload', async (req, res) => {
   const { fileName, fileBase64, mimeType, subject, standard, category, year, isAnswerKey, folderPath, uploaderEmail } = req.body || {};
   if (!fileName || !fileBase64) {
     return res.status(400).json({ error: 'File name and file base64 buffer required.' });
+  }
+
+  // Authorization check
+  const normalizedUploader = (uploaderEmail || '').trim().toLowerCase();
+  const users = readJsonFile('users.json', initialUsers);
+  const uploader = users.find((u) => u.email.toLowerCase() === normalizedUploader);
+  const isAuthorized =
+    normalizedUploader === SUPER_ADMIN_EMAIL.toLowerCase() ||
+    (uploader && (uploader.role === 'SUPER_ADMIN' || uploader.role === 'ADMIN'));
+
+  if (!isAuthorized) {
+    return res.status(403).json({
+      error: `Storage upload restricted. Only authorized administrators or ${SUPER_ADMIN_EMAIL} can upload to Drive.`,
+    });
   }
 
   try {

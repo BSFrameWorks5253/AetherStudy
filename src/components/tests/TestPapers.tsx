@@ -114,6 +114,17 @@ export const TestPapers: React.FC = () => {
     return papersForSelectedYear.filter((p) => matchSubjectDoc(selectedSubject, p.subject || ''));
   }, [papersForSelectedYear, selectedYear, selectedSubject]);
 
+  // Check if active paper has an authentic, dedicated model solution PDF
+  const hasDedicatedSolution = React.useMemo(() => {
+    return Boolean(
+      activePaper &&
+      activePaper.answerKeyPdfUrl &&
+      activePaper.answerKeyPdfUrl !== activePaper.questionPdfUrl &&
+      !activePaper.answerKeyPdfName?.toLowerCase().includes('in-paper') &&
+      !activePaper.answerKeyPdfName?.toLowerCase().includes('verification')
+    );
+  }, [activePaper]);
+
   // Step 1 Click Handler: Select year -> Move to Subject selection
   const handleSelectYear = (yr: number) => {
     setSelectedYear(yr);
@@ -680,6 +691,11 @@ export const TestPapers: React.FC = () => {
                       >
                         <CheckCircle className="w-3.5 h-3.5" />
                         <span>Model Solutions</span>
+                        {!hasDedicatedSolution && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 ml-1">
+                            Notice
+                          </span>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -732,28 +748,57 @@ export const TestPapers: React.FC = () => {
                         <div className="px-3.5 py-2 bg-emerald-50/80 dark:bg-emerald-950/40 border-b border-emerald-200 dark:border-emerald-900/60 flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-300">
                           <span className="flex items-center gap-1.5 truncate mr-2">
                             <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate">Solutions: {activePaper.answerKeyPdfName || 'Model Solutions'}</span>
+                            <span className="truncate">
+                              {hasDedicatedSolution
+                                ? `Solutions: ${activePaper.answerKeyPdfName || 'Model Solutions'}`
+                                : 'Model Solutions & Marking Scheme Status'}
+                            </span>
                           </span>
-                          <div className="flex items-center space-x-2 shrink-0">
-                            <a
-                              href={activePaper.answerKeyPdfUrl}
-                              download={activePaper.answerKeyPdfName}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-xs"
-                            >
-                              <Download className="w-3 h-3" /> Download
-                            </a>
-                          </div>
+                          {hasDedicatedSolution && (
+                            <div className="flex items-center space-x-2 shrink-0">
+                              <a
+                                href={activePaper.answerKeyPdfUrl}
+                                download={activePaper.answerKeyPdfName}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-xs"
+                              >
+                                <Download className="w-3 h-3" /> Download
+                              </a>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Direct PDF Canvas Engine */}
+                        {/* Direct PDF Canvas Engine or Informative Solution Notice */}
                         <div className="relative w-full flex-1 overflow-hidden bg-slate-100 dark:bg-slate-950">
-                          <UniversalPdfViewer
-                            url={activePaper.answerKeyPdfUrl}
-                            title={`${activePaper.title} - Model Solutions`}
-                            className="w-full h-full"
-                          />
+                          {hasDedicatedSolution ? (
+                            <UniversalPdfViewer
+                              url={activePaper.answerKeyPdfUrl}
+                              title={`${activePaper.title} - Model Solutions`}
+                              className="w-full h-full"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-6 sm:p-10 text-center bg-white dark:bg-slate-900">
+                              <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 shadow-xs">
+                                <CheckCircle className="w-8 h-8" />
+                              </div>
+                              <h4 className="text-base font-bold text-slate-900 dark:text-white mb-2">
+                                Model Answers & Marking Scheme Notice
+                              </h4>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md leading-relaxed mb-6">
+                                The official step-by-step model answers and marking criteria for <strong className="text-slate-800 dark:text-slate-200">{activePaper.title}</strong> are undergoing standard faculty compilation.
+                                You can solve this paper now in practice mode or explore textbook chapter solutions in the Study Desk.
+                              </p>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() => setSolveViewMode('question')}
+                                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+                                >
+                                  Solve Question Paper
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

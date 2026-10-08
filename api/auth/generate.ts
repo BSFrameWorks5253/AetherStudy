@@ -37,12 +37,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 5. Dispatch email via SMTP (Universal Gmail) or Resend
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || 'bs.framework5253@gmail.com';
-    const smtpPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'pfnkadvsxyzqukob').replace(/\s+/g, '');
+    const smtpPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
     const resendApiKey = process.env.RESEND_API_KEY;
     const senderEmail = process.env.EMAIL_FROM || 'AetherStudy Security <onboarding@resend.dev>';
     let emailDispatched = false;
     let sandboxNotice: string | null = null;
     let fallbackPasscode: string | null = null;
+    const isDev = process.env.NODE_ENV !== 'production';
 
     if (smtpUser && smtpPass) {
       try {
@@ -129,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : (sandboxNotice || 'Verification token initialized.'),
       token: maskedConfirmationToken,
       maskedEmail,
-      devPasscode: fallbackPasscode || undefined,
+      devPasscode: isDev ? (fallbackPasscode || undefined) : undefined,
       sandboxNotice: sandboxNotice || undefined,
     });
   } catch (error) {
