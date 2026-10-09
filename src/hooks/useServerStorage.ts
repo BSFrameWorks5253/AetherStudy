@@ -22,7 +22,13 @@ export function useServerStorage<T>(
     fetcher()
       .then((serverData) => {
         if (isMounted && serverData !== undefined && serverData !== null) {
-          setData(serverData);
+          if (Array.isArray(serverData)) {
+            if (serverData.length > 0) {
+              setData(serverData);
+            }
+          } else {
+            setData(serverData);
+          }
           setIsConnected(true);
         }
       })
@@ -40,6 +46,11 @@ export function useServerStorage<T>(
     (updater: T | ((prev: T) => T)) => {
       setData((prev) => {
         const nextValue = updater instanceof Function ? updater(prev) : updater;
+
+        // Immediate persist attempt for zero data loss
+        try {
+          saver(nextValue);
+        } catch {}
 
         // Debounced save to server
         if (debounceTimerRef.current) {

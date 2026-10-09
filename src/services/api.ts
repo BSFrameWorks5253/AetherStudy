@@ -563,17 +563,22 @@ export const api = {
       const res = await fetch(`${API_BASE}/timetable`);
       if (res.ok) {
         const data = await res.json();
-        try {
-          localStorage.setItem('aether_user_timetable', JSON.stringify(data));
-        } catch {}
-        return data;
+        if (Array.isArray(data) && data.length > 0) {
+          try {
+            localStorage.setItem('aether_user_timetable', JSON.stringify(data));
+          } catch {}
+          return data as unknown as T;
+        }
       }
     } catch {}
     try {
       const cached = localStorage.getItem('aether_user_timetable');
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as unknown as T;
+      }
     } catch {}
-    return [] as unknown as T;
+    return null as unknown as T;
   },
 
   async saveTimetable<T>(slots: T): Promise<{ success: boolean; count: number }> {

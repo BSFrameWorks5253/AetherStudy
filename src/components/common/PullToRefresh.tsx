@@ -22,9 +22,16 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   const PULL_THRESHOLD = 70;
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (isRefreshing) return;
+    // Only engage pull-to-refresh when an explicit onRefresh handler is passed
+    if (!onRefresh || isRefreshing) return;
     const container = containerRef.current;
     if (!container) return;
+
+    // Do not trigger pull-to-refresh when interacting with form controls or modal overlays
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('input, textarea, select, button, form, [role="dialog"], .fixed')) {
+      return;
+    }
 
     // Only allow pull to refresh when scrolled at the very top
     if (container.scrollTop <= 0) {
@@ -34,7 +41,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!isPullingRef.current || isRefreshing) return;
+    if (!onRefresh || !isPullingRef.current || isRefreshing) return;
     const currentY = e.touches[0].clientY;
     const diff = currentY - startYRef.current;
 
@@ -58,7 +65,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   };
 
   const handleTouchEnd = async () => {
-    if (!isPullingRef.current || isRefreshing) return;
+    if (!onRefresh || !isPullingRef.current || isRefreshing) return;
     isPullingRef.current = false;
 
     if (pullDistance >= PULL_THRESHOLD) {
@@ -66,12 +73,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
       setPullDistance(PULL_THRESHOLD);
 
       try {
-        if (onRefresh) {
-          await onRefresh();
-        } else {
-          // Default: reload the current page
-          window.location.reload();
-        }
+        await onRefresh();
       } catch (err) {
         console.warn('Pull-to-refresh action error:', err);
       } finally {

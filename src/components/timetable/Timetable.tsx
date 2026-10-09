@@ -15,9 +15,21 @@ import {
   X,
   BookOpen,
   Server,
+  Sparkles,
 } from 'lucide-react';
 
 const DAYS: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+export const SUGGESTED_SUBJECTS = [
+  'Book-Keeping & Accountancy',
+  'Organization of Commerce (OCM)',
+  'Economics',
+  'Secretarial Practice (SP)',
+  'Mathematics & Statistics',
+  'Information Technology (IT)',
+  'English (Yuvakbharati)',
+  'Board PYQ Mock Exam',
+];
 
 const INITIAL_SCHEDULE: TimeSlot[] = [
   {
@@ -161,8 +173,16 @@ export const Timetable: React.FC = () => {
     setSchedule((prev) => prev.filter((slot) => slot.id !== id));
   };
 
+  const handleLoadModelSchedule = () => {
+    setSchedule(INITIAL_SCHEDULE);
+    try {
+      localStorage.setItem('aether_user_timetable', JSON.stringify(INITIAL_SCHEDULE));
+    } catch {}
+  };
+
   const handleAddSlot = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!newSubject.trim()) return;
 
     const newSlot: TimeSlot = {
@@ -176,7 +196,14 @@ export const Timetable: React.FC = () => {
       isCompleted: false,
     };
 
-    setSchedule((prev) => [...prev, newSlot]);
+    setSchedule((prev) => {
+      const next = [...prev, newSlot];
+      try {
+        localStorage.setItem('aether_user_timetable', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
     setNewSubject('');
     setNewTopic('');
     setShowAddModal(false);
@@ -277,16 +304,29 @@ export const Timetable: React.FC = () => {
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
               Schedule your focused revision blocks to lock in productive flow.
             </p>
-            <button
-              onClick={() => {
-                setNewDay(activeDay);
-                setShowAddModal(true);
-              }}
-              className="mt-4 flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all active:scale-95"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Block for {activeDay.slice(0, 3)}</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setNewDay(activeDay);
+                  setShowAddModal(true);
+                }}
+                className="flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Block for {activeDay.slice(0, 3)}</span>
+              </button>
+              {schedule.length === 0 && (
+                <button
+                  type="button"
+                  onClick={handleLoadModelSchedule}
+                  className="flex items-center space-x-1.5 px-4 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-xs font-bold rounded-xl border border-purple-200 dark:border-purple-800 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Load Model HSC Schedule</span>
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           currentDaySlots.map((slot) => {
@@ -304,8 +344,9 @@ export const Timetable: React.FC = () => {
                 {/* Details */}
                 <div className="flex items-start space-x-3.5 mb-3 sm:mb-0">
                   <button
+                    type="button"
                     onClick={() => handleToggleCompleted(slot.id)}
-                    className="mt-1 transition-transform active:scale-90"
+                    className="mt-1 transition-transform active:scale-90 cursor-pointer"
                     title={slot.isCompleted ? 'Mark incomplete' : 'Mark complete'}
                   >
                     {slot.isCompleted ? (
@@ -339,8 +380,9 @@ export const Timetable: React.FC = () => {
                 {/* Actions */}
                 <div className="flex items-center space-x-2 self-end sm:self-center">
                   <button
+                    type="button"
                     onClick={() => startForSubject(slot.subject)}
-                    className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                    className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer ${
                       isPomodoroActive
                         ? 'bg-amber-500 text-slate-950 animate-pulse'
                         : 'bg-white/60 dark:bg-slate-800/80 hover:bg-brand-600 hover:text-white text-slate-700 dark:text-slate-200 border border-white/40 dark:border-white/10'
@@ -351,8 +393,9 @@ export const Timetable: React.FC = () => {
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => handleDeleteSlot(slot.id)}
-                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors"
+                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
                     title="Delete session"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -366,16 +409,23 @@ export const Timetable: React.FC = () => {
 
       {/* Add Block Modal Dialog */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-md liquid-glass rounded-3xl p-6 shadow-2xl text-slate-800 dark:text-slate-100 border border-white/60 dark:border-white/10">
-            <div className="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 mb-4">
+        <div
+          onClick={() => setShowAddModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Tag className="w-4 h-4 text-brand-500" />
                 Schedule Study Block
               </h2>
               <button
+                type="button"
                 onClick={() => setShowAddModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -388,7 +438,7 @@ export const Timetable: React.FC = () => {
                   <select
                     value={newDay}
                     onChange={(e) => setNewDay(e.target.value as DayOfWeek)}
-                    className="w-full liquid-glass-subtle rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
                   >
                     {DAYS.map((d) => (
                       <option key={d} value={d}>
@@ -403,7 +453,7 @@ export const Timetable: React.FC = () => {
                   <select
                     value={newColor}
                     onChange={(e) => setNewColor(e.target.value)}
-                    className="w-full liquid-glass-subtle rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
                   >
                     {COLOR_OPTIONS.map((c) => (
                       <option key={c.label} value={c.value}>
@@ -421,7 +471,7 @@ export const Timetable: React.FC = () => {
                     type="time"
                     value={newStartTime}
                     onChange={(e) => setNewStartTime(e.target.value)}
-                    className="w-full liquid-glass-subtle rounded-xl px-3 py-2 text-xs font-mono font-bold focus:outline-none"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:outline-none"
                     required
                   />
                 </div>
@@ -431,48 +481,62 @@ export const Timetable: React.FC = () => {
                     type="time"
                     value={newEndTime}
                     onChange={(e) => setNewEndTime(e.target.value)}
-                    className="w-full liquid-glass-subtle rounded-xl px-3 py-2 text-xs font-mono font-bold focus:outline-none"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:outline-none"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Academic Subject</label>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                  Academic Subject
+                </label>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {SUGGESTED_SUBJECTS.slice(0, 5).map((subj) => (
+                    <button
+                      key={subj}
+                      type="button"
+                      onClick={() => setNewSubject(subj)}
+                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-950 text-slate-600 dark:text-slate-300 hover:text-brand-600 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                    >
+                      {subj.replace(/\s*\(.*\)/, '')}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
-                  placeholder="e.g. Distributed Systems, Quantum Information"
+                  placeholder="e.g. Book-Keeping & Accountancy, Economics"
                   value={newSubject}
                   onChange={(e) => setNewSubject(e.target.value)}
-                  className="w-full liquid-glass-subtle rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                  className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-brand-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Topic / Lab Assignment</label>
+                <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Topic / Revision Goal</label>
                 <input
                   type="text"
-                  placeholder="e.g. Lab 2: Raft Leader Election & Heartbeats"
+                  placeholder="e.g. Partnership Final Accounts, Price Elasticity of Demand"
                   value={newTopic}
                   onChange={(e) => setNewTopic(e.target.value)}
-                  className="w-full liquid-glass-subtle rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                  className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-brand-500"
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-black/10 dark:border-white/10">
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white rounded-xl shadow-lg shadow-brand-500/30 glass-pill"
+                  className="px-5 py-2 text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white rounded-xl shadow-lg shadow-brand-500/30 transition-all cursor-pointer"
                 >
-                  Save to Server
+                  Save Study Block
                 </button>
               </div>
             </form>
