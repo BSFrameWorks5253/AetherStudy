@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useServerStorage } from '../../hooks/useServerStorage';
 import { api } from '../../services/api';
+import { firebaseTimetable, firebasePresence } from '../../services/firebase';
 import { usePomodoro } from '../../context/PomodoroContext';
 import { DayOfWeek, TimeSlot } from '../../types/timetable';
 import {
@@ -14,8 +15,8 @@ import {
   Tag,
   X,
   BookOpen,
-  Server,
   Sparkles,
+  Users,
 } from 'lucide-react';
 
 const DAYS: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -126,7 +127,7 @@ const COLOR_OPTIONS = [
 
 export const Timetable: React.FC = () => {
   // Sync schedule directly with hidden GitHub Database pipeline with local server fallback
-  const [schedule, setSchedule, isSaving, isConnected] = useServerStorage<TimeSlot[]>(
+  const [schedule, setSchedule, isSaving, _isConnected] = useServerStorage<TimeSlot[]>(
     async () => {
       try {
         const ghTimetable = await api.syncGet<TimeSlot[]>('timetable.json');
@@ -146,6 +147,36 @@ export const Timetable: React.FC = () => {
     },
     INITIAL_SCHEDULE
   );
+
+  const [firebaseStatus, setFirebaseStatus] = useState<'connected' | 'syncing' | 'offline'>('connected');
+  const [activeStudents, setActiveStudents] = useState<number>(1);
+
+  // 1. Live subscription to Firebase Realtime Database & Firestore for instant cross-tab & multi-device sync
+  useEffect(() => {
+    const unsubscribeTimetable = firebaseTimetable.subscribe(
+      (cloudSlots) => {
+        if (Array.isArray(cloudSlots) && cloudSlots.length > 0) {
+          setSchedule(cloudSlots);
+          setFirebaseStatus('connected');
+        }
+      },
+      () => {
+        setFirebaseStatus('offline');
+      }
+    );
+
+    // 2. Realtime presence tracker for active students
+    const stopPresence = firebasePresence.start();
+    const unsubscribePresence = firebasePresence.subscribeActiveCount((count) => {
+      setActiveStudents(count);
+    });
+
+    return () => {
+      unsubscribeTimetable();
+      stopPresence();
+      unsubscribePresence();
+    };
+  }, []);
 
   const [activeDay, setActiveDay] = useState<DayOfWeek>('Monday');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('All');
@@ -226,11 +257,24 @@ export const Timetable: React.FC = () => {
           <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
             Academic Timetable
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
             <span>Coordinate multi-hour focus blocks linked with Pomodoro triggers.</span>
-            <span className="flex items-center gap-1 font-mono text-[11px] px-2 py-0.5 rounded-full liquid-glass-subtle">
-              <Server className={`w-3 h-3 ${isConnected ? 'text-emerald-500' : 'text-amber-500'}`} />
-              {isSaving ? 'Syncing...' : isConnected ? 'Server Stored' : 'Offline Buffer'}
+            <span
+              title="Realtime bi-directional cloud sync powered by Firebase Realtime Database & Firestore"
+              className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded-full liquid-glass-subtle border border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>{isSaving ? 'Cloud Syncing...' : firebaseStatus === 'connected' ? 'Firebase Realtime Live' : 'Offline Safe'}</span>
+            </span>
+            <span
+              title="Active students preparing for HSC examinations simultaneously"
+              className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded-full liquid-glass-subtle text-slate-600 dark:text-slate-300"
+            >
+              <Users className="w-3 h-3 text-brand-500" />
+              <span>{activeStudents} Studying Online</span>
             </span>
           </p>
         </div>

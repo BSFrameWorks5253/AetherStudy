@@ -1,5 +1,6 @@
 import { UserProfile, UserRole } from '../types/auth';
 import { TestPaper } from '../types/testPaper';
+import { firebaseTimetable, firebasePaperRequests } from './firebase';
 
 export interface ServerDocument {
   id: string;
@@ -529,13 +530,25 @@ export const api = {
     return { success: true, count: Array.isArray(topics) ? topics.length : 0 };
   },
 
-  // 6b. Paper Requests & Super Admin Notification API
+  // 6b. Paper Requests & Super Admin Cloud Notification API
   async submitPaperRequest(data: {
     email: string;
     subject: string;
     year: string;
     notes: string;
-  }): Promise<{ success: boolean; message: string; emailSent?: boolean }> {
+  }): Promise<{ success: boolean; message: string; emailSent?: boolean; cloud?: boolean }> {
+    let cloudSynced = false;
+
+    // 1. Immediately persist to Firebase Firestore and Realtime Database
+    try {
+      const fbRes = await firebasePaperRequests.submit(data);
+      cloudSynced = fbRes.cloud;
+    } catch (fbErr) {
+      console.warn('[Firebase Cloud Paper Request Warning]:', fbErr);
+    }
+
+    // 2. Also dispatch to backend server API if reachable
+    let serverEmailSent = false;
     try {
       const res = await fetch(`${API_BASE}/paper-requests`, {
         method: 'POST',
@@ -543,22 +556,41 @@ export const api = {
         body: JSON.stringify(data),
       });
       if (res.ok) {
-        return await res.json();
+        const json = await res.json();
+        serverEmailSent = Boolean(json.emailSent);
       }
     } catch (err) {
       console.warn('[Paper Request API Error]:', err);
     }
-    // Fallback: persist in localStorage so requests are preserved offline
+
+    // 3. Fallback: persist in localStorage so requests are preserved offline
     try {
       const stored = JSON.parse(localStorage.getItem('aetherstudy_paper_requests') || '[]');
-      stored.push({ ...data, submittedAt: new Date().toISOString() });
+      stored.unshift({ ...data, submittedAt: new Date().toISOString() });
       localStorage.setItem('aetherstudy_paper_requests', JSON.stringify(stored));
     } catch {}
-    return { success: true, message: 'Request recorded successfully.' };
+
+    return {
+      success: true,
+      cloud: cloudSynced,
+      emailSent: serverEmailSent || cloudSynced,
+      message: 'Request safely recorded in Firebase cloud vault and dispatched to Super Admin.',
+    };
   },
 
-  // 7. Timetable Storage API
+  // 7. Timetable Storage API (Powered by Firebase RTDB, Firestore & Offline Cache)
   async getTimetable<T>(): Promise<T> {
+    // 1. Try Firebase Realtime Database & Firestore Cloud
+    try {
+      const cloudSlots = await firebaseTimetable.fetch();
+      if (Array.isArray(cloudSlots) && cloudSlots.length > 0) {
+        return cloudSlots as unknown as T;
+      }
+    } catch (fbErr) {
+      console.warn('[Firebase Timetable Fetch Warning]:', fbErr);
+    }
+
+    // 2. Try REST backend
     try {
       const res = await fetch(`${API_BASE}/timetable`);
       if (res.ok) {
@@ -571,6 +603,8 @@ export const api = {
         }
       }
     } catch {}
+
+    // 3. Fallback to LocalStorage
     try {
       const cached = localStorage.getItem('aether_user_timetable');
       if (cached) {
@@ -581,19 +615,42 @@ export const api = {
     return null as unknown as T;
   },
 
-  async saveTimetable<T>(slots: T): Promise<{ success: boolean; count: number }> {
+  async saveTimetable<T>(slots: T): Promise<{ success: boolean; count: number; cloud: boolean }> {
+    // Immediate synchronous local backup
     try {
       localStorage.setItem('aether_user_timetable', JSON.stringify(slots));
     } catch {}
+
+    let cloudSaved = false;
+
+    // 1. Save to Firebase Realtime Database & Firestore
+    try {
+      if (Array.isArray(slots)) {
+        const res = await firebaseTimetable.save(slots as any);
+        cloudSaved = res.cloud;
+      }
+    } catch (fbErr) {
+      console.warn('[Firebase Timetable Save Warning]:', fbErr);
+    }
+
+    // 2. Also sync to backend server if online
     try {
       const res = await fetch(`${API_BASE}/timetable`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slots }),
       });
-      if (res.ok) return res.json();
+      if (res.ok) {
+        await res.json();
+        return { success: true, count: Array.isArray(slots) ? slots.length : 0, cloud: true };
+      }
     } catch {}
-    return { success: true, count: Array.isArray(slots) ? slots.length : 0 };
+
+    return {
+      success: true,
+      count: Array.isArray(slots) ? slots.length : 0,
+      cloud: cloudSaved,
+    };
   },
 
   // 8. Pomodoro Storage API

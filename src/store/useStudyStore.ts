@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { firebaseStudyProgress } from '../services/firebase';
 
 export interface StudyBookmark {
   pdfId: string;
@@ -143,3 +144,38 @@ export const useStudyStore = create<StudyStoreState>()(
     }
   )
 );
+
+// Cloud State Synchronization with Firebase Realtime Database & Firestore
+let cloudSyncTimer: any = null;
+if (typeof window !== 'undefined') {
+  useStudyStore.subscribe((state) => {
+    if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = setTimeout(() => {
+      firebaseStudyProgress.sync({
+        openedPapers: state.openedPapers,
+        completedPapers: state.completedPapers,
+        pdfProgress: state.pdfProgress,
+        bookmarks: state.bookmarks,
+      }).catch(() => {});
+    }, 1200);
+  });
+
+  // Pull initial progress from cloud if available
+  setTimeout(() => {
+    firebaseStudyProgress.fetch().then((cloudData) => {
+      if (cloudData && typeof cloudData === 'object') {
+        useStudyStore.setState((prev) => ({
+          openedPapers: Array.from(new Set([...prev.openedPapers, ...(cloudData.openedPapers || [])])),
+          completedPapers: Array.from(new Set([...prev.completedPapers, ...(cloudData.completedPapers || [])])),
+          pdfProgress: { ...(cloudData.pdfProgress || {}), ...prev.pdfProgress },
+          bookmarks: [
+            ...(cloudData.bookmarks || []),
+            ...prev.bookmarks.filter(
+              (b) => !(cloudData.bookmarks || []).some((cb: any) => cb.pdfId === b.pdfId && cb.page === b.page)
+            ),
+          ],
+        }));
+      }
+    }).catch(() => {});
+  }, 500);
+}

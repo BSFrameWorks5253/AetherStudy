@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api, AdminNotification } from '../../services/api';
+import { firebaseNotifications } from '../../services/firebase';
 import {
   Bell,
   X,
@@ -54,6 +55,15 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       fetchNotifications();
+      const unsubscribe = firebaseNotifications.subscribe((cloudNotifs) => {
+        if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
+          setNotifications(cloudNotifs);
+          if (onNotificationsCountChange) {
+            onNotificationsCountChange(cloudNotifs.length);
+          }
+        }
+      });
+      return () => unsubscribe();
     }
   }, [isOpen, activeStandard, isSuperAdmin]);
 
@@ -72,6 +82,11 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         senderEmail: currentUser?.email || 'admin@aetherstudy.internal',
         senderName: isSuperAdmin ? 'Super Administrator' : 'Faculty Administrator',
       });
+
+      // Broadcast to Firebase Realtime Database
+      try {
+        await firebaseNotifications.publish(newNotif);
+      } catch {}
 
       setNotifications((prev) => [newNotif, ...prev]);
       setTitle('');
