@@ -559,7 +559,7 @@ const DEFAULT_STANDARD_SUBJECTS: Record<string, SubjectMeta[]> = {
 };
 
 export const SubjectRooms: React.FC = () => {
-  const { currentUser, isSuperAdmin, canUpload, activeStandard } = useAuth();
+  const { currentUser, isSuperAdmin, canUpload, activeStandard, setActiveStandard } = useAuth();
 
   // Navigation & Room State
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
@@ -692,7 +692,7 @@ export const SubjectRooms: React.FC = () => {
     return [...baseList, ...customList];
   }, [activeStandard, serverSubjects, documents]);
 
-  // Local standard toggle when user selects "ALL" in the header
+  // Local standard toggle when viewing room or desk
   const [roomStandardView, setRoomStandardView] = useState<'12' | '11'>('12');
 
   // Synchronize roomStandardView when header activeStandard changes
@@ -704,7 +704,14 @@ export const SubjectRooms: React.FC = () => {
     }
   }, [activeStandard]);
 
-  const effectiveStandard = activeStandard === 'ALL' ? roomStandardView : (activeStandard || '12');
+  const handleSwitchStandard = (std: '12' | '11') => {
+    setRoomStandardView(std);
+    if (setActiveStandard) {
+      setActiveStandard(std);
+    }
+  };
+
+  const effectiveStandard = (activeStandard === '11' || activeStandard === '12') ? activeStandard : roomStandardView;
 
   // Filter documents strictly by effective standard (never mix Std 11 and Std 12!)
   const standardFilteredDocuments = useMemo(() => {
@@ -875,6 +882,18 @@ export const SubjectRooms: React.FC = () => {
   const notesDocs = useMemo(() => {
     return roomDocuments.filter((d) => d.category !== 'textbook');
   }, [roomDocuments]);
+
+  // Check if notes exist in the alternate standard for this subject
+  const otherStdNotesForRoom = useMemo(() => {
+    if (!activeRoom) return [];
+    const targetOtherStd = effectiveStandard === '12' ? '11' : '12';
+    return documents.filter(
+      (d) =>
+        matchSubjectDoc(activeRoom, d.subject || '') &&
+        d.standard === targetOtherStd &&
+        d.category !== 'textbook'
+    );
+  }, [documents, activeRoom, effectiveStandard]);
 
   // PYQ Past Papers for active room
   const roomPyqPapers = useMemo(() => {
@@ -1193,36 +1212,30 @@ export const SubjectRooms: React.FC = () => {
                   <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-normal">
                     {activeRoom}
                   </h2>
-                  {activeStandard === 'ALL' ? (
-                    <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 ml-1">
-                      <button
-                        type="button"
-                        onClick={() => setRoomStandardView('12')}
-                        className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-                          roomStandardView === '12'
-                            ? 'bg-brand-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        Class 12 (HSC)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRoomStandardView('11')}
-                        className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-                          roomStandardView === '11'
-                            ? 'bg-purple-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        Class 11 (FYJC)
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/80 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">
-                      Class {toRomanStandard(effectiveStandard)} • {effectiveStandard === '12' ? 'HSC' : 'FYJC'}
-                    </span>
-                  )}
+                  <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 ml-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchStandard('12')}
+                      className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                        effectiveStandard === '12'
+                          ? 'bg-brand-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      Class 12 (HSC)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchStandard('11')}
+                      className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                        effectiveStandard === '11'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      Class 11 (FYJC)
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   {currentRoomMeta?.description || 'Dedicated Subject Room • Textbooks & Study Materials'}
@@ -1761,27 +1774,44 @@ export const SubjectRooms: React.FC = () => {
               isLoading ? (
                 <CardSkeleton count={6} />
               ) : notesDocs.length === 0 ? (
-                <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
+                <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-4">
                   <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-100 dark:border-amber-900">
                     <FileText className="w-7 h-7" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    No Study Notes Uploaded Yet
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    No Class {effectiveStandard} Study Notes Uploaded Yet
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                    Lecture summaries, revision formula sheets, and chapter notes for {activeRoom} (Class {activeStandard}) will appear here.
-                  </p>
+                  {otherStdNotesForRoom.length > 0 ? (
+                    <div className="max-w-md mx-auto space-y-3">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                        We found <span className="font-extrabold text-brand-600 dark:text-brand-400">{otherStdNotesForRoom.length} study notes</span> for {activeRoom} uploaded under <strong className="text-slate-900 dark:text-white">Class {effectiveStandard === '12' ? '11 (FYJC)' : '12 (HSC)'}</strong>.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchStandard(effectiveStandard === '12' ? '11' : '12')}
+                        className="inline-flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all cursor-pointer"
+                      >
+                        <span>Switch to Class {effectiveStandard === '12' ? '11 (FYJC)' : '12 (HSC)'} Notes ({otherStdNotesForRoom.length}) →</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                      Lecture summaries, revision formula sheets, and chapter notes for {activeRoom} (Class {effectiveStandard}) will appear here.
+                    </p>
+                  )}
                   {canUpload && (
-                    <button
-                      onClick={() => {
-                        setUploadSubject(activeRoom);
-                        setUploadCategory('notes');
-                        setShowUploadModal(true);
-                      }}
-                      className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-                    >
-                      Upload Study Notes
-                    </button>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => {
+                          setUploadSubject(activeRoom);
+                          setUploadCategory('notes');
+                          setShowUploadModal(true);
+                        }}
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all"
+                      >
+                        + Upload Class {effectiveStandard} Notes
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -2060,51 +2090,64 @@ export const SubjectRooms: React.FC = () => {
                 const directDocs = standardFilteredDocuments.filter(
                   (d) => matchSubjectDoc(sub.name, d.subject || '')
                 );
-                const subDocs = directDocs.length > 0
-                  ? directDocs
-                : documents.filter((d) => matchSubjectDoc(sub.name, d.subject || ''));
-              const tBooks = subDocs.filter((d) => d.category === 'textbook').length;
-              const nDocs = subDocs.filter((d) => d.category !== 'textbook').length;
+                const tBooks = directDocs.filter((d) => d.category === 'textbook').length;
+                const nDocs = directDocs.filter((d) => d.category !== 'textbook').length;
 
-              return (
-                <div
-                  key={sub.name}
-                  onClick={() => handleSelectRoom(sub.name)}
-                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/60 dark:hover:border-brand-500/60 hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between relative overflow-hidden"
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${sub.colorGradient} flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform`}>
-                        <Icon className="w-6 h-6" />
+                // Check if notes exist in the alternate standard (e.g. Class 11 notes when viewing Class 12)
+                const targetOtherStd = effectiveStandard === '12' ? '11' : '12';
+                const otherStdCount = documents.filter(
+                  (d) =>
+                    matchSubjectDoc(sub.name, d.subject || '') &&
+                    d.standard === targetOtherStd &&
+                    d.category !== 'textbook'
+                ).length;
+
+                return (
+                  <div
+                    key={sub.name}
+                    onClick={() => handleSelectRoom(sub.name)}
+                    className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/60 dark:hover:border-brand-500/60 hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between relative overflow-hidden"
+                  >
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${sub.colorGradient} flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform`}>
+                          <Icon className="w-6 h-6" />
+                        </div>
+
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${sub.badgeColor}`}>
+                          {sub.code}
+                        </span>
                       </div>
 
-                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${sub.badgeColor}`}>
-                        {sub.code}
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                          {sub.name}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          {sub.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-5 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{tBooks}</span> Textbooks • <span className="font-bold text-slate-800 dark:text-slate-200">{nDocs}</span> Notes
+                        </div>
+                        {nDocs === 0 && otherStdCount > 0 && (
+                          <div className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold mt-0.5">
+                            ({otherStdCount} notes in Class {targetOtherStd})
+                          </div>
+                        )}
+                      </div>
+
+                      <span className="text-xs font-bold text-brand-600 dark:text-brand-400 group-hover:translate-x-0.5 transition-transform">
+                        Enter Room →
                       </span>
                     </div>
-
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
-                        {sub.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                        {sub.description}
-                      </p>
-                    </div>
                   </div>
-
-                  <div className="pt-5 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{tBooks}</span> Textbooks • <span className="font-bold text-slate-800 dark:text-slate-200">{nDocs}</span> Notes
-                    </div>
-
-                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400 group-hover:translate-x-0.5 transition-transform">
-                      Enter Room →
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         )}
         </div>
