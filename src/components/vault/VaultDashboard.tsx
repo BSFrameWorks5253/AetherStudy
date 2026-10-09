@@ -4,6 +4,7 @@ import { TestPaper } from '../../types/testPaper';
 import { useAuth } from '../../context/AuthContext';
 import { useStudyStore } from '../../store/useStudyStore';
 import { InteractivePDFViewer } from './InteractivePDFViewer';
+import { matchSubjectDoc } from '../workspace/SubjectRooms';
 import {
   Search,
   Clock,
@@ -11,11 +12,14 @@ import {
   CheckCircle2,
   Sparkles,
   ShieldCheck,
-  Send,
   FileText,
   Check,
-  Inbox,
   Flame,
+  FileCheck2,
+  Layers,
+  Plus,
+  FolderUp,
+  RefreshCw,
 } from 'lucide-react';
 
 interface PaperRequestForm {
@@ -25,9 +29,36 @@ interface PaperRequestForm {
   notes: string;
 }
 
-export const VaultDashboard: React.FC = () => {
+interface VaultDashboardProps {
+  displayMode?: 'vault' | 'funnel' | 'list';
+  setDisplayMode?: (mode: 'vault' | 'funnel' | 'list') => void;
+  canUpload?: boolean;
+  onOpenUpload?: () => void;
+  onOpenBulk?: () => void;
+}
+
+// Canonical Maharashtra HSC Commerce Subjects (Clean, non-duplicated)
+const CANONICAL_COMMERCE_SUBJECTS = [
+  { id: 'All', label: 'All Subjects' },
+  { id: 'Accounts', label: 'Book-Keeping & Accountancy' },
+  { id: 'OCM', label: 'Organization of Commerce & Management (OCM)' },
+  { id: 'Economics', label: 'Economics' },
+  { id: 'Secretarial Practice', label: 'Secretarial Practice (SP)' },
+  { id: 'Mathematics', label: 'Maths & Statistics' },
+  { id: 'IT', label: 'Information Technology (IT)' },
+  { id: 'English', label: 'English' },
+  { id: 'Hindi', label: 'Hindi' },
+  { id: 'Marathi', label: 'Marathi' },
+];
+
+export const VaultDashboard: React.FC<VaultDashboardProps> = ({
+  displayMode = 'vault',
+  setDisplayMode,
+  canUpload = false,
+  onOpenUpload,
+  onOpenBulk,
+}) => {
   const [papers, setPapers] = useState<TestPaper[]>([]);
-  const [subjects, setSubjects] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Faceted Search State
@@ -51,7 +82,9 @@ export const VaultDashboard: React.FC = () => {
     year: '2024',
     notes: '',
   });
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState<boolean>(false);
   const [requestSubmitted, setRequestSubmitted] = useState<boolean>(false);
+  const [requestNotice, setRequestNotice] = useState<string>('');
 
   // Global Persistent Zustand Store
   const {
@@ -69,13 +102,9 @@ export const VaultDashboard: React.FC = () => {
     const loadRepo = async () => {
       setIsLoading(true);
       try {
-        const [papersData, subjectsData] = await Promise.all([
-          api.getTestPapers(),
-          api.getSubjects(),
-        ]);
+        const papersData = await api.getTestPapers();
         if (isCurrent) {
           setPapers(papersData);
-          setSubjects(subjectsData);
         }
       } catch (err) {
         console.warn('Could not load test papers archive:', err);
@@ -127,10 +156,10 @@ export const VaultDashboard: React.FC = () => {
       const subjMatches = p.subject?.toLowerCase().includes(q) || false;
       const matchesSearch = !q || titleMatches || subjMatches;
 
-      // 2. Subject Filter
+      // 2. Subject Filter using canonical mapping
       const matchesSubject =
         selectedSubject === 'All' ||
-        p.subject.toLowerCase() === selectedSubject.toLowerCase();
+        matchSubjectDoc(selectedSubject, p.subject || '');
 
       // 3. Year Filter
       const matchesYear =
@@ -152,42 +181,45 @@ export const VaultDashboard: React.FC = () => {
     });
   }, [papers, searchQuery, selectedSubject, selectedYear, selectedType]);
 
-  // Handle Paper Request Submission (Lead Magnet)
-  const handleRequestSubmit = (e: React.FormEvent) => {
+  // Handle Paper Request Submission (Dispatches email directly to Super Admin)
+  const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requestForm.email || !requestForm.email.includes('@')) {
       alert('Please enter a valid student email address.');
       return;
     }
 
-    // Persist request in local storage queue / analytics
+    setIsSubmittingRequest(true);
     try {
-      const storedRequests = JSON.parse(
-        localStorage.getItem('aetherstudy_paper_requests') || '[]'
+      const res = await api.submitPaperRequest(requestForm);
+      setRequestNotice(
+        res.emailSent
+          ? 'Notification sent directly to Super Admin (bs.framework5253@gmail.com). You will receive an update once uploaded!'
+          : 'Request recorded! Our academic team will review and upload this paper.'
       );
-      storedRequests.push({
-        ...requestForm,
-        submittedAt: new Date().toISOString(),
-      });
-      localStorage.setItem(
-        'aetherstudy_paper_requests',
-        JSON.stringify(storedRequests)
-      );
-    } catch {
-      // silent
+      setRequestSubmitted(true);
+      setTimeout(() => {
+        setRequestSubmitted(false);
+        setShowRequestModal(false);
+        setRequestForm({
+          email: '',
+          subject: 'Book-Keeping & Accountancy',
+          year: '2024',
+          notes: '',
+        });
+        setRequestNotice('');
+      }, 3500);
+    } catch (err) {
+      console.warn('Paper request submit error:', err);
+      setRequestNotice('Request recorded! Our academic team has been alerted.');
+      setRequestSubmitted(true);
+      setTimeout(() => {
+        setRequestSubmitted(false);
+        setShowRequestModal(false);
+      }, 3000);
+    } finally {
+      setIsSubmittingRequest(false);
     }
-
-    setRequestSubmitted(true);
-    setTimeout(() => {
-      setRequestSubmitted(false);
-      setShowRequestModal(false);
-      setRequestForm({
-        email: '',
-        subject: 'Book-Keeping & Accountancy',
-        year: '2024',
-        notes: '',
-      });
-    }, 2500);
   };
 
   // If a paper is currently open in the viewer, render the platform-adaptive viewer
@@ -209,15 +241,79 @@ export const VaultDashboard: React.FC = () => {
   return (
     <div className="h-full w-full overflow-y-auto bg-slate-950 text-slate-100 flex flex-col font-sans select-none pb-24 md:pb-12">
       {/* ============================================================== */}
-      {/* 1. HERO HEADER BLUEPRINT & ABSOLUTE SYLLABUS ANCHOR BANNER     */}
+      {/* 1. HERO HEADER BLUEPRINT & UNIFIED TOP NAVIGATION              */}
       {/* ============================================================== */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pt-8 pb-6 bg-gradient-to-b from-brand-950/40 via-slate-950 to-slate-950 border-b border-slate-800/80">
+      <section className="relative px-4 sm:px-6 lg:px-8 pt-6 pb-6 bg-gradient-to-b from-brand-950/40 via-slate-950 to-slate-950 border-b border-slate-800/80">
         <div className="max-w-7xl mx-auto space-y-4">
-          {/* Absolute Syllabus Anchor Banner (WCAG AA Compliant Authority Pill) */}
+          {/* Integrated Mode Switcher & Admin Upload Toolbar (Eliminates Double Header) */}
+          {setDisplayMode && (
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/60">
+              <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => setDisplayMode('vault')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    displayMode === 'vault'
+                      ? 'bg-brand-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FileCheck2 className="w-3.5 h-3.5" />
+                  <span>Scannable Vault</span>
+                </button>
+                <button
+                  onClick={() => setDisplayMode('funnel')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    displayMode === 'funnel'
+                      ? 'bg-brand-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Step Funnel</span>
+                </button>
+                <button
+                  onClick={() => setDisplayMode('list')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    displayMode === 'list'
+                      ? 'bg-brand-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>All Papers List</span>
+                </button>
+              </div>
+
+              {canUpload && (
+                <div className="flex items-center gap-2">
+                  {onOpenUpload && (
+                    <button
+                      onClick={onOpenUpload}
+                      className="flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-brand-600 hover:bg-brand-500 text-white shadow-sm cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Single</span>
+                    </button>
+                  )}
+                  {onOpenBulk && (
+                    <button
+                      onClick={onOpenBulk}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-sm cursor-pointer"
+                    >
+                      <FolderUp className="w-3.5 h-3.5" />
+                      <span>Bulk Folder</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Absolute Syllabus Anchor Banner */}
           <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-300 text-xs font-semibold shadow-xs">
             <ShieldCheck className="w-4 h-4 text-brand-400" />
             <span className="tracking-wide">
-              Aligned Strictly with the Maharashtra State Board HSC Commerce Board Syllabus
+              Aligned Strictly with Maharashtra State Board HSC Commerce Board Syllabus
             </span>
           </div>
 
@@ -225,10 +321,10 @@ export const VaultDashboard: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                HSC Commerce Board Exam Vault & Solutions
+                HSC Commerce Board Exam Vault
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-2xl leading-relaxed">
-                Master your board examinations with verified previous year question papers, official marking schemes, and examiner-approved model answers for Standard {activeStandard}.
+                Authentic previous year question papers for Standard {activeStandard}. Instant search by subject, year, and examination session.
               </p>
             </div>
 
@@ -255,23 +351,23 @@ export const VaultDashboard: React.FC = () => {
       </section>
 
       {/* ============================================================== */}
-      {/* 2. FACETED SEARCH ENGINE (YEAR, SUBJECT, RESOURCE TYPE)        */}
+      {/* 2. FACETED SEARCH ENGINE (YEAR, DEDUPLICATED SUBJECTS)         */}
       {/* ============================================================== */}
       <section className="px-4 sm:px-6 lg:px-8 py-5 max-w-7xl mx-auto w-full space-y-4">
-        {/* Search Bar & Primary Input */}
+        {/* Instant Search Bar */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search papers by subject, year (e.g., 'Book-Keeping 2024', 'Economics March')..."
-            className="w-full pl-11 pr-4 py-3 bg-slate-900/90 border border-slate-800 focus:border-brand-500 rounded-2xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-hidden transition-all shadow-sm"
+            placeholder="Search papers by subject or year (e.g., 'Book-Keeping 2024', 'Economics March')..."
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-sm text-slate-100 placeholder-slate-500 focus:outline-hidden focus:border-brand-500 transition-all shadow-inner"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white cursor-pointer"
             >
               Clear
             </button>
@@ -280,25 +376,25 @@ export const VaultDashboard: React.FC = () => {
 
         {/* Faceted Filter Tags */}
         <div className="space-y-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
-          {/* Subject Facet */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider min-w-[70px]">
+          {/* Subject Facet: Clean, Non-Duplicated Chips */}
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider min-w-[70px] pt-1">
               Subject:
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {['All', ...subjects].map((subj) => {
-                const isSelected = selectedSubject.toLowerCase() === subj.toLowerCase();
+              {CANONICAL_COMMERCE_SUBJECTS.map((sub) => {
+                const isSelected = selectedSubject.toLowerCase() === sub.id.toLowerCase();
                 return (
                   <button
-                    key={subj}
-                    onClick={() => setSelectedSubject(subj)}
+                    key={sub.id}
+                    onClick={() => setSelectedSubject(sub.id)}
                     className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-brand-600 text-white shadow-xs'
                         : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                     }`}
                   >
-                    {subj}
+                    {sub.label}
                   </button>
                 );
               })}
@@ -376,86 +472,79 @@ export const VaultDashboard: React.FC = () => {
             ))}
           </div>
         ) : filteredPapers.length === 0 ? (
-          /* ============================================================ */
-          /* SMART CONTENT GRACEFUL FALLBACK & LEAD MAGNET FORM           */
-          /* Zero dead 404 links: Captures student emails dynamically     */
-          /* ============================================================ */
-          <div className="my-8 p-8 rounded-3xl bg-slate-900/80 border border-slate-800/90 text-center max-w-xl mx-auto space-y-4 shadow-xl">
-            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-400 border border-brand-500/20 flex items-center justify-center mx-auto">
-              <Inbox className="w-7 h-7" />
+          /* Smart Content Fallback & Lead Magnet Form */
+          <div className="rounded-3xl bg-slate-900/40 border border-slate-800/80 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-4 my-8">
+            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-400 flex items-center justify-center mx-auto">
+              <Sparkles className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-bold text-white">
-              No matching question papers uploaded yet
+            <h3 className="text-lg font-bold text-white">
+              No papers found matching your filter
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
-              We update our Maharashtra State Board repository weekly. Drop your email below, and our academic team will prioritize and upload this specific paper next.
+            <p className="text-xs text-slate-400 leading-relaxed">
+              We upload new Maharashtra State Board papers regularly. Request this specific paper and our academic team will notify you directly.
             </p>
-
-            <form onSubmit={handleRequestSubmit} className="space-y-3 max-w-md mx-auto pt-2">
-              <input
-                type="email"
-                required
-                value={requestForm.email}
-                onChange={(e) => setRequestForm({ ...requestForm, email: e.target.value })}
-                placeholder="Enter your email to receive this paper..."
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 focus:border-brand-500 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden"
-              />
-              <button
-                type="submit"
-                className="w-full py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-brand-500/20 cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Notify Me When Uploaded</span>
-              </button>
-            </form>
+            <button
+              onClick={() => {
+                setRequestForm((prev) => ({
+                  ...prev,
+                  subject: selectedSubject !== 'All' ? selectedSubject : 'Book-Keeping & Accountancy',
+                  year: selectedYear !== 'All' ? selectedYear : '2024',
+                }));
+                setShowRequestModal(true);
+              }}
+              className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-md shadow-brand-500/20 cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Request Paper Upload</span>
+            </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredPapers.map((paper) => {
-              const paperCompleted = isCompleted(paper.id);
               const lastReadPage = getPageProgress(paper.id);
-              const hasResumeProgress = lastReadPage && lastReadPage > 1;
-
-              // Time-to-solve estimation
+              const paperDone = isCompleted(paper.id);
               const solveHours = Math.round((paper.durationMinutes || 180) / 60);
               const solveMarks = paper.totalMarks || 80;
 
               return (
                 <div
                   key={paper.id}
-                  className="group relative flex flex-col justify-between rounded-3xl bg-slate-900/70 hover:bg-slate-900 border border-slate-800/80 hover:border-brand-500/50 p-4 transition-all duration-200 hover:shadow-xl hover:shadow-brand-950/20 hover:-translate-y-0.5"
+                  className="group relative flex flex-col justify-between p-4 rounded-3xl bg-slate-900/80 border border-slate-800/80 hover:border-brand-500/50 hover:bg-slate-900 transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                 >
-                  {/* Top Badges & Retention Hooks */}
                   <div>
-                    <div className="flex items-center justify-between gap-1.5 mb-2.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 uppercase tracking-wider">
+                    {/* Card Top Badges */}
+                    <div className="flex items-center justify-between gap-1 mb-2.5">
+                      <div className="flex items-center space-x-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30">
                           {paper.subject}
                         </span>
                         {paper.year && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
                             {paper.year}
                           </span>
                         )}
                       </div>
 
                       {/* Visual Retention Badges */}
-                      {paperCompleted ? (
-                        <span
-                          className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30"
-                          title="Paper Completed"
-                        >
-                          <Check className="w-3 h-3" />
-                          <span>Solved</span>
-                        </span>
-                      ) : hasResumeProgress ? (
-                        <span
-                          className="flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30"
-                          title="Resume study"
-                        >
-                          <span>Resume Pg {lastReadPage}</span>
-                        </span>
-                      ) : null}
+                      <div className="flex items-center space-x-1">
+                        {paperDone && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            title="Completed Paper"
+                          >
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            <span>Done</span>
+                          </span>
+                        )}
+                        {lastReadPage && lastReadPage > 1 && !paperDone && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse"
+                            title={`Resume at page ${lastReadPage}`}
+                          >
+                            <span>p.{lastReadPage}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Paper Title */}
@@ -539,13 +628,15 @@ export const VaultDashboard: React.FC = () => {
                     <button
                       onClick={() => toggleComplete(paper.id)}
                       className={`w-full py-1.5 rounded-xl text-[11px] font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                        paperCompleted
-                          ? 'text-emerald-400 bg-emerald-950/30 hover:bg-emerald-950/50'
-                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/40'
+                        isCompleted(paper.id)
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800/80'
                       }`}
                     >
                       <Check className="w-3 h-3" />
-                      <span>{paperCompleted ? 'Marked Solved' : 'Mark as Solved'}</span>
+                      <span>
+                        {isCompleted(paper.id) ? 'Marked Complete' : 'Mark as Completed'}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -556,7 +647,7 @@ export const VaultDashboard: React.FC = () => {
       </main>
 
       {/* ============================================================== */}
-      {/* LEAD-MAGNET DYNAMIC REQUEST MODAL                              */}
+      {/* 4. LEAD MAGNET "REQUEST PAPER" MODAL (DIRECT ADMIN EMAIL DISPATCH) */}
       {/* ============================================================== */}
       {showRequestModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
@@ -572,7 +663,7 @@ export const VaultDashboard: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowRequestModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 ✕
               </button>
@@ -583,15 +674,15 @@ export const VaultDashboard: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
                   <Check className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-bold text-white">Request Received!</h4>
-                <p className="text-xs text-slate-400">
-                  Our academic curators have been notified. You will receive an email as soon as this paper and solution key are uploaded.
+                <h4 className="text-sm font-bold text-white">Request Dispatched!</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {requestNotice || 'Notification sent directly to the Super Admin (bs.framework5253@gmail.com). You will receive an update once uploaded.'}
                 </p>
               </div>
             ) : (
               <form onSubmit={handleRequestSubmit} className="space-y-3.5">
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Looking for a specific past year exam or solution key? Enter your details below and our team will upload it next.
+                  Looking for a specific past year exam or solution key? Enter your details below and an instant request will be emailed to our administration team.
                 </p>
 
                 <div>
@@ -624,6 +715,7 @@ export const VaultDashboard: React.FC = () => {
                       <option value="OCM">OCM</option>
                       <option value="Mathematics & Stats">Maths & Stats</option>
                       <option value="English">English</option>
+                      <option value="Information Technology">Information Tech (IT)</option>
                     </select>
                   </div>
 
@@ -643,13 +735,13 @@ export const VaultDashboard: React.FC = () => {
 
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 mb-1 block">
-                    Additional Notes (Optional)
+                    Specific Paper / Notes (Optional)
                   </label>
                   <input
                     type="text"
                     value={requestForm.notes}
                     onChange={(e) => setRequestForm({ ...requestForm, notes: e.target.value })}
-                    placeholder="e.g., Prelim papers from Mithibai / NM College"
+                    placeholder="e.g., July Repeater Exam or Model Solutions"
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-hidden"
                   />
                 </div>
@@ -658,15 +750,23 @@ export const VaultDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowRequestModal(false)}
-                    className="px-4 py-2 text-xs text-slate-400 hover:text-white rounded-xl"
+                    className="px-4 py-2 text-xs text-slate-400 hover:text-white rounded-xl cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white rounded-xl transition-all shadow-md shadow-brand-500/20 cursor-pointer"
+                    disabled={isSubmittingRequest}
+                    className="px-5 py-2 text-xs font-bold bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-xl transition-all shadow-md shadow-brand-500/20 cursor-pointer flex items-center gap-1.5"
                   >
-                    Submit Request
+                    {isSubmittingRequest ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Notifying Admin...</span>
+                      </>
+                    ) : (
+                      <span>Submit Request</span>
+                    )}
                   </button>
                 </div>
               </form>

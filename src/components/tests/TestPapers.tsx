@@ -248,95 +248,99 @@ export const TestPapers: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative bg-slate-50 dark:bg-slate-950">
-      {/* Top Main Navigation Bar */}
-      <header className="flex flex-wrap items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 gap-3 z-20 shrink-0 shadow-xs">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
-            <GraduationCap className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-none">
-                Previous Year Papers (PYQ Vault)
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20">
-                Class {toRomanStandard(currentUser?.standard || '12')}
-              </span>
+      {/* Top Main Navigation Bar for Step Funnel & All Papers List */}
+      {displayMode !== 'vault' && (
+        <header className="flex flex-wrap items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 gap-3 z-20 shrink-0 shadow-xs">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+              <GraduationCap className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Select year, subject & solve with step-by-step verified board solutions
-            </p>
-          </div>
-        </div>
-
-        {/* Global Action Buttons */}
-        <div className="flex items-center space-x-2">
-          {/* Mode Switcher: Scannable Vault vs Step Funnel vs Classic Shelf */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => setDisplayMode('vault')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                displayMode === 'vault'
-                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <FileCheck2 className="w-3.5 h-3.5" />
-              <span>Scannable Vault</span>
-            </button>
-            <button
-              onClick={() => setDisplayMode('funnel')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                displayMode === 'funnel'
-                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Step Funnel</span>
-            </button>
-            <button
-              onClick={() => setDisplayMode('list')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                displayMode === 'list'
-                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>All Papers List</span>
-            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-none">
+                  Previous Year Papers (PYQ Vault)
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20">
+                  Class {toRomanStandard(currentUser?.standard || '12')}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Select year, subject & solve with step-by-step verified board solutions
+              </p>
+            </div>
           </div>
 
-          {/* Admin Upload Actions */}
-          {canUpload && (
-            <>
+          {/* Global Action Buttons */}
+          <div className="flex items-center space-x-2">
+            {/* Mode Switcher: Scannable Vault vs Step Funnel vs Classic Shelf */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
               <button
-                onClick={() => setShowUploadModal(true)}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-brand-600 hover:bg-brand-500 text-white shadow-sm"
+                onClick={() => setDisplayMode('vault')}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Upload Single</span>
+                <FileCheck2 className="w-3.5 h-3.5" />
+                <span>Scannable Vault</span>
               </button>
               <button
-                onClick={() => setShowBulkModal(true)}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-sm"
-                title="Bulk upload full folders of PYQ papers"
+                onClick={() => setDisplayMode('funnel')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  displayMode === 'funnel'
+                    ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
               >
-                <FolderUp className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Bulk Folder</span>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Step Funnel</span>
               </button>
-            </>
-          )}
-        </div>
-      </header>
+              <button
+                onClick={() => setDisplayMode('list')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  displayMode === 'list'
+                    ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>All Papers List</span>
+              </button>
+            </div>
+
+            {/* Admin Upload Actions */}
+            {canUpload && (
+              <>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-brand-600 hover:bg-brand-500 text-white shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Upload Single</span>
+                </button>
+                <button
+                  onClick={() => setShowBulkModal(true)}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-purple-600 hover:bg-purple-500 text-white shadow-sm"
+                  title="Bulk upload full folders of PYQ papers"
+                >
+                  <FolderUp className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Bulk Folder</span>
+                </button>
+              </>
+            )}
+          </div>
+        </header>
+      )}
 
       {/* =======================================================================
           VIEW MODE 0: CONVERSION-DRIVEN SCANNABLE ARCHIVE (CRO VAULT DASHBOARD)
       ======================================================================= */}
       {displayMode === 'vault' && (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <VaultDashboard />
+          <VaultDashboard
+            displayMode={displayMode}
+            setDisplayMode={setDisplayMode}
+            canUpload={canUpload}
+            onOpenUpload={() => setShowUploadModal(true)}
+            onOpenBulk={() => setShowBulkModal(true)}
+          />
         </div>
       )}
 

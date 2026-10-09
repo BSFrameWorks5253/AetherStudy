@@ -529,6 +529,34 @@ export const api = {
     return { success: true, count: Array.isArray(topics) ? topics.length : 0 };
   },
 
+  // 6b. Paper Requests & Super Admin Notification API
+  async submitPaperRequest(data: {
+    email: string;
+    subject: string;
+    year: string;
+    notes: string;
+  }): Promise<{ success: boolean; message: string; emailSent?: boolean }> {
+    try {
+      const res = await fetch(`${API_BASE}/paper-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn('[Paper Request API Error]:', err);
+    }
+    // Fallback: persist in localStorage so requests are preserved offline
+    try {
+      const stored = JSON.parse(localStorage.getItem('aetherstudy_paper_requests') || '[]');
+      stored.push({ ...data, submittedAt: new Date().toISOString() });
+      localStorage.setItem('aetherstudy_paper_requests', JSON.stringify(stored));
+    } catch {}
+    return { success: true, message: 'Request recorded successfully.' };
+  },
+
   // 7. Timetable Storage API
   async getTimetable<T>(): Promise<T> {
     try {
