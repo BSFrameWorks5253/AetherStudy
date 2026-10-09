@@ -1194,7 +1194,27 @@ app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 3
   const docs = readJsonFile('documents.json', []);
   const createdDocs = [];
 
-  for (const file of req.files) {
+  let itemsMeta = [];
+  if (req.body.itemsMeta) {
+    try {
+      itemsMeta = typeof req.body.itemsMeta === 'string' ? JSON.parse(req.body.itemsMeta) : req.body.itemsMeta;
+    } catch {}
+  }
+
+  for (let i = 0; i < req.files.length; i++) {
+    const file = req.files[i];
+    const fileMeta = (Array.isArray(itemsMeta) && (itemsMeta.find((m) => m && m.name === file.originalname) || itemsMeta[i])) || {};
+
+    const fileChapterNumber = (fileMeta.chapterNumber !== undefined ? fileMeta.chapterNumber : (chapterNumber || '')).trim();
+    const fileChapterTitle = (fileMeta.chapterTitle !== undefined ? fileMeta.chapterTitle : (chapterTitle || '')).trim();
+    const fileCategory = fileMeta.category === 'textbook' ? 'textbook' : (fileMeta.category || (category === 'textbook' ? 'textbook' : (category || 'notes')));
+    const fileCustomFilter = (fileMeta.customFilter !== undefined ? fileMeta.customFilter : (customFilter || '')).trim();
+    const fileTags = Array.isArray(fileMeta.tags) && fileMeta.tags.length > 0
+      ? fileMeta.tags
+      : fileCustomFilter
+      ? [fileCustomFilter]
+      : parsedTags;
+
     const matchingCount = docs.filter(
       (d) => (d.originalName || d.name || '').trim().toLowerCase() === file.originalname.trim().toLowerCase()
     ).length;
@@ -1211,11 +1231,11 @@ app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 3
       uploadedBy: user.email,
       subject: cleanSubject,
       standard: targetStandard,
-      category: category === 'textbook' ? 'textbook' : (category || 'notes'),
-      chapterNumber: (chapterNumber || '').trim(),
-      chapterTitle: (chapterTitle || '').trim(),
-      customFilter: (customFilter || '').trim(),
-      tags: parsedTags,
+      category: fileCategory,
+      chapterNumber: fileChapterNumber,
+      chapterTitle: fileChapterTitle,
+      customFilter: fileCustomFilter,
+      tags: fileTags,
       uploadCount: matchingCount + 1,
     };
 

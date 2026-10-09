@@ -633,6 +633,40 @@ const DEFAULT_STANDARD_SUBJECTS: Record<string, SubjectMeta[]> = {
   ],
 };
 
+// Automatically detects matching syllabus chapter from uploaded file name
+const detectChapterForFile = (
+  fileName: string,
+  chapters: ChapterItem[],
+  fallbackChapter: string = 'All'
+): { chapterNumber: string; customChapter: string } => {
+  if (fallbackChapter && fallbackChapter !== 'All' && fallbackChapter !== 'custom') {
+    return { chapterNumber: fallbackChapter, customChapter: '' };
+  }
+  const clean = fileName.toLowerCase();
+  for (const ch of chapters) {
+    const digits = ch.number.match(/\d+/g);
+    if (digits && digits.length > 0) {
+      const d = digits[digits.length - 1];
+      const patterns = [
+        new RegExp(`(?:ch|chapter|unit|lesson|part)[_\\s.-]*0*${d}(?!\\d)`, 'i'),
+        new RegExp(`\\b${d}[_\\s.-]+(?:ch|chapter)`, 'i'),
+        new RegExp(`^0*${d}[_\\s.-]`, 'i'),
+      ];
+      if (patterns.some((rg) => rg.test(clean))) {
+        return { chapterNumber: ch.number, customChapter: '' };
+      }
+    }
+    const titleWords = ch.title
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w: string) => w.length > 4 && !['basic', 'introduction', 'forms', 'business'].includes(w));
+    if (titleWords.some((w: string) => clean.includes(w))) {
+      return { chapterNumber: ch.number, customChapter: '' };
+    }
+  }
+  return { chapterNumber: fallbackChapter || 'All', customChapter: '' };
+};
+
 export const SubjectRooms: React.FC = () => {
   const { currentUser, isSuperAdmin, canUpload, activeStandard, setActiveStandard } = useAuth();
 
@@ -680,6 +714,14 @@ export const SubjectRooms: React.FC = () => {
   const [uploadCustomFilter, setUploadCustomFilter] = useState<string>('Theory Notes');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileConfigs, setFileConfigs] = useState<Array<{
+    id: string;
+    file: File;
+    chapterNumber: string;
+    customChapter: string;
+    category: 'textbook' | 'notes';
+    customFilter: string;
+  }>>([]);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadSuccess, setUploadSuccess] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -1200,10 +1242,13 @@ export const SubjectRooms: React.FC = () => {
     }
   };
 
-  // Handle Upload (supports single or multiple files in batch)
+  // Handle Upload (supports single or multiple files in batch with per-file chapter customisation)
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const filesToUpload = selectedFiles.length > 0 ? selectedFiles : (selectedFile ? [selectedFile] : []);
+    const filesToUpload = fileConfigs.length > 0
+      ? fileConfigs.map((c) => c.file)
+      : (selectedFiles.length > 0 ? selectedFiles : (selectedFile ? [selectedFile] : []));
+
     if (filesToUpload.length === 0) {
       setUploadError('Please select at least one study document or PDF.');
       return;
@@ -1236,9 +1281,29 @@ export const SubjectRooms: React.FC = () => {
         } catch {}
       }
 
+      // Prepare custom metadata for each individual PDF
+      const itemsMeta = filesToUpload.map((file, idx) => {
+        const cfg = fileConfigs[idx] || fileConfigs.find((c) => c.file === file);
+        const chNum = cfg
+          ? (cfg.chapterNumber === 'custom' ? cfg.customChapter.trim() : (cfg.chapterNumber !== 'All' ? cfg.chapterNumber : ''))
+          : finalChapterNumber;
+        const matched = activeRoomChapters.find((c) => c.number === chNum);
+        const chTitle = matched?.title || (cfg?.chapterNumber === 'custom' ? cfg.customChapter.trim() : finalChapterTitle);
+        const cat = cfg?.category || uploadCategory;
+        const filt = (cfg?.customFilter || finalFilter).trim();
+        return {
+          name: file.name,
+          chapterNumber: chNum,
+          chapterTitle: chTitle,
+          category: cat,
+          customFilter: filt,
+          tags: filt ? [filt] : [],
+        };
+      });
+
       const newlyUploaded: ServerDocument[] = [];
 
-      // If multiple files, use batch upload API directly
+      // If multiple files, use batch upload API directly with per-file itemsMeta
       if (filesToUpload.length > 1) {
         try {
           const batchDocs = await api.uploadMultipleDocuments(
@@ -1250,23 +1315,26 @@ export const SubjectRooms: React.FC = () => {
             finalChapterNumber,
             finalChapterTitle,
             finalFilter,
-            finalFilter ? [finalFilter] : []
+            finalFilter ? [finalFilter] : [],
+            itemsMeta
           );
           newlyUploaded.push(...batchDocs);
         } catch (batchErr: any) {
           console.warn('Batch upload server error, falling back to sequential uploads:', batchErr);
-          for (const file of filesToUpload) {
+          for (let i = 0; i < filesToUpload.length; i++) {
+            const file = filesToUpload[i];
+            const meta = itemsMeta[i] || {};
             try {
               const doc = await api.uploadDocument(
                 file,
                 targetSub,
                 currentUser?.email || 'admin',
                 targetStd,
-                uploadCategory,
-                finalChapterNumber,
-                finalChapterTitle,
-                finalFilter,
-                finalFilter ? [finalFilter] : []
+                meta.category || uploadCategory,
+                meta.chapterNumber || finalChapterNumber,
+                meta.chapterTitle || finalChapterTitle,
+                meta.customFilter || finalFilter,
+                meta.tags || (finalFilter ? [finalFilter] : [])
               );
               newlyUploaded.push(doc);
             } catch (singleErr) {
@@ -1275,8 +1343,14 @@ export const SubjectRooms: React.FC = () => {
           }
         }
       } else {
-        // Single file upload: Attempt Direct Google Drive or fallback
+        // Single file upload: respects per-file customizations if configured
         const singleFile = filesToUpload[0];
+        const meta = itemsMeta[0] || {};
+        const singleChNum = meta.chapterNumber || finalChapterNumber;
+        const singleChTitle = meta.chapterTitle || finalChapterTitle;
+        const singleCat = meta.category || uploadCategory;
+        const singleFilt = meta.customFilter || finalFilter;
+
         let uploadedRecord: ServerDocument | null = null;
         let driveResult: any = null;
 
@@ -1304,11 +1378,11 @@ export const SubjectRooms: React.FC = () => {
             uploadedBy: currentUser?.email || 'admin',
             subject: targetSub,
             standard: targetStd,
-            category: uploadCategory,
-            chapterNumber: finalChapterNumber,
-            chapterTitle: finalChapterTitle,
-            customFilter: finalFilter,
-            tags: finalFilter ? [finalFilter] : [],
+            category: singleCat,
+            chapterNumber: singleChNum,
+            chapterTitle: singleChTitle,
+            customFilter: singleFilt,
+            tags: singleFilt ? [singleFilt] : [],
             uploadCount: 1,
           };
 
@@ -1326,11 +1400,11 @@ export const SubjectRooms: React.FC = () => {
               targetSub,
               currentUser?.email || 'admin',
               targetStd,
-              uploadCategory,
-              finalChapterNumber,
-              finalChapterTitle,
-              finalFilter,
-              finalFilter ? [finalFilter] : []
+              singleCat,
+              singleChNum,
+              singleChTitle,
+              singleFilt,
+              singleFilt ? [singleFilt] : []
             );
           } catch {
             // Instant offline client document fallback
@@ -1349,11 +1423,11 @@ export const SubjectRooms: React.FC = () => {
               uploadedBy: currentUser?.email || 'admin',
               subject: targetSub,
               standard: targetStd,
-              category: uploadCategory,
-              chapterNumber: finalChapterNumber,
-              chapterTitle: finalChapterTitle,
-              customFilter: finalFilter,
-              tags: finalFilter ? [finalFilter] : [],
+              category: singleCat,
+              chapterNumber: singleChNum,
+              chapterTitle: singleChTitle,
+              customFilter: singleFilt,
+              tags: singleFilt ? [singleFilt] : [],
               uploadCount: 1,
             };
           }
@@ -1372,6 +1446,7 @@ export const SubjectRooms: React.FC = () => {
       setUploadSuccess(true);
       setSelectedFiles([]);
       setSelectedFile(null);
+      setFileConfigs([]);
       setUploadChapterTitle('');
       setUploadCustomChapter('');
       setTimeout(() => {
@@ -2815,22 +2890,27 @@ export const SubjectRooms: React.FC = () => {
         const modalSubject = uploadSubject || activeRoom || availableSubjects[0]?.name || 'General';
         const modalSubSlug = getSubjectSlug(modalSubject);
         const modalChapters = ALL_SYLLABUS_CHAPTERS[uploadStandard]?.[modalSubSlug] || ALL_SYLLABUS_CHAPTERS['12']?.[modalSubSlug] || [];
-        const filesCount = selectedFiles.length > 0 ? selectedFiles.length : (selectedFile ? 1 : 0);
+        const filesCount = fileConfigs.length > 0 ? fileConfigs.length : (selectedFiles.length > 0 ? selectedFiles.length : (selectedFile ? 1 : 0));
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-            <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 relative my-8">
+            <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 relative my-8">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold shadow-xs">
                     <Upload className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                      Upload Study Materials
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>Upload Study Materials</span>
+                      {filesCount > 1 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-extrabold border border-brand-500/20">
+                          {filesCount} PDFs Selected
+                        </span>
+                      )}
                     </h3>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Upload single or multiple PDFs tagged by chapter and section
+                      Upload single or multiple PDFs — customize which chapter each PDF belongs to
                     </p>
                   </div>
                 </div>
@@ -2842,8 +2922,9 @@ export const SubjectRooms: React.FC = () => {
                     setUploadError(null);
                     setSelectedFiles([]);
                     setSelectedFile(null);
+                    setFileConfigs([]);
                   }}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1 rounded-lg"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1 rounded-lg cursor-pointer"
                 >
                   ✕
                 </button>
@@ -2860,11 +2941,11 @@ export const SubjectRooms: React.FC = () => {
                 {/* Multi-File Selection Box */}
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Select PDF Files (Upload One or Multiple at Once)
+                    Select PDF Files (Select Multiple Files at Once)
                   </label>
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-brand-500 cursor-pointer text-center bg-slate-50 dark:bg-slate-800/50 transition-colors"
+                    className="p-5 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-brand-500 cursor-pointer text-center bg-slate-50 dark:bg-slate-800/50 transition-all hover:bg-brand-50/20 dark:hover:bg-brand-950/20"
                   >
                     <input
                       ref={fileInputRef}
@@ -2875,6 +2956,23 @@ export const SubjectRooms: React.FC = () => {
                       onChange={(e) => {
                         if (e.target.files && e.target.files.length > 0) {
                           const newFileList = Array.from(e.target.files);
+                          const modalSubject = uploadSubject || activeRoom || availableSubjects[0]?.name || 'General';
+                          const modalSubSlug = getSubjectSlug(modalSubject);
+                          const modalChapters = ALL_SYLLABUS_CHAPTERS[uploadStandard]?.[modalSubSlug] || ALL_SYLLABUS_CHAPTERS['12']?.[modalSubSlug] || [];
+
+                          const newConfigs = newFileList.map((file) => {
+                            const detected = detectChapterForFile(file.name, modalChapters, uploadChapterNumber);
+                            return {
+                              id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                              file,
+                              chapterNumber: detected.chapterNumber,
+                              customChapter: detected.customChapter,
+                              category: uploadCategory,
+                              customFilter: uploadCustomFilter,
+                            };
+                          });
+
+                          setFileConfigs((prev) => [...prev, ...newConfigs]);
                           setSelectedFiles((prev) => [...prev, ...newFileList]);
                           setSelectedFile(null);
                         }
@@ -2883,52 +2981,172 @@ export const SubjectRooms: React.FC = () => {
                     <div className="text-slate-500 dark:text-slate-400">
                       <Upload className="w-6 h-6 mx-auto mb-1 text-brand-500" />
                       <span className="font-bold text-slate-700 dark:text-slate-300">
-                        Click or drag PDFs here to select
+                        Click or drag multiple PDFs here
                       </span>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        Batch selection supported — you can select multiple PDFs simultaneously
+                        Batch selection supported — you can assign each PDF to a different chapter below
                       </p>
                     </div>
                   </div>
 
-                  {/* Selected Files List Preview */}
-                  {selectedFiles.length > 0 && (
-                    <div className="mt-3 space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                        <span>Selected Files ({selectedFiles.length}):</span>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedFiles([])}
-                          className="text-rose-500 hover:underline"
-                        >
-                          Clear all
-                        </button>
-                      </div>
-                      {selectedFiles.map((file, idx) => (
-                        <div
-                          key={`${file.name}-${idx}`}
-                          className="flex items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
-                        >
-                          <div className="flex items-center space-x-2 truncate">
-                            <FileText className="w-3.5 h-3.5 text-brand-500 shrink-0" />
-                            <span className="truncate font-medium">{file.name}</span>
-                            <span className="text-[10px] text-slate-400 shrink-0">
-                              ({(file.size / (1024 * 1024)).toFixed(2)} MB)
-                            </span>
-                          </div>
+                  {/* Interactive Per-File Customization Cards */}
+                  {fileConfigs.length > 0 && (
+                    <div className="mt-3.5 space-y-2.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 px-1">
+                        <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                          <Sparkles className="w-3.5 h-3.5 text-brand-500" />
+                          <span>Customize Each PDF ({fileConfigs.length} files):</span>
+                        </span>
+                        <div className="flex items-center gap-3">
+                          {fileConfigs.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFileConfigs((prev) =>
+                                  prev.map((c) => ({
+                                    ...c,
+                                    chapterNumber: uploadChapterNumber,
+                                    customChapter: uploadCustomChapter,
+                                    category: uploadCategory,
+                                    customFilter: uploadCustomFilter,
+                                  }))
+                                );
+                              }}
+                              className="text-brand-600 dark:text-brand-400 hover:underline cursor-pointer"
+                              title="Set all selected PDFs to the default chapter selected below"
+                            >
+                              Sync all to default chapter
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+                            onClick={() => {
+                              setSelectedFiles([]);
+                              setFileConfigs([]);
                             }}
-                            className="p-1 text-slate-400 hover:text-rose-500 transition-colors ml-2"
-                            title="Remove file"
+                            className="text-rose-500 hover:underline cursor-pointer"
                           >
-                            ✕
+                            Clear all
                           </button>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Scrollable list of individual file settings */}
+                      <div className="space-y-2 max-h-60 sm:max-h-72 overflow-y-auto pr-1">
+                        {fileConfigs.map((item, idx) => (
+                          <div
+                            key={item.id}
+                            className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-brand-500/40 transition-all space-y-2 shadow-xs"
+                          >
+                            {/* File title & remove row */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center space-x-2 truncate min-w-0">
+                                <div className="w-6 h-6 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0">
+                                  <FileText className="w-3.5 h-3.5" />
+                                </div>
+                                <span className="truncate font-bold text-xs text-slate-800 dark:text-slate-100" title={item.file.name}>
+                                  {item.file.name}
+                                </span>
+                                <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+                                  ({(item.file.size / (1024 * 1024)).toFixed(2)} MB)
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFileConfigs((prev) => prev.filter((_, i) => i !== idx));
+                                  setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors shrink-0 cursor-pointer"
+                                title="Remove this PDF from batch"
+                              >
+                                ✕
+                              </button>
+                            </div>
+
+                            {/* Individual chapter selection for this PDF */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-between">
+                                  <span>Assigned Chapter:</span>
+                                  {item.chapterNumber !== 'All' && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold">
+                                      Customized
+                                    </span>
+                                  )}
+                                </label>
+                                <select
+                                  value={item.chapterNumber}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFileConfigs((prev) =>
+                                      prev.map((c, i) => (i === idx ? { ...c, chapterNumber: val } : c))
+                                    );
+                                  }}
+                                  className="w-full bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                                >
+                                  <option value="All">General / All Chapters</option>
+                                  {modalChapters.map((ch) => (
+                                    <option key={ch.number} value={ch.number}>
+                                      {ch.number}: {ch.title}
+                                    </option>
+                                  ))}
+                                  <option value="custom">✏️ Enter Custom Chapter...</option>
+                                </select>
+                                {item.chapterNumber === 'custom' && (
+                                  <input
+                                    type="text"
+                                    value={item.customChapter}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setFileConfigs((prev) =>
+                                        prev.map((c, i) => (i === idx ? { ...c, customChapter: val } : c))
+                                      );
+                                    }}
+                                    placeholder="Type custom chapter name..."
+                                    className="mt-1.5 w-full bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                                  />
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                                  Section & Tag:
+                                </label>
+                                <div className="flex items-center gap-1.5">
+                                  <select
+                                    value={item.category}
+                                    onChange={(e) => {
+                                      const val = e.target.value as 'textbook' | 'notes';
+                                      setFileConfigs((prev) =>
+                                        prev.map((c, i) => (i === idx ? { ...c, category: val } : c))
+                                      );
+                                    }}
+                                    className="bg-white dark:bg-slate-900 rounded-xl px-2 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer shrink-0"
+                                  >
+                                    <option value="notes">Notes</option>
+                                    <option value="textbook">Textbook</option>
+                                  </select>
+
+                                  <input
+                                    type="text"
+                                    value={item.customFilter}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setFileConfigs((prev) =>
+                                        prev.map((c, i) => (i === idx ? { ...c, customFilter: val } : c))
+                                      );
+                                    }}
+                                    placeholder="Tag (e.g. Theory)"
+                                    className="flex-1 min-w-0 bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -2947,10 +3165,10 @@ export const SubjectRooms: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Document Section: Textbook vs Notes */}
+                {/* Document Section: Textbook vs Notes (Default for new files) */}
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Document Section
+                    Default Document Section
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -3024,11 +3242,32 @@ export const SubjectRooms: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Chapter Association Dropdown */}
+                {/* Default Chapter Association Dropdown */}
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Associate with Chapter
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">
+                      Default Chapter (Applied if not customized per file)
+                    </label>
+                    {fileConfigs.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFileConfigs((prev) =>
+                            prev.map((item) => ({
+                              ...item,
+                              chapterNumber: uploadChapterNumber,
+                              customChapter: uploadCustomChapter,
+                            }))
+                          );
+                        }}
+                        className="text-[11px] font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer flex items-center gap-1"
+                        title="Apply this chapter to all files above"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>Apply to all {fileConfigs.length} files</span>
+                      </button>
+                    )}
+                  </div>
                   <select
                     value={uploadChapterNumber}
                     onChange={(e) => setUploadChapterNumber(e.target.value)}

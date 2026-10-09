@@ -483,7 +483,15 @@ export const api = {
     chapterNumber?: string,
     chapterTitle?: string,
     customFilter?: string,
-    tags?: string[]
+    tags?: string[],
+    itemsMeta?: Array<{
+      name: string;
+      chapterNumber?: string;
+      chapterTitle?: string;
+      category?: string;
+      customFilter?: string;
+      tags?: string[];
+    }>
   ): Promise<ServerDocument[]> {
     if (files.length === 0) return [];
     const formData = new FormData();
@@ -496,6 +504,7 @@ export const api = {
     if (chapterTitle) formData.append('chapterTitle', chapterTitle);
     if (customFilter) formData.append('customFilter', customFilter);
     if (tags && tags.length > 0) formData.append('tags', tags.join(','));
+    if (itemsMeta && itemsMeta.length > 0) formData.append('itemsMeta', JSON.stringify(itemsMeta));
 
     const res = await fetch(`${API_BASE}/documents/upload-multiple`, {
       method: 'POST',
