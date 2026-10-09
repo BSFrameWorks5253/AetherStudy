@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UserRole, AuthContextType } from '../types/auth';
 import { api } from '../services/api';
+import { AuthModal } from '../components/auth/AuthModal';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -65,6 +66,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveStandard(standard);
     }
     localStorage.setItem('aetherstudy_user', JSON.stringify(res.user));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('aetherstudy_user_change', { detail: { user: res.user } }));
+    }
     return res.user;
   };
 
@@ -72,13 +76,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const profile = await api.login(email);
     setCurrentUser(profile);
     localStorage.setItem('aetherstudy_user', JSON.stringify(profile));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('aetherstudy_user_change', { detail: { user: profile } }));
+    }
     return profile;
   };
 
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem('aetherstudy_user');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('aetherstudy_user_change', { detail: { user: null } }));
+    }
   };
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const openAuthModal = () => setIsAuthModalOpen(true);
+  const closeAuthModal = () => setIsAuthModalOpen(false);
 
   const refreshUsers = async () => {
     if (isSuperAdmin) {
@@ -149,9 +163,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUserRole,
         addAdminUser,
         refreshUsers,
+        isAuthModalOpen,
+        openAuthModal,
+        closeAuthModal,
       }}
     >
       {children}
+      {/* Global Auth Modal rendered directly so any component can trigger it */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
     </AuthContext.Provider>
   );
 };

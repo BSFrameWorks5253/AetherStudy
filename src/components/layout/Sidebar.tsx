@@ -9,6 +9,8 @@ import {
   ChevronRight,
   GraduationCap,
   LogOut,
+  LogIn,
+  Lock,
   Clock,
   Sparkles,
   Printer,
@@ -31,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   onToggleCollapse,
 }) => {
-  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout } = useAuth();
+  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout, openAuthModal } = useAuth();
   const [showDossierModal, setShowDossierModal] = useState<boolean>(false);
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
 
@@ -150,8 +152,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }`}
                   />
                   {!isCollapsed && (
-                    <div className="text-left truncate">
-                      <div className="text-xs font-semibold tracking-tight leading-tight">{item.label}</div>
+                    <div className="text-left truncate flex-1">
+                      <div className="text-xs font-semibold tracking-tight leading-tight flex items-center justify-between">
+                        <span className="truncate">{item.label}</span>
+                        {(item.id === 'timetable' || item.id === 'syllabus') && !isAuthenticated && (
+                          <span className="text-[10px] text-amber-500 shrink-0 ml-1.5" title="Student Sign In Required">
+                            <Lock className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
                       <div
                         className={`text-[10px] mt-0.5 font-normal ${
                           isActive ? 'text-brand-100' : 'text-slate-400 dark:text-slate-500'
@@ -225,6 +234,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
 
+          {!isAuthenticated && (
+            <button
+              type="button"
+              onClick={openAuthModal}
+              className={`w-full p-2.5 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white flex items-center shadow-md shadow-brand-500/20 text-xs font-bold transition-all ios-pill cursor-pointer ${
+                isCollapsed ? 'justify-center' : 'justify-between'
+              }`}
+              title="Sign In / Register Student Account"
+            >
+              <div className="flex items-center gap-2">
+                <LogIn className="w-4 h-4" />
+                {!isCollapsed && <span>Student Sign In</span>}
+              </div>
+              {!isCollapsed && <Sparkles className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
           {!isCollapsed && (
             <button
               type="button"
@@ -287,8 +313,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Icon className="w-5 h-5" />
               </div>
-              <span className={`text-[10px] mt-0.5 tracking-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
-                {item.mobileLabel}
+              <span className={`text-[10px] mt-0.5 tracking-tight flex items-center justify-center gap-0.5 ${isActive ? 'font-bold' : 'font-medium'}`}>
+                <span>{item.mobileLabel}</span>
+                {(item.id === 'timetable' || item.id === 'syllabus') && !isAuthenticated && (
+                  <Lock className="w-2.5 h-2.5 text-amber-500" />
+                )}
               </span>
             </button>
           );

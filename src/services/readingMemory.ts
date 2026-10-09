@@ -22,6 +22,8 @@ export interface DocBookmark {
   createdAt: string;
 }
 
+import { getUserStorageKey } from '../utils/userStorage';
+
 const STORAGE_KEY_PROGRESS = 'aether_reading_progress_v1';
 const STORAGE_KEY_BOOKMARKS = 'aether_bookmarks_v1';
 
@@ -46,7 +48,8 @@ class ReadingMemoryService {
   private init() {
     if (this.isInitialized || typeof window === 'undefined') return;
     try {
-      const rawProg = localStorage.getItem(STORAGE_KEY_PROGRESS);
+      const keyProg = getUserStorageKey(STORAGE_KEY_PROGRESS);
+      const rawProg = localStorage.getItem(keyProg) || localStorage.getItem(STORAGE_KEY_PROGRESS);
       if (rawProg) {
         const parsed = JSON.parse(rawProg);
         Object.entries(parsed).forEach(([k, v]) => {
@@ -54,7 +57,8 @@ class ReadingMemoryService {
         });
       }
 
-      const rawBm = localStorage.getItem(STORAGE_KEY_BOOKMARKS);
+      const keyBm = getUserStorageKey(STORAGE_KEY_BOOKMARKS);
+      const rawBm = localStorage.getItem(keyBm) || localStorage.getItem(STORAGE_KEY_BOOKMARKS);
       if (rawBm) {
         const parsed = JSON.parse(rawBm);
         Object.entries(parsed).forEach(([k, v]) => {
@@ -65,6 +69,14 @@ class ReadingMemoryService {
       console.warn('Failed to initialize ReadingMemory from localStorage:', e);
     }
     this.isInitialized = true;
+
+    // Listen to user change
+    window.addEventListener('aetherstudy_user_change', () => {
+      this.progressCache.clear();
+      this.bookmarksCache.clear();
+      this.isInitialized = false;
+      this.init();
+    });
   }
 
   private persistProgress() {
@@ -74,7 +86,8 @@ class ReadingMemoryService {
       this.progressCache.forEach((v, k) => {
         obj[k] = v;
       });
-      localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify(obj));
+      const key = getUserStorageKey(STORAGE_KEY_PROGRESS);
+      localStorage.setItem(key, JSON.stringify(obj));
     } catch (e) {
       console.warn('Failed to persist reading progress:', e);
     }
@@ -87,7 +100,8 @@ class ReadingMemoryService {
       this.bookmarksCache.forEach((v, k) => {
         obj[k] = v;
       });
-      localStorage.setItem(STORAGE_KEY_BOOKMARKS, JSON.stringify(obj));
+      const key = getUserStorageKey(STORAGE_KEY_BOOKMARKS);
+      localStorage.setItem(key, JSON.stringify(obj));
     } catch (e) {
       console.warn('Failed to persist bookmarks:', e);
     }

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { usePomodoro } from '../../context/PomodoroContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { AuthModal } from '../auth/AuthModal';
 import { NotificationsModal } from '../notifications/NotificationsModal';
 import { api } from '../../services/api';
 import { formatSecondsToTime } from '../../utils/timeUtils';
@@ -43,10 +42,9 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   } = usePomodoro();
 
   const { theme, toggleTheme } = useTheme();
-  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, setActiveStandard, logout } = useAuth();
+  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, setActiveStandard, logout, openAuthModal } = useAuth();
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
@@ -135,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             <div className="flex items-center space-x-1.5">
               <button
                 type="button"
-                onClick={() => setShowAuthModal(true)}
+                onClick={openAuthModal}
                 className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.06] text-xs font-medium text-slate-800 dark:text-slate-200 transition-all ios-pill"
                 title="Account Settings"
               >
@@ -174,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           ) : (
             <button
               type="button"
-              onClick={() => setShowAuthModal(true)}
+              onClick={openAuthModal}
               className="flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold tracking-tight shadow-sm transition-all ios-pill"
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -336,11 +334,6 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           </button>
         </div>
       </header>
-
-      {/* Global Auth Modal */}
-      {showAuthModal && (
-        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-      )}
 
       {/* Official Notifications & Admin Announcements Modal */}
       {showNotificationsModal && (

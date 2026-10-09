@@ -11,6 +11,7 @@ import { FlashcardDeck } from './components/flashcards/FlashcardDeck';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { PWAInstallBanner } from './components/common/PWAInstallBanner';
 import { PullToRefresh } from './components/common/PullToRefresh';
+import { AuthRequiredGate } from './components/auth/AuthRequiredGate';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 
@@ -18,7 +19,7 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const { theme } = useTheme();
-  const { isSuperAdmin, activeStandard, setActiveStandard } = useAuth();
+  const { isSuperAdmin, activeStandard, setActiveStandard, isAuthenticated } = useAuth();
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
 
   // Sync top-level tab with current browser URL path
@@ -140,8 +141,26 @@ export const App: React.FC = () => {
             )}
             {activeTab === 'simulator' && <ExamSimulator />}
             {activeTab === 'flashcards' && <FlashcardDeck />}
-            {activeTab === 'timetable' && <TimetableGrid />}
-            {activeTab === 'syllabus' && <TrackerTree />}
+            {activeTab === 'timetable' && (
+              isAuthenticated ? (
+                <TimetableGrid />
+              ) : (
+                <AuthRequiredGate
+                  feature="timetable"
+                  onContinueAsGuest={() => handleTabChange('workspace')}
+                />
+              )
+            )}
+            {activeTab === 'syllabus' && (
+              isAuthenticated ? (
+                <TrackerTree />
+              ) : (
+                <AuthRequiredGate
+                  feature="syllabus"
+                  onContinueAsGuest={() => handleTabChange('workspace')}
+                />
+              )
+            )}
           </main>
         </PullToRefresh>
       </div>

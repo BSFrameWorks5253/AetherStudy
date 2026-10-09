@@ -1,6 +1,7 @@
 import React from 'react';
 import { useStudyStore } from '../../store/useStudyStore';
 import { Flashcard } from '../flashcards/FlashcardDeck';
+import { getUserStorageItem } from '../../utils/userStorage';
 import { Printer, X, Sparkles } from 'lucide-react';
 
 interface RevisionExporterModalProps {
@@ -16,15 +17,9 @@ export const RevisionExporterModal: React.FC<RevisionExporterModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Retrieve syllabus completed map
-  let syllabusCompletedCount = 0;
-  try {
-    const rawMap = localStorage.getItem('aether_syllabus_completed_map');
-    if (rawMap) {
-      const parsed = JSON.parse(rawMap);
-      syllabusCompletedCount = Object.values(parsed).filter(Boolean).length;
-    }
-  } catch {}
+  // Retrieve user-isolated syllabus completed map
+  const rawMap = getUserStorageItem<Record<string, boolean>>('aether_syllabus_completed_map', {});
+  const syllabusCompletedCount = Object.values(rawMap).filter(Boolean).length;
 
   // Retrieve flashcards deck
   let flashcards: Flashcard[] = [];

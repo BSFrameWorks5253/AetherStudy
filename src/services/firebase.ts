@@ -22,6 +22,7 @@ import {
 } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 import { TimeSlot } from '../types/timetable';
+import { getUserStorageItem, setUserStorageItem } from '../utils/userStorage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCtVCt0Ai88DXOlLTJPBVNRfZF3TxruuFY',
@@ -126,9 +127,7 @@ export const firebaseTimetable = {
         const val = snapshot.val();
         if (Array.isArray(val) && val.length > 0) {
           hasReceivedRtdb = true;
-          try {
-            localStorage.setItem('aether_user_timetable', JSON.stringify(val));
-          } catch {}
+          setUserStorageItem('aether_user_timetable', val);
           onUpdate(val);
         }
       },
@@ -146,9 +145,7 @@ export const firebaseTimetable = {
         if (!hasReceivedRtdb && snap.exists()) {
           const data = snap.data();
           if (Array.isArray(data?.slots) && data.slots.length > 0) {
-            try {
-              localStorage.setItem('aether_user_timetable', JSON.stringify(data.slots));
-            } catch {}
+            setUserStorageItem('aether_user_timetable', data.slots);
             onUpdate(data.slots);
           }
         }
@@ -173,10 +170,8 @@ export const firebaseTimetable = {
    * Save timetable to both Realtime Database and Firestore simultaneously.
    */
   async save(slots: TimeSlot[]): Promise<{ success: boolean; cloud: boolean }> {
-    // 1. Synchronously save to local storage first (instant client responsiveness)
-    try {
-      localStorage.setItem('aether_user_timetable', JSON.stringify(slots));
-    } catch {}
+    // 1. Synchronously save to user-scoped local storage first
+    setUserStorageItem('aether_user_timetable', slots);
 
     const userKey = getSyncUserKey();
     let cloudSaved = false;
@@ -224,9 +219,7 @@ export const firebaseTimetable = {
       if (snap.exists()) {
         const val = snap.val();
         if (Array.isArray(val) && val.length > 0) {
-          try {
-            localStorage.setItem('aether_user_timetable', JSON.stringify(val));
-          } catch {}
+          setUserStorageItem('aether_user_timetable', val);
           return val;
         }
       }
@@ -241,9 +234,7 @@ export const firebaseTimetable = {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (Array.isArray(data?.slots) && data.slots.length > 0) {
-          try {
-            localStorage.setItem('aether_user_timetable', JSON.stringify(data.slots));
-          } catch {}
+          setUserStorageItem('aether_user_timetable', data.slots);
           return data.slots;
         }
       }
@@ -251,16 +242,111 @@ export const firebaseTimetable = {
       console.warn('[Firebase Firestore Fetch]:', err);
     }
 
-    // 3. Try LocalStorage
+    // 3. Try User-Scoped LocalStorage
+    const local = getUserStorageItem<TimeSlot[] | null>('aether_user_timetable', null);
+    if (local && Array.isArray(local) && local.length > 0) {
+      return local;
+    }
+
+    return null;
+  },
+};
+
+/**
+ * =========================================================================
+ * 1B. REALTIME & FIRESTORE SYLLABUS PROGRESS CLOUD ENGINE
+ * =========================================================================
+ * Strictly partitions syllabus chapter mastery per student account.
+ */
+export const firebaseSyllabus = {
+  subscribe(
+    onUpdate: (map: Record<string, boolean>) => void,
+    onError?: (error: Error) => void
+  ): () => void {
+    const userKey = getSyncUserKey();
+    const rtdbRef = ref(rtdb, `syllabus_progress/${userKey}`);
+
+    const unsubscribe = onValue(
+      rtdbRef,
+      (snapshot) => {
+        const val = snapshot.val();
+        if (val && typeof val === 'object') {
+          setUserStorageItem('aether_syllabus_completed_map', val);
+          onUpdate(val);
+        }
+      },
+      (err) => {
+        console.warn('[Firebase RTDB Syllabus Progress] Listener note:', err?.message || err);
+        if (onError) onError(err);
+      }
+    );
+
+    return () => {
+      try {
+        unsubscribe();
+      } catch {}
+    };
+  },
+
+  async save(completedMap: Record<string, boolean>): Promise<{ success: boolean; cloud: boolean }> {
+    setUserStorageItem('aether_syllabus_completed_map', completedMap);
+    const userKey = getSyncUserKey();
+    let cloudSaved = false;
+
     try {
-      const local = localStorage.getItem('aether_user_timetable');
-      if (local) {
-        const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      await ensureFirebaseAuth();
+      const rtdbRef = ref(rtdb, `syllabus_progress/${userKey}`);
+      await set(rtdbRef, completedMap);
+      cloudSaved = true;
+    } catch (err) {
+      console.warn('[Firebase RTDB Syllabus Save]:', err);
+    }
+
+    try {
+      const docRef = doc(db, 'syllabus_progress', userKey);
+      await setDoc(
+        docRef,
+        {
+          completedMap,
+          updatedAt: new Date().toISOString(),
+          userKey,
+        },
+        { merge: true }
+      );
+      cloudSaved = true;
+    } catch (err) {
+      console.warn('[Firebase Firestore Syllabus Save]:', err);
+    }
+
+    return { success: true, cloud: cloudSaved };
+  },
+
+  async fetch(): Promise<Record<string, boolean> | null> {
+    const userKey = getSyncUserKey();
+
+    try {
+      const snap = await get(ref(rtdb, `syllabus_progress/${userKey}`));
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          setUserStorageItem('aether_syllabus_completed_map', val);
+          return val;
+        }
       }
     } catch {}
 
-    return null;
+    try {
+      const docSnap = await getDoc(doc(db, 'syllabus_progress', userKey));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data?.completedMap) {
+          setUserStorageItem('aether_syllabus_completed_map', data.completedMap);
+          return data.completedMap;
+        }
+      }
+    } catch {}
+
+    return getUserStorageItem<Record<string, boolean> | null>('aether_syllabus_completed_map', null);
   },
 };
 

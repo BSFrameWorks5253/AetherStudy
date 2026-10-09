@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useServerStorage } from '../../hooks/useServerStorage';
-import { api } from '../../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
 import { firebaseTimetable, firebasePresence } from '../../services/firebase';
 import { usePomodoro } from '../../context/PomodoroContext';
+import { useAuth } from '../../context/AuthContext';
+import { getUserStorageItem, setUserStorageItem } from '../../utils/userStorage';
 import { DayOfWeek, TimeSlot } from '../../types/timetable';
 import {
   Calendar,
@@ -126,33 +126,41 @@ const COLOR_OPTIONS = [
 ];
 
 export const Timetable: React.FC = () => {
-  // Sync schedule directly with hidden GitHub Database pipeline with local server fallback
-  const [schedule, setSchedule, isSaving, _isConnected] = useServerStorage<TimeSlot[]>(
-    async () => {
-      try {
-        const ghTimetable = await api.syncGet<TimeSlot[]>('timetable.json');
-        if (Array.isArray(ghTimetable) && ghTimetable.length > 0) return ghTimetable;
-      } catch {
-        // Fallback
-      }
-      return await api.getTimetable<TimeSlot[]>();
-    },
-    async (slots) => {
-      try {
-        await api.syncPut('timetable.json', slots);
-      } catch {
-        // Fallback
-      }
-      return await api.saveTimetable(slots);
-    },
-    INITIAL_SCHEDULE
-  );
+  const { currentUser } = useAuth();
 
+  // User-partitioned schedule state
+  const [schedule, setSchedule] = useState<TimeSlot[]>(() => {
+    return getUserStorageItem<TimeSlot[]>('aether_user_timetable', INITIAL_SCHEDULE);
+  });
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [firebaseStatus, setFirebaseStatus] = useState<'connected' | 'syncing' | 'offline'>('connected');
   const [activeStudents, setActiveStudents] = useState<number>(1);
 
-  // 1. Live subscription to Firebase Realtime Database & Firestore for instant cross-tab & multi-device sync
+  // Sync schedule with user-partitioned storage and cloud
+  const updateSchedule = useCallback((newSlotsOrUpdater: TimeSlot[] | ((prev: TimeSlot[]) => TimeSlot[])) => {
+    setSchedule((prev) => {
+      const next = typeof newSlotsOrUpdater === 'function' ? newSlotsOrUpdater(prev) : newSlotsOrUpdater;
+      setUserStorageItem('aether_user_timetable', next);
+      setIsSaving(true);
+      firebaseTimetable.save(next).finally(() => setIsSaving(false));
+      return next;
+    });
+  }, []);
+
+  // 1. Live subscription to Firebase Realtime Database & Firestore strictly for CURRENT student
   useEffect(() => {
+    // Load local user-scoped cache immediately
+    const userLocal = getUserStorageItem<TimeSlot[]>('aether_user_timetable', INITIAL_SCHEDULE);
+    setSchedule(userLocal);
+
+    // Fetch latest cloud data for this user
+    firebaseTimetable.fetch().then((cloudSlots) => {
+      if (Array.isArray(cloudSlots) && cloudSlots.length > 0) {
+        setSchedule(cloudSlots);
+      }
+    });
+
+    // Realtime listener
     const unsubscribeTimetable = firebaseTimetable.subscribe(
       (cloudSlots) => {
         if (Array.isArray(cloudSlots) && cloudSlots.length > 0) {
@@ -176,7 +184,7 @@ export const Timetable: React.FC = () => {
       stopPresence();
       unsubscribePresence();
     };
-  }, []);
+  }, [currentUser?.email]);
 
   const [activeDay, setActiveDay] = useState<DayOfWeek>('Monday');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('All');
@@ -195,20 +203,17 @@ export const Timetable: React.FC = () => {
   const allSubjects = Array.from(new Set(schedule.map((s) => s.subject))).filter(Boolean);
 
   const handleToggleCompleted = (id: string) => {
-    setSchedule((prev) =>
+    updateSchedule((prev) =>
       prev.map((slot) => (slot.id === id ? { ...slot, isCompleted: !slot.isCompleted } : slot))
     );
   };
 
   const handleDeleteSlot = (id: string) => {
-    setSchedule((prev) => prev.filter((slot) => slot.id !== id));
+    updateSchedule((prev) => prev.filter((slot) => slot.id !== id));
   };
 
   const handleLoadModelSchedule = () => {
-    setSchedule(INITIAL_SCHEDULE);
-    try {
-      localStorage.setItem('aether_user_timetable', JSON.stringify(INITIAL_SCHEDULE));
-    } catch {}
+    updateSchedule(INITIAL_SCHEDULE);
   };
 
   const handleAddSlot = (e: React.FormEvent) => {
@@ -227,14 +232,7 @@ export const Timetable: React.FC = () => {
       isCompleted: false,
     };
 
-    setSchedule((prev) => {
-      const next = [...prev, newSlot];
-      try {
-        localStorage.setItem('aether_user_timetable', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-
+    updateSchedule((prev) => [...prev, newSlot]);
     setNewSubject('');
     setNewTopic('');
     setShowAddModal(false);

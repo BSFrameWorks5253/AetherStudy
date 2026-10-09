@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { firebaseStudyProgress } from '../services/firebase';
+import { getUserStorageKey } from '../utils/userStorage';
 
 export interface StudyBookmark {
   pdfId: string;
@@ -140,7 +141,20 @@ export const useStudyStore = create<StudyStoreState>()(
     }),
     {
       name: 'aetherstudy-vault-store-v2',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (name: string) => {
+          const key = getUserStorageKey(name);
+          return localStorage.getItem(key) || localStorage.getItem(name);
+        },
+        setItem: (name: string, value: string) => {
+          const key = getUserStorageKey(name);
+          localStorage.setItem(key, value);
+        },
+        removeItem: (name: string) => {
+          const key = getUserStorageKey(name);
+          localStorage.removeItem(key);
+        },
+      })),
     }
   )
 );
@@ -160,8 +174,7 @@ if (typeof window !== 'undefined') {
     }, 1200);
   });
 
-  // Pull initial progress from cloud if available
-  setTimeout(() => {
+  const syncFromCloud = () => {
     firebaseStudyProgress.fetch().then((cloudData) => {
       if (cloudData && typeof cloudData === 'object') {
         useStudyStore.setState((prev) => ({
@@ -177,5 +190,30 @@ if (typeof window !== 'undefined') {
         }));
       }
     }).catch(() => {});
-  }, 500);
+  };
+
+  // Pull initial progress from cloud if available
+  setTimeout(syncFromCloud, 500);
+
+  // Listen to user sign-in / sign-out switches to partition state strictly
+  window.addEventListener('aetherstudy_user_change', () => {
+    const key = getUserStorageKey('aetherstudy-vault-store-v2');
+    const local = localStorage.getItem(key);
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        if (parsed?.state) {
+          useStudyStore.setState(parsed.state);
+        }
+      } catch {}
+    } else {
+      useStudyStore.setState({
+        openedPapers: [],
+        completedPapers: [],
+        pdfProgress: {},
+        bookmarks: [],
+      });
+    }
+    syncFromCloud();
+  });
 }

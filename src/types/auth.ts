@@ -23,4 +23,7 @@ export interface AuthContextType {
   updateUserRole: (targetEmail: string, newRole: UserRole, standard?: string) => Promise<boolean>;
   addAdminUser: (email: string, role?: UserRole, standard?: string) => Promise<boolean>;
   refreshUsers: () => Promise<void>;
+  isAuthModalOpen: boolean;
+  openAuthModal: () => void;
+  closeAuthModal: () => void;
 }

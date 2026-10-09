@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api, ServerDocument } from '../../services/api';
+import { getUserStorageItem, setUserStorageItem } from '../../utils/userStorage';
 import { TestPaper } from '../../types/testPaper';
 import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
@@ -566,15 +567,15 @@ export const SubjectRooms: React.FC = () => {
   const [activeCategoryTab, setActiveCategoryTab] = useState<'syllabus' | 'textbooks' | 'notes' | 'pyq'>('syllabus');
   const [readingDoc, setReadingDoc] = useState<ServerDocument | null>(null);
 
-  // Chapter syllabus mastery tracking (persisted in localStorage)
+  // Chapter syllabus mastery tracking (strictly isolated per student account)
   const [completedChapters, setCompletedChapters] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('aether_chapter_progress');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+    return getUserStorageItem<Record<string, boolean>>('aether_chapter_progress', {});
   });
+
+  // Reload user-scoped chapter progress when student logs in or switches
+  useEffect(() => {
+    setCompletedChapters(getUserStorageItem<Record<string, boolean>>('aether_chapter_progress', {}));
+  }, [currentUser?.email]);
 
   // Document & Subject & PYQ Data
   const [documents, setDocuments] = useState<ServerDocument[]>([]);
@@ -977,11 +978,7 @@ export const SubjectRooms: React.FC = () => {
   const toggleChapter = (chapterKey: string) => {
     setCompletedChapters((prev) => {
       const next = { ...prev, [chapterKey]: !prev[chapterKey] };
-      try {
-        localStorage.setItem('aether_chapter_progress', JSON.stringify(next));
-      } catch (err) {
-        console.warn('Failed to save chapter progress:', err);
-      }
+      setUserStorageItem('aether_chapter_progress', next);
       return next;
     });
   };
@@ -992,11 +989,7 @@ export const SubjectRooms: React.FC = () => {
       activeRoomChapters.forEach((ch) => {
         next[`${activeSubjectSlug}-${ch.number}`] = true;
       });
-      try {
-        localStorage.setItem('aether_chapter_progress', JSON.stringify(next));
-      } catch (err) {
-        console.warn('Failed to save chapter progress:', err);
-      }
+      setUserStorageItem('aether_chapter_progress', next);
       return next;
     });
   };
@@ -1007,11 +1000,7 @@ export const SubjectRooms: React.FC = () => {
       activeRoomChapters.forEach((ch) => {
         delete next[`${activeSubjectSlug}-${ch.number}`];
       });
-      try {
-        localStorage.setItem('aether_chapter_progress', JSON.stringify(next));
-      } catch (err) {
-        console.warn('Failed to save chapter progress:', err);
-      }
+      setUserStorageItem('aether_chapter_progress', next);
       return next;
     });
   };

@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useServerStorage } from '../../hooks/useServerStorage';
 import { api } from '../../services/api';
+import { firebaseSyllabus } from '../../services/firebase';
+import { getUserStorageItem, setUserStorageItem } from '../../utils/userStorage';
 import { SyllabusTopic, SyllabusChapter } from '../../types/syllabus';
 import { CircularProgress } from './CircularProgress';
 import {
@@ -194,11 +196,18 @@ export const SyllabusTracker: React.FC = () => {
         }
       }
 
-      // Read local chapter checklist progress
-      let localCompletedMap: Record<string, boolean> = {};
+      // Read user-isolated chapter checklist progress
+      let localCompletedMap: Record<string, boolean> = getUserStorageItem<Record<string, boolean>>(
+        'aether_syllabus_completed_map',
+        {}
+      );
+
+      // If cloud progress is available, merge it
       try {
-        const cached = localStorage.getItem('aether_syllabus_completed_map');
-        if (cached) localCompletedMap = JSON.parse(cached);
+        const cloudProgress = await firebaseSyllabus.fetch();
+        if (cloudProgress && typeof cloudProgress === 'object') {
+          localCompletedMap = { ...localCompletedMap, ...cloudProgress };
+        }
       } catch {}
 
       // If server has completion states, merge them
@@ -245,7 +254,7 @@ export const SyllabusTracker: React.FC = () => {
       return authoritativeSyllabus;
     },
     async (topics) => {
-      // Save completed chapter states to localStorage
+      // Save completed chapter states to user-scoped storage & Firebase
       try {
         const completedMap: Record<string, boolean> = {};
         topics.forEach((t) => {
@@ -253,7 +262,8 @@ export const SyllabusTracker: React.FC = () => {
             completedMap[c.id] = c.isCompleted;
           });
         });
-        localStorage.setItem('aether_syllabus_completed_map', JSON.stringify(completedMap));
+        setUserStorageItem('aether_syllabus_completed_map', completedMap);
+        firebaseSyllabus.save(completedMap).catch(() => {});
       } catch {}
 
       try {
@@ -312,7 +322,8 @@ export const SyllabusTracker: React.FC = () => {
             completedMap[c.id] = c.isCompleted;
           });
         });
-        localStorage.setItem('aether_syllabus_completed_map', JSON.stringify(completedMap));
+        setUserStorageItem('aether_syllabus_completed_map', completedMap);
+        firebaseSyllabus.save(completedMap).catch(() => {});
       } catch {}
 
       return updated;
