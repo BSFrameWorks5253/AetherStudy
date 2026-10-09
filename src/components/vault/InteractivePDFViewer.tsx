@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 import { useStudyStore } from '../../store/useStudyStore';
 import { useDebounceProgress } from '../../hooks/useDebounceProgress';
 import { transformDocumentUrl } from '../../utils/urlTransformer';
 import {
-  ChevronLeft,
-  ChevronRight,
   Maximize2,
   Minimize2,
   Bookmark,
@@ -15,7 +14,21 @@ import {
   ExternalLink,
   Trash2,
   ArrowLeft,
+  ZoomIn,
+  ZoomOut,
+  RefreshCw,
 } from 'lucide-react';
+
+// Configure offline local PDF.js worker with cdnjs fallback
+if (typeof window !== 'undefined') {
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      window.location.origin + '/pdf.worker.min.js';
+  } catch {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+}
 
 interface InteractivePDFViewerProps {
   url: string;
@@ -30,11 +43,11 @@ interface InteractivePDFViewerProps {
 
 /**
  * PRODUCTION-READY PLATFORM-ADAPTIVE HYDRATION-SAFE VIEW ENGINE
- * - Hydration Mismatch Shield: Prevents Next.js / React SSR hydration mismatch.
- * - Dynamic Google Drive Bypass: Automatic preview URL generation bypasses CORS.
- * - Edge-to-Edge Document Canvas: Full viewport display for maximum readability.
- * - 500ms Debounced Progress Sync: Fluid page tracking with zero storage freezing.
- * - Real Study Notes & Bookmarks: Direct persistent storage with zero mock data.
+ * - Vertical Swipe Down / Up Navigation (Touch gesture + Mouse wheel + Keyboard)
+ * - Zero Button Navigation (Chevron buttons completely removed per UX spec)
+ * - Multi-Engine Fail-Safe: High-DPI Canvas (PDF.js) -> Google Drive Preview -> Google Docs Viewer -> Direct Open
+ * - 500ms Debounced Progress Sync: Instant responsive UI with zero storage stutter
+ * - Real Study Notes & Bookmarks: Direct persistent storage with zero mock data
  */
 export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
   url,
@@ -46,7 +59,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
   durationMinutes = 180,
   onClose,
 }) => {
-  // 1. HYDRATION MISMATCH SHIELD
+  // 1. Hydration Mismatch Shield
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
   useEffect(() => {
@@ -58,6 +71,29 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
   const activeDocId = useMemo(() => {
     return propPaperId || urlBundle.fileId || title.replace(/\s+/g, '_').toLowerCase();
   }, [propPaperId, urlBundle.fileId, title]);
+
+  // Safe PDF URL (resolve relative path to absolute URL for PDF.js web worker)
+  const safePdfUrl = useMemo(() => {
+    if (!url) return '';
+    if (urlBundle.isDrive) {
+      return urlBundle.previewUrl;
+    }
+
+    const absolute =
+      url.startsWith('http://') ||
+      url.startsWith('https://') ||
+      url.startsWith('blob:') ||
+      url.startsWith('data:')
+        ? url
+        : `${typeof window !== 'undefined' ? window.location.origin : ''}${url.startsWith('/') ? '' : '/'}${url}`;
+
+    try {
+      const decoded = decodeURI(absolute);
+      return encodeURI(decoded);
+    } catch {
+      return encodeURI(absolute);
+    }
+  }, [url, urlBundle]);
 
   // Zustand Global Store Integration
   const {
@@ -81,8 +117,25 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
     }
   }, [activeDocId, markAsOpened]);
 
-  // 2. STATE-SAVING DEBOUNCER HOOK (500ms localStorage sync)
-  const totalPages = 12;
+  // Engine state: 'canvas' for local/direct PDFs, 'drive' for Google Drive, 'gdocs' for fail-safe
+  const [engineMode, setEngineMode] = useState<'canvas' | 'drive' | 'gdocs' | 'native'>(() => {
+    return urlBundle.isDrive ? 'drive' : 'canvas';
+  });
+
+  // PDF.js Canvas state
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [numPages, setNumPages] = useState<number>(0);
+  const [loadingDoc, setLoadingDoc] = useState<boolean>(!urlBundle.isDrive);
+  const [scale, setScale] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 640) return 0.95;
+      if (window.innerWidth < 1024) return 1.2;
+      return 1.4;
+    }
+    return 1.4;
+  });
+
+  // 2. State-Saving Debouncer Hook (500ms sync)
   const {
     displayPage,
     setPage,
@@ -92,18 +145,185 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
   } = useDebounceProgress({
     pdfId: activeDocId,
     initialPage: 1,
-    totalPages,
+    totalPages: numPages > 0 ? numPages : 50,
     delayMs: 500,
   });
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showNotesDrawer, setShowNotesDrawer] = useState<boolean>(false);
+  const [showSwipeHint, setShowSwipeHint] = useState<boolean>(true);
 
   // Bookmark Input State
   const [isAddingBookmark, setIsAddingBookmark] = useState<boolean>(false);
   const [bookmarkNote, setBookmarkNote] = useState<string>('');
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const renderTaskRef = useRef<any>(null);
+
+  // Gesture tracking refs
+  const touchStartY = useRef<number>(0);
+  const touchStartX = useRef<number>(0);
+  const lastWheelTime = useRef<number>(0);
+
+  // Load PDF with PDF.js when in canvas engine
+  useEffect(() => {
+    if (!safePdfUrl || urlBundle.isDrive) {
+      setLoadingDoc(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setLoadingDoc(true);
+
+    const localCmap = typeof window !== 'undefined' ? `${window.location.origin}/cmaps/` : '';
+    const loadingTask = pdfjsLib.getDocument({
+      url: safePdfUrl,
+      cMapUrl: localCmap,
+      cMapPacked: true,
+    });
+
+    loadingTask.promise
+      .then((loadedDoc: any) => {
+        if (isCancelled) return;
+        setPdfDoc(loadedDoc);
+        setNumPages(loadedDoc.numPages);
+        setLoadingDoc(false);
+      })
+      .catch((err: any) => {
+        if (isCancelled) return;
+        console.warn('PDF.js canvas load notice, falling back to Google Docs Engine:', err);
+        setEngineMode('gdocs');
+        setLoadingDoc(false);
+      });
+
+    return () => {
+      isCancelled = true;
+      try {
+        loadingTask.destroy();
+      } catch {}
+    };
+  }, [safePdfUrl, urlBundle.isDrive]);
+
+  // Render Page to Canvas
+  useEffect(() => {
+    if (!pdfDoc || engineMode !== 'canvas') return;
+
+    let isCancelled = false;
+
+    if (renderTaskRef.current) {
+      try {
+        renderTaskRef.current.cancel();
+      } catch {}
+      renderTaskRef.current = null;
+    }
+
+    pdfDoc.getPage(displayPage).then((page: any) => {
+      if (isCancelled) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
+      const viewport = page.getViewport({ scale });
+
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = `${Math.floor(viewport.width)}px`;
+      canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const renderContext = {
+        canvasContext: context,
+        viewport,
+      };
+
+      const task = page.render(renderContext);
+      renderTaskRef.current = task;
+
+      task.promise
+        .then(() => {
+          renderTaskRef.current = null;
+        })
+        .catch((err: any) => {
+          if (err?.name === 'RenderingCancelledException') return;
+          console.warn('Canvas render error, falling back to Google Docs Engine:', err);
+          setEngineMode('gdocs');
+        });
+    });
+
+    return () => {
+      isCancelled = true;
+      if (renderTaskRef.current) {
+        try {
+          renderTaskRef.current.cancel();
+        } catch {}
+        renderTaskRef.current = null;
+      }
+    };
+  }, [pdfDoc, displayPage, scale, engineMode]);
+
+  // ==============================================================
+  // VERTICAL SWIPE DOWN / UP & WHEEL NAVIGATION (NO BUTTON CHEVRONS)
+  // ==============================================================
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const endY = e.changedTouches[0].clientY;
+    const endX = e.changedTouches[0].clientX;
+    const diffY = touchStartY.current - endY;
+    const diffX = touchStartX.current - endX;
+
+    // Vertical swipe check (threshold: 45px and more vertical than horizontal)
+    if (Math.abs(diffY) > 45 && Math.abs(diffY) > Math.abs(diffX)) {
+      if (diffY > 0) {
+        // Swiped UP -> Advance to Next Page
+        nextPage();
+      } else {
+        // Swiped DOWN -> Go to Previous Page
+        prevPage();
+      }
+      setShowSwipeHint(false);
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    const now = Date.now();
+    // 300ms debounce
+    if (now - lastWheelTime.current < 300) return;
+
+    if (Math.abs(e.deltaY) > 35) {
+      lastWheelTime.current = now;
+      if (e.deltaY > 0) {
+        nextPage();
+      } else {
+        prevPage();
+      }
+      setShowSwipeHint(false);
+    }
+  };
+
+  // Keyboard ArrowUp / ArrowDown navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextPage();
+        setShowSwipeHint(false);
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevPage();
+        setShowSwipeHint(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nextPage, prevPage]);
 
   // Fullscreen toggle handler
   const handleToggleFullscreen = () => {
@@ -117,7 +337,10 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
 
   const isCurrentPageBookmarked = activeBookmarks.some((b) => b.page === displayPage);
 
-  // 1. HYDRATION MISMATCH SHIELD: Skeletal Loading Guard
+  const handleZoomIn = useCallback(() => setScale((prev) => Math.min(prev + 0.25, 3.0)), []);
+  const handleZoomOut = useCallback(() => setScale((prev) => Math.max(prev - 0.25, 0.6)), []);
+
+  // Hydration guard
   if (!isMounted) {
     return (
       <div className="w-full h-full min-h-[500px] flex flex-col items-center justify-center bg-slate-950 text-slate-100 p-6 animate-pulse select-none">
@@ -134,18 +357,23 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
     );
   }
 
-  // Resolved URL to stream or preview
-  const resolvedFrameUrl = urlBundle.isDrive
-    ? urlBundle.previewUrl
-    : url;
+  // Resolved URL for direct tab opening
+  const directOpenUrl = urlBundle.isDrive
+    ? urlBundle.downloadUrl || urlBundle.previewUrl
+    : safePdfUrl;
+
+  const totalPagesCount = numPages > 0 ? numPages : 12;
 
   return (
     <div
       ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
       className="relative flex flex-col h-full w-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans select-none transition-colors"
     >
       {/* ============================================================== */}
-      {/* TOP CONTROL BAR (HIGH-CONTRAST, MIN 48x48PX TOUCH TARGETS)     */}
+      {/* TOP CONTROL BAR (SWIPE STATUS PILL, ZERO BUTTON CHEVRONS)       */}
       {/* ============================================================== */}
       <header className="sticky top-0 z-40 h-16 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800/80 backdrop-blur-md px-3 md:px-5 flex items-center justify-between shadow-xs transition-colors">
         {/* Left: Close & Title Info */}
@@ -153,7 +381,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           {onClose && (
             <button
               onClick={onClose}
-              className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all hover:scale-105 active:scale-95 cursor-pointer border border-slate-200 dark:border-slate-700/60 shadow-xs"
+              className="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all hover:scale-105 active:scale-95 cursor-pointer border border-slate-200 dark:border-slate-700/60 shadow-xs"
               title="Return to Archive Dashboard"
               aria-label="Close Viewer"
             >
@@ -181,22 +409,18 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           </div>
         </div>
 
-        {/* Center: Fluid Page Stepper & Debounce Indicator */}
+        {/* Center: Apple-Style Page Status Pill (BUTTON NAV REMOVED -> SWIPE ONLY) */}
         <div className="flex items-center space-x-1 sm:space-x-2">
-          <button
-            onClick={prevPage}
-            disabled={displayPage <= 1}
-            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-100 dark:disabled:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer border border-slate-200 dark:border-slate-700/60 shadow-xs"
-            title="Previous Page (PgUp / Left Arrow)"
-            aria-label="Previous Page"
+          <div
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/70 text-xs font-mono shadow-xs cursor-default"
+            title="Swipe up/down or scroll wheel to navigate pages"
           >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-
-          <div className="flex items-center space-x-1 px-3 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/70 text-xs font-mono shadow-xs">
             <span className="font-bold text-brand-600 dark:text-brand-300 text-sm">{displayPage}</span>
             <span className="text-slate-400 dark:text-slate-500">/</span>
-            <span className="text-slate-600 dark:text-slate-400">{totalPages}</span>
+            <span className="text-slate-600 dark:text-slate-400">{totalPagesCount}</span>
+            <span className="hidden sm:inline text-[9px] text-slate-400 font-sans ml-1">
+              (Swipe ↑↓)
+            </span>
             {isPendingSync && (
               <span
                 className="w-2 h-2 rounded-full bg-amber-400 animate-ping ml-1"
@@ -204,20 +428,30 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
               />
             )}
           </div>
-
-          <button
-            onClick={nextPage}
-            disabled={displayPage >= totalPages}
-            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-100 dark:disabled:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer border border-slate-200 dark:border-slate-700/60 shadow-xs"
-            title="Next Page (PgDn / Right Arrow)"
-            aria-label="Next Page"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
         </div>
 
-        {/* Right: Actions, Bookmarks & Completion */}
+        {/* Right: Actions, Bookmarks, Engine & Complete */}
         <div className="flex items-center space-x-1.5 sm:space-x-2">
+          {/* Zoom In / Out (in canvas mode) */}
+          {engineMode === 'canvas' && (
+            <div className="hidden sm:flex items-center space-x-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200 dark:border-slate-700/60">
+              <button
+                onClick={handleZoomOut}
+                className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleZoomIn}
+                className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Bookmark Toggle */}
           <button
             onClick={() => {
@@ -227,7 +461,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
                 setIsAddingBookmark(true);
               }
             }}
-            className={`min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl border transition-all cursor-pointer shadow-xs ${
+            className={`min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center rounded-2xl border transition-all cursor-pointer shadow-xs ${
               isCurrentPageBookmarked
                 ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-300 dark:border-amber-500/50 shadow-md shadow-amber-500/20'
                 : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60'
@@ -245,7 +479,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           {/* Notes & Bookmarks Drawer Toggle */}
           <button
             onClick={() => setShowNotesDrawer(!showNotesDrawer)}
-            className={`min-w-[48px] min-h-[48px] px-3.5 h-12 flex items-center justify-center space-x-1.5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
+            className={`min-w-[44px] min-h-[44px] px-3.5 h-11 flex items-center justify-center space-x-1.5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
               showNotesDrawer
                 ? 'bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-500/20'
                 : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60'
@@ -262,7 +496,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           {/* Mark Complete Toggle */}
           <button
             onClick={() => toggleComplete(activeDocId)}
-            className={`min-w-[48px] min-h-[48px] px-3.5 h-12 flex items-center justify-center space-x-1.5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
+            className={`min-w-[44px] min-h-[44px] px-3.5 h-11 flex items-center justify-center space-x-1.5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
               isDocCompleted
                 ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/50 shadow-md shadow-emerald-500/20 font-bold'
                 : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 font-medium'
@@ -278,13 +512,13 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
             </span>
           </button>
 
-          {/* External Drive Link */}
+          {/* External Drive / App Link */}
           <a
-            href={urlBundle.downloadUrl || url}
+            href={directOpenUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
-            title="Open in Native Viewer / Drive"
+            className="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center rounded-2xl bg-brand-600 hover:bg-brand-500 text-white transition-all shadow-md shadow-brand-500/20 cursor-pointer"
+            title="Open Document in Native PDF Viewer / New Tab"
             aria-label="Open in Native Viewer"
           >
             <ExternalLink className="w-5 h-5" />
@@ -293,7 +527,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           {/* Desktop Fullscreen */}
           <button
             onClick={handleToggleFullscreen}
-            className="hidden md:flex min-w-[48px] min-h-[48px] w-12 h-12 items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
+            className="hidden md:flex min-w-[44px] min-h-[44px] w-11 h-11 items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
             title="Toggle Fullscreen"
             aria-label="Fullscreen"
           >
@@ -352,23 +586,76 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
         </div>
       )}
 
+      {/* Floating Swipe Navigation Hint Badge */}
+      {showSwipeHint && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-slate-900/90 border border-white/15 text-xs text-slate-300 font-semibold shadow-2xl backdrop-blur-md flex items-center gap-2 pointer-events-none animate-in fade-in duration-300">
+          <span>↕️ Swipe up/down or scroll wheel to navigate pages</span>
+        </div>
+      )}
+
       {/* ============================================================== */}
-      {/* MAIN DOCUMENT VIEWPORT (EDGE-TO-EDGE READABILITY)               */}
+      {/* MAIN DOCUMENT VIEWPORT (MULTI-ENGINE FAIL-SAFE)                 */}
       {/* ============================================================== */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Core Embedded Document Body */}
         <div className="flex-1 h-full w-full relative overflow-hidden bg-slate-950 flex items-center justify-center">
-          {resolvedFrameUrl ? (
-            <iframe
-              src={resolvedFrameUrl}
-              title={title}
-              className="w-full h-full border-0 bg-slate-900"
-              allow="autoplay"
-              loading="eager"
-            />
-          ) : (
-            <div className="text-center p-8 text-slate-400">
-              <p>No valid document stream URL found.</p>
+          {/* ENGINE 1: HIGH-DPI CANVAS (DEFAULT FOR LOCAL EXAM PAPERS & TEXTBOOKS) */}
+          {engineMode === 'canvas' && (
+            <div className="w-full h-full flex items-center justify-center overflow-auto p-4 relative bg-slate-950/90">
+              {loadingDoc && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-xs z-20">
+                  <RefreshCw className="w-8 h-8 text-brand-500 animate-spin mb-2" />
+                  <p className="text-xs font-bold text-slate-200">
+                    Loading Document...
+                  </p>
+                </div>
+              )}
+
+              <div className="max-w-full max-h-full flex items-center justify-center shadow-2xl rounded-2xl overflow-hidden bg-white">
+                <canvas ref={canvasRef} className="block max-w-full h-auto" />
+              </div>
+            </div>
+          )}
+
+          {/* ENGINE 2: GOOGLE DRIVE PREVIEW EMBED */}
+          {engineMode === 'drive' && (
+            <div className="w-full h-full relative flex flex-col">
+              <iframe
+                src={safePdfUrl}
+                title={title}
+                allow="autoplay; fullscreen"
+                className="w-full h-full border-0 bg-slate-900"
+              />
+            </div>
+          )}
+
+          {/* ENGINE 3: GOOGLE DOCS VIEWER EMBED */}
+          {engineMode === 'gdocs' && (
+            <div className="w-full h-full relative flex flex-col">
+              <iframe
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(
+                  safePdfUrl
+                )}&embedded=true`}
+                title={title}
+                allow="autoplay; fullscreen"
+                className="w-full h-full border-0 bg-slate-900"
+              />
+            </div>
+          )}
+
+          {/* ENGINE 4: NATIVE EMBED */}
+          {engineMode === 'native' && (
+            <div className="w-full h-full relative flex flex-col">
+              <object
+                data={safePdfUrl}
+                type="application/pdf"
+                className="w-full h-full flex-1 bg-white"
+              >
+                <iframe
+                  src={safePdfUrl}
+                  title={title}
+                  className="w-full h-full bg-white border-0"
+                />
+              </object>
             </div>
           )}
         </div>
