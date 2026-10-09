@@ -4,6 +4,7 @@ import { api, ServerDocument } from '../../services/api';
 import { getUserStorageItem, setUserStorageItem } from '../../utils/userStorage';
 import { TestPaper } from '../../types/testPaper';
 import { uploadDirectToGoogleDrive, deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
+import { firebaseDocuments } from '../../services/firebase';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import { CardSkeleton } from '../common/LoadingSkeleton';
 import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
@@ -766,6 +767,29 @@ export const SubjectRooms: React.FC = () => {
     loadContent();
   }, [activeStandard, isSuperAdmin]);
 
+  // Real-time Cloud Synchronization for academic documents across tabs and devices
+  useEffect(() => {
+    const unsubscribe = firebaseDocuments.subscribe((cloudDocs) => {
+      if (Array.isArray(cloudDocs) && cloudDocs.length > 0) {
+        setDocuments((prev) => {
+          const docMap = new Map<string, ServerDocument>();
+          // Cloud documents take precedence
+          cloudDocs.forEach((d) => {
+            if (d && d.id) docMap.set(d.id, d);
+          });
+          // Preserve local documents not yet in cloud
+          prev.forEach((d) => {
+            if (d && d.id && !docMap.has(d.id)) docMap.set(d.id, d);
+          });
+          const merged = Array.from(docMap.values());
+          api.saveLocalDocuments(merged);
+          return merged;
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Pending PDF slug requested by URL
   const [pendingPdfSlug, setPendingPdfSlug] = useState<string | null>(null);
 
@@ -1303,86 +1327,54 @@ export const SubjectRooms: React.FC = () => {
 
       const newlyUploaded: ServerDocument[] = [];
 
-      // If multiple files, use batch upload API directly with per-file itemsMeta
-      if (filesToUpload.length > 1) {
-        try {
-          const batchDocs = await api.uploadMultipleDocuments(
-            filesToUpload,
-            targetSub,
-            currentUser?.email || 'admin',
-            targetStd,
-            uploadCategory,
-            finalChapterNumber,
-            finalChapterTitle,
-            finalFilter,
-            finalFilter ? [finalFilter] : [],
-            itemsMeta
-          );
-          newlyUploaded.push(...batchDocs);
-        } catch (batchErr: any) {
-          console.warn('Batch upload server error, falling back to sequential uploads:', batchErr);
-          for (let i = 0; i < filesToUpload.length; i++) {
-            const file = filesToUpload[i];
-            const meta = itemsMeta[i] || {};
-            try {
-              const doc = await api.uploadDocument(
-                file,
-                targetSub,
-                currentUser?.email || 'admin',
-                targetStd,
-                meta.category || uploadCategory,
-                meta.chapterNumber || finalChapterNumber,
-                meta.chapterTitle || finalChapterTitle,
-                meta.customFilter || finalFilter,
-                meta.tags || (finalFilter ? [finalFilter] : [])
-              );
-              newlyUploaded.push(doc);
-            } catch (singleErr) {
-              console.warn(`Failed to upload ${file.name}:`, singleErr);
-            }
-          }
-        }
-      } else {
-        // Single file upload: respects per-file customizations if configured
-        const singleFile = filesToUpload[0];
-        const meta = itemsMeta[0] || {};
-        const singleChNum = meta.chapterNumber || finalChapterNumber;
-        const singleChTitle = meta.chapterTitle || finalChapterTitle;
-        const singleCat = meta.category || uploadCategory;
-        const singleFilt = meta.customFilter || finalFilter;
+      // Process each file (supports single or batch uploads with Google Drive & Firebase sync)
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        const meta = itemsMeta[i] || {};
+        const chNum = meta.chapterNumber || finalChapterNumber;
+        const chTitle = meta.chapterTitle || finalChapterTitle;
+        const cat = meta.category || uploadCategory;
+        const filt = meta.customFilter || finalFilter;
+        const tags = meta.tags || (filt ? [filt] : []);
 
         let uploadedRecord: ServerDocument | null = null;
         let driveResult: any = null;
 
+        // Step 1: Upload directly to Google Drive via Google Apps Script (100% Free, bypasses Vercel payload limit)
         try {
           driveResult = await uploadDirectToGoogleDrive(
-            singleFile,
+            file,
             targetSub,
-            currentUser?.email || 'admin'
+            currentUser?.email || 'admin',
+            targetStd,
+            cat,
+            undefined,
+            undefined,
+            undefined
           );
         } catch (driveErr: any) {
-          console.warn('Direct Google Drive upload error, falling back to server upload:', driveErr);
+          console.warn(`[Google Drive Upload Warning for ${file.name}]:`, driveErr);
         }
 
         if (driveResult && driveResult.id) {
           const driveDoc: ServerDocument = {
             id: driveResult.id,
-            name: driveResult.name || singleFile.name,
-            originalName: singleFile.name,
+            name: driveResult.name || file.name,
+            originalName: file.name,
             streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
             serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-            mimeType: singleFile.type || 'application/pdf',
-            sizeBytes: singleFile.size,
-            size: driveResult.size || `${(singleFile.size / (1024 * 1024)).toFixed(2)} MB`,
+            mimeType: file.type || 'application/pdf',
+            sizeBytes: file.size,
+            size: driveResult.size || `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
             uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
             uploadedBy: currentUser?.email || 'admin',
             subject: targetSub,
             standard: targetStd,
-            category: singleCat,
-            chapterNumber: singleChNum,
-            chapterTitle: singleChTitle,
-            customFilter: singleFilt,
-            tags: singleFilt ? [singleFilt] : [],
+            category: cat,
+            chapterNumber: chNum,
+            chapterTitle: chTitle,
+            customFilter: filt,
+            tags: tags,
             uploadCount: 1,
           };
 
@@ -1393,41 +1385,42 @@ export const SubjectRooms: React.FC = () => {
             uploadedRecord = driveDoc;
           }
         } else {
-          // Standard server upload with chapter and filter metadata
+          // Step 2: Fallback to server endpoint upload if Google Drive direct upload failed
           try {
             uploadedRecord = await api.uploadDocument(
-              singleFile,
+              file,
               targetSub,
               currentUser?.email || 'admin',
               targetStd,
-              singleCat,
-              singleChNum,
-              singleChTitle,
-              singleFilt,
-              singleFilt ? [singleFilt] : []
+              cat,
+              chNum,
+              chTitle,
+              filt,
+              tags
             );
-          } catch {
+          } catch (servErr) {
+            console.warn(`[Server Upload Fallback Warning for ${file.name}]:`, servErr);
             // Instant offline client document fallback
-            const localId = `doc-${Date.now()}`;
-            const localUrl = URL.createObjectURL(singleFile);
+            const localId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+            const localUrl = URL.createObjectURL(file);
             uploadedRecord = {
               id: localId,
-              name: singleFile.name,
-              originalName: singleFile.name,
+              name: file.name,
+              originalName: file.name,
               streamUrl: localUrl,
               serverUrl: localUrl,
-              mimeType: singleFile.type || 'application/pdf',
-              sizeBytes: singleFile.size,
-              size: `${(singleFile.size / (1024 * 1024)).toFixed(2)} MB`,
+              mimeType: file.type || 'application/pdf',
+              sizeBytes: file.size,
+              size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
               uploadedAt: new Date().toISOString(),
               uploadedBy: currentUser?.email || 'admin',
               subject: targetSub,
               standard: targetStd,
-              category: singleCat,
-              chapterNumber: singleChNum,
-              chapterTitle: singleChTitle,
-              customFilter: singleFilt,
-              tags: singleFilt ? [singleFilt] : [],
+              category: cat,
+              chapterNumber: chNum,
+              chapterTitle: chTitle,
+              customFilter: filt,
+              tags: tags,
               uploadCount: 1,
             };
           }
@@ -1435,6 +1428,8 @@ export const SubjectRooms: React.FC = () => {
 
         if (uploadedRecord) {
           newlyUploaded.push(uploadedRecord);
+          // Immediately sync individual document to Firebase cloud repository
+          firebaseDocuments.saveDocument(uploadedRecord).catch(() => {});
         }
       }
 
@@ -1442,7 +1437,19 @@ export const SubjectRooms: React.FC = () => {
         throw new Error('No files were successfully processed. Please try again.');
       }
 
-      setDocuments((prev) => [...newlyUploaded, ...prev]);
+      // Merge newly uploaded documents with state and persistent localStorage
+      setDocuments((prev) => {
+        const docMap = new Map<string, ServerDocument>();
+        newlyUploaded.forEach((d) => docMap.set(d.id, d));
+        prev.forEach((d) => {
+          if (!docMap.has(d.id)) docMap.set(d.id, d);
+        });
+        const merged = Array.from(docMap.values());
+        api.saveLocalDocuments(merged);
+        firebaseDocuments.saveAll(merged).catch(() => {});
+        return merged;
+      });
+
       setUploadSuccess(true);
       setSelectedFiles([]);
       setSelectedFile(null);
@@ -1528,6 +1535,7 @@ export const SubjectRooms: React.FC = () => {
                   <button
                     onClick={() => {
                       setUploadSubject(activeRoom);
+                      setUploadStandard(effectiveStandard || (activeStandard !== 'ALL' ? activeStandard : '12'));
                       setShowUploadModal(true);
                     }}
                     className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all"
@@ -2788,6 +2796,8 @@ export const SubjectRooms: React.FC = () => {
                 <button
                   onClick={() => {
                     setUploadSubject(availableSubjects[0]?.name || 'General');
+                    setUploadStandard(effectiveStandard || (activeStandard !== 'ALL' ? activeStandard : '12'));
+                    setUploadCategory('notes');
                     setShowUploadModal(true);
                   }}
                   className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-full shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all ios-pill cursor-pointer"

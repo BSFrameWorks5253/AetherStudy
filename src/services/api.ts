@@ -1,6 +1,6 @@
 import { UserProfile, UserRole } from '../types/auth';
 import { TestPaper } from '../types/testPaper';
-import { firebaseTimetable, firebasePaperRequests } from './firebase';
+import { firebaseTimetable, firebasePaperRequests, firebaseDocuments } from './firebase';
 import { deleteFromGoogleDrive } from './clientGoogleDrive';
 
 export interface ServerDocument {
@@ -373,8 +373,21 @@ export const api = {
   },
 
   async getDocuments(standard?: string): Promise<ServerDocument[]> {
+    const docMap = new Map<string, ServerDocument>();
+
+    // 1. Primary Cloud Store: Fetch from Firebase Realtime Database / Firestore
+    let firebaseDocs: ServerDocument[] = [];
+    try {
+      firebaseDocs = await firebaseDocuments.fetch();
+      firebaseDocs.forEach((d) => {
+        if (d && d.id) docMap.set(d.id, d);
+      });
+    } catch (fbErr) {
+      console.warn('[Documents API] Firebase cloud fetch note:', fbErr);
+    }
+
+    // 2. Secondary: Fetch from Server Endpoint (/api/documents)
     let serverDocs: ServerDocument[] = [];
-    let serverOk = false;
     try {
       const url = standard && standard !== 'ALL'
         ? `${API_BASE}/documents?standard=${encodeURIComponent(standard)}`
@@ -382,52 +395,48 @@ export const api = {
       const res = await fetch(url);
       if (res.ok) {
         serverDocs = await res.json();
-        serverOk = true;
+        if (Array.isArray(serverDocs)) {
+          serverDocs.forEach((d) => {
+            if (d && d.id) docMap.set(d.id, d);
+          });
+        }
       }
     } catch (err) {
-      console.warn('[Documents API] Server documents endpoint unreachable, reading local vault:', err);
+      console.warn('[Documents API] Server documents endpoint note:', err);
     }
 
-    const localDocs = api.getLocalDocuments();
-    const docMap = new Map<string, ServerDocument>();
-
-    // 1. Seed from catalog.json as base catalog
-    let catalogDocsCount = 0;
+    // 3. Tertiary: Seed from local bundled catalog.json
     try {
       const catalog = await import('../data/catalog.json');
       if (catalog && Array.isArray(catalog.documents)) {
-        catalogDocsCount = catalog.documents.length;
         catalog.documents.forEach((d: any) => {
-          if (d && d.id) docMap.set(d.id, d as ServerDocument);
+          if (d && d.id && !docMap.has(d.id)) {
+            docMap.set(d.id, d as ServerDocument);
+          }
         });
       }
     } catch {}
 
-    // 2. If server reported 0 documents and catalog is empty, wipe local cached documents
-    if (serverOk && serverDocs.length === 0 && catalogDocsCount === 0) {
-      api.saveLocalDocuments([]);
-      return [];
-    }
-
-    // 3. Overlay client cached documents (ignoring legacy colliding IDs)
+    // 4. Client Offline Vault: Overlay local stored documents (never discard user uploads)
+    const localDocs = api.getLocalDocuments();
     localDocs.forEach((d) => {
       if (d && d.id && !d.id.startsWith('doc-TWF0')) {
-        docMap.set(d.id, d);
+        // Overlay local version if not already present or if local has richer streamUrl
+        if (!docMap.has(d.id) || (!docMap.get(d.id)?.streamUrl && d.streamUrl)) {
+          docMap.set(d.id, d);
+        }
       }
-    });
-
-    // 4. Overlay server documents
-    serverDocs.forEach((d) => {
-      if (d.id) docMap.set(d.id, d);
     });
 
     const allDocs = Array.from(docMap.values());
 
-    // Update local cache with complete merged list
+    // 5. Update local cache with complete merged list (only if we have documents)
     if (allDocs.length > 0) {
       api.saveLocalDocuments(allDocs);
-    } else {
-      api.saveLocalDocuments([]);
+      // Auto-sync missing documents to Firebase in background so other devices get them
+      if (firebaseDocs.length < allDocs.length) {
+        firebaseDocuments.saveAll(allDocs).catch(() => {});
+      }
     }
 
     if (standard && standard !== 'ALL') {
@@ -471,6 +480,7 @@ export const api = {
     const uploaded = await res.json();
     const local = api.getLocalDocuments();
     api.saveLocalDocuments([uploaded, ...local.filter((d) => d.id !== uploaded.id)]);
+    firebaseDocuments.saveDocument(uploaded).catch(() => {});
     return uploaded;
   },
 
@@ -519,11 +529,17 @@ export const api = {
     const uploadedDocs: ServerDocument[] = data.documents || [];
     const local = api.getLocalDocuments();
     api.saveLocalDocuments([...uploadedDocs, ...local]);
+    uploadedDocs.forEach((d) => firebaseDocuments.saveDocument(d).catch(() => {}));
     return uploadedDocs;
   },
 
   async deleteDocument(id: string, requesterEmail?: string, docMeta?: ServerDocument): Promise<boolean> {
-    // 1. Delete from Google Drive client-side (Zero-cost Apps Script / OAuth)
+    // 1. Delete from Firebase cloud repository
+    try {
+      firebaseDocuments.deleteDocument(id).catch(() => {});
+    } catch {}
+
+    // 2. Delete from Google Drive client-side (Zero-cost Apps Script / OAuth)
     try {
       const local = api.getLocalDocuments();
       const targetDoc = docMeta || local.find((d) => d.id === id);
@@ -535,7 +551,7 @@ export const api = {
       api.saveLocalDocuments(local.filter((d) => d.id !== id));
     } catch {}
 
-    // 2. Delete on server (removes from database, local disk, and server Google Drive)
+    // 3. Delete on server (removes from database, local disk, and server Google Drive)
     try {
       const res = await fetch(`${API_BASE}/documents/${id}`, {
         method: 'DELETE',
@@ -551,9 +567,10 @@ export const api = {
   async purgeAllDocuments(): Promise<boolean> {
     try {
       const local = api.getLocalDocuments();
-      // Concurrently trigger Google Drive deletion for all Drive files
+      // Concurrently trigger Google Drive and Firebase deletion
       local.forEach((doc) => {
         deleteFromGoogleDrive(doc).catch(() => {});
+        firebaseDocuments.deleteDocument(doc.id).catch(() => {});
       });
       localStorage.removeItem('aether_cached_documents');
     } catch {}
@@ -864,11 +881,12 @@ export const api = {
       uploadCount: document.uploadCount || 1,
     };
 
-    // Immediately cache in local storage so document is NEVER lost
+    // Immediately cache in local storage and cloud so document is NEVER lost
     try {
       const local = api.getLocalDocuments();
       const filtered = local.filter((d) => d.id !== enhancedDoc.id);
       api.saveLocalDocuments([enhancedDoc, ...filtered]);
+      firebaseDocuments.saveDocument(enhancedDoc).catch(() => {});
     } catch (err) {
       console.warn('Local cache attachment warning:', err);
     }

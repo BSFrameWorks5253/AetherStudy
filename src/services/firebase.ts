@@ -7,6 +7,7 @@ import {
   getDoc,
   collection,
   addDoc,
+  deleteDoc,
   onSnapshot,
   serverTimestamp as firestoreServerTimestamp,
 } from 'firebase/firestore';
@@ -17,6 +18,7 @@ import {
   get,
   onValue,
   push,
+  remove,
   onDisconnect,
   serverTimestamp as rtdbServerTimestamp,
 } from 'firebase/database';
@@ -598,6 +600,146 @@ export const firebaseNotifications = {
       return true;
     } catch (err) {
       console.warn('[Firebase Publish Notification]:', err);
+      return false;
+    }
+  },
+};
+
+/**
+ * ============================================================================
+ * FIREBASE ACADEMIC DOCUMENTS REPOSITORY
+ * Persistent cloud storage of curriculum notes, textbooks, and PDF pointers.
+ * Synchronizes in real-time across student devices and prevents data loss.
+ * ============================================================================
+ */
+export const firebaseDocuments = {
+  subscribe(callback: (docs: any[]) => void): () => void {
+    const rtdbRef = ref(rtdb, 'academic_documents');
+    const unsubscribe = onValue(
+      rtdbRef,
+      (snap) => {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          const list: any[] = Array.isArray(val)
+            ? val.filter(Boolean)
+            : Object.keys(val).map((k) => ({ id: k, ...val[k] }));
+          list.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
+          callback(list);
+        } else if (val === null) {
+          callback([]);
+        }
+      },
+      (err) => {
+        console.warn('[Firebase RTDB Documents Listener]:', err);
+      }
+    );
+
+    return () => {
+      try {
+        unsubscribe();
+      } catch {}
+    };
+  },
+
+  async fetch(): Promise<any[]> {
+    try {
+      await ensureFirebaseAuth();
+      const snap = await get(ref(rtdb, 'academic_documents'));
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          const list: any[] = Array.isArray(val)
+            ? val.filter(Boolean)
+            : Object.keys(val).map((k) => ({ id: k, ...val[k] }));
+          list.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
+          return list;
+        }
+      }
+    } catch (err) {
+      console.warn('[Firebase Fetch Documents RTDB]:', err);
+    }
+
+    // Firestore fallback
+    try {
+      const snap = await getDoc(doc(db, 'academic_documents', 'catalog'));
+      if (snap.exists()) {
+        const data = snap.data();
+        if (Array.isArray(data?.documents) && data.documents.length > 0) {
+          return data.documents;
+        }
+      }
+    } catch (fErr) {
+      console.warn('[Firebase Fetch Documents Firestore]:', fErr);
+    }
+
+    return [];
+  },
+
+  async saveDocument(docData: any): Promise<boolean> {
+    if (!docData || !docData.id) return false;
+    const cleanId = String(docData.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    try {
+      await ensureFirebaseAuth();
+      const cleanDoc = {
+        ...docData,
+        uploadedAt: docData.uploadedAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // 1. RTDB node
+      const rtdbRef = ref(rtdb, `academic_documents/${cleanId}`);
+      await set(rtdbRef, cleanDoc);
+
+      // 2. Firestore item
+      const fsDocRef = doc(db, 'academic_documents_items', cleanId);
+      await setDoc(fsDocRef, {
+        ...cleanDoc,
+        fsUpdatedAt: firestoreServerTimestamp(),
+      }, { merge: true });
+
+      return true;
+    } catch (err) {
+      console.warn('[Firebase Save Document Error]:', err);
+      return false;
+    }
+  },
+
+  async saveAll(docs: any[]): Promise<boolean> {
+    if (!Array.isArray(docs)) return false;
+    try {
+      await ensureFirebaseAuth();
+      const rtdbMap: Record<string, any> = {};
+      docs.forEach((d) => {
+        if (d && d.id) {
+          const cleanId = String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+          rtdbMap[cleanId] = d;
+        }
+      });
+      await set(ref(rtdb, 'academic_documents'), rtdbMap);
+
+      // Firestore backup catalog
+      await setDoc(
+        doc(db, 'academic_documents', 'catalog'),
+        { documents: docs, updatedAt: firestoreServerTimestamp() },
+        { merge: true }
+      );
+      return true;
+    } catch (err) {
+      console.warn('[Firebase SaveAll Documents Error]:', err);
+      return false;
+    }
+  },
+
+  async deleteDocument(id: string): Promise<boolean> {
+    if (!id) return false;
+    const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    try {
+      await ensureFirebaseAuth();
+      await remove(ref(rtdb, `academic_documents/${cleanId}`));
+      await deleteDoc(doc(db, 'academic_documents_items', cleanId));
+      return true;
+    } catch (err) {
+      console.warn('[Firebase Delete Document Error]:', err);
       return false;
     }
   },

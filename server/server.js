@@ -1111,7 +1111,7 @@ app.get('/api/documents', (req, res) => {
 });
 
 // Single Document Upload
-app.post('/api/documents/upload', requireAdmin, upload.single('file'), (req, res) => {
+app.post('/api/documents/upload', requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file received or rejected by security filter.' });
   }
@@ -1141,11 +1141,43 @@ app.post('/api/documents/upload', requireAdmin, upload.single('file'), (req, res
     ? tags.split(',').map((t) => t.trim()).filter(Boolean)
     : [];
 
+  let streamUrl = req.body.streamUrl || `/uploads/${req.file.filename}`;
+  let driveId = null;
+
+  // Cloud Forward: Upload to Google Apps Script / Google Drive if available
+  const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
+  if (!req.body.streamUrl && APPS_SCRIPT_URL && req.file.path && fs.existsSync(req.file.path)) {
+    try {
+      const fileBuf = fs.readFileSync(req.file.path);
+      const gasRes = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: req.file.originalname,
+          fileBase64: fileBuf.toString('base64'),
+          mimeType: req.file.mimetype,
+          subject: cleanSubject,
+          standard: targetStandard,
+          category: category === 'textbook' ? 'textbook' : (category || 'notes'),
+        }),
+      });
+      const gasJson = await gasRes.json().catch(() => null);
+      if (gasJson && (gasJson.streamUrl || gasJson.url)) {
+        streamUrl = gasJson.streamUrl || gasJson.url;
+        driveId = gasJson.id;
+      }
+    } catch (gasErr) {
+      console.warn('[Server Google Drive Forward Error]:', gasErr);
+    }
+  }
+
   const newDoc = {
-    id: 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+    id: driveId || ('doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
     name: req.file.filename,
     originalName: req.file.originalname,
-    serverUrl: `/uploads/${req.file.filename}`,
+    serverUrl: streamUrl,
+    streamUrl: streamUrl,
+    url: streamUrl,
     mimeType: req.file.mimetype,
     sizeBytes: req.file.size,
     size: `${(req.file.size / (1024 * 1024)).toFixed(2)} MB`,
@@ -1168,7 +1200,7 @@ app.post('/api/documents/upload', requireAdmin, upload.single('file'), (req, res
 });
 
 // Multi-Document Bulk Batch Upload (Up to 30 files at once)
-app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 30), (req, res) => {
+app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 30), async (req, res) => {
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: 'No files received or rejected by security filter.' });
   }
@@ -1201,6 +1233,8 @@ app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 3
     } catch {}
   }
 
+  const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL;
+
   for (let i = 0; i < req.files.length; i++) {
     const file = req.files[i];
     const fileMeta = (Array.isArray(itemsMeta) && (itemsMeta.find((m) => m && m.name === file.originalname) || itemsMeta[i])) || {};
@@ -1219,11 +1253,41 @@ app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 3
       (d) => (d.originalName || d.name || '').trim().toLowerCase() === file.originalname.trim().toLowerCase()
     ).length;
 
+    let streamUrl = `/uploads/${file.filename}`;
+    let driveId = null;
+
+    if (APPS_SCRIPT_URL && file.path && fs.existsSync(file.path)) {
+      try {
+        const fileBuf = fs.readFileSync(file.path);
+        const gasRes = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.originalname,
+            fileBase64: fileBuf.toString('base64'),
+            mimeType: file.mimetype,
+            subject: cleanSubject,
+            standard: targetStandard,
+            category: fileCategory,
+          }),
+        });
+        const gasJson = await gasRes.json().catch(() => null);
+        if (gasJson && (gasJson.streamUrl || gasJson.url)) {
+          streamUrl = gasJson.streamUrl || gasJson.url;
+          driveId = gasJson.id;
+        }
+      } catch (gasErr) {
+        console.warn(`[Server Google Drive Forward Error for ${file.originalname}]:`, gasErr);
+      }
+    }
+
     const newDoc = {
-      id: 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      id: driveId || ('doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
       name: file.filename,
       originalName: file.originalname,
-      serverUrl: `/uploads/${file.filename}`,
+      serverUrl: streamUrl,
+      streamUrl: streamUrl,
+      url: streamUrl,
       mimeType: file.mimetype,
       sizeBytes: file.size,
       size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,

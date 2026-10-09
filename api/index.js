@@ -3,8 +3,8 @@
 const app = require('../server/server.js');
 
 module.exports = (req, res) => {
-  // Ensure the request URL maintains the /api prefix so Express routes match accurately
-  if (req.url && !req.url.startsWith('/api')) {
+  // Ensure the request URL maintains the /api prefix (or preserves /uploads static routes)
+  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }
   return app(req, res);
