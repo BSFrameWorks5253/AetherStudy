@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api, ServerDocument } from '../../services/api';
-import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
+import { uploadDirectToGoogleDrive, deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
 import {
   Upload,
   FileText,
@@ -174,8 +174,13 @@ export const DocumentViewer: React.FC = () => {
 
   const handleDeleteDoc = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!window.confirm('Are you sure you want to remove this document? It will also be deleted from Google Drive.')) return;
     try {
-      await api.deleteDocument(id);
+      const docToDelete = documents.find((d) => d.id === id);
+      if (docToDelete) {
+        deleteFromGoogleDrive(docToDelete).catch(() => {});
+      }
+      await api.deleteDocument(id, currentUser?.email, docToDelete);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
       if (activeDoc?.id === id) {
         const remaining = documents.filter((d) => d.id !== id);

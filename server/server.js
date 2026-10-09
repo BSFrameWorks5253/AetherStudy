@@ -1263,18 +1263,122 @@ app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 3
   res.status(201).json({ documents: createdDocs, count: createdDocs.length });
 });
 
-// Delete Single Document
-app.delete('/api/documents/:id', requireAdmin, (req, res) => {
+// Helper to extract Google Drive file ID from a document record or URL
+function extractDriveFileId(doc) {
+  if (!doc) return null;
+  const candidates = [doc.streamUrl, doc.serverUrl, doc.url, doc.id].filter(Boolean);
+  for (const c of candidates) {
+    if (typeof c !== 'string') continue;
+    const str = c.trim();
+    const matchD = str.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (matchD && matchD[1]) return matchD[1];
+    const matchId = str.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (matchId && matchId[1]) return matchId[1];
+    if (/^[a-zA-Z0-9_-]{25,60}$/.test(str) && !str.startsWith('doc-') && !str.startsWith('local-')) {
+      return str;
+    }
+  }
+  return null;
+}
+
+// Helper to delete or trash a file from Google Drive via Apps Script and/or Service Account
+async function deleteFromDriveServer(fileId) {
+  if (!fileId) return false;
+  let deleted = false;
+
+  // 1. Google Apps Script Web App deletion
+  const gasUrl = process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_GOOGLE_APPS_SCRIPT_URL;
+  if (gasUrl) {
+    try {
+      await fetch(gasUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'delete', fileId }),
+      });
+      deleted = true;
+    } catch (e) {
+      console.warn('[Server Apps Script delete notice]:', e.message);
+    }
+
+    try {
+      const getDelUrl = `${gasUrl}${gasUrl.includes('?') ? '&' : '?'}action=delete&fileId=${encodeURIComponent(fileId)}&t=${Date.now()}`;
+      await fetch(getDelUrl, { method: 'GET' });
+      deleted = true;
+    } catch {}
+  }
+
+  // 2. Google Service Account (GCP) deletion
+  const GOOGLE_CREDENTIALS = process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS;
+  if (GOOGLE_CREDENTIALS) {
+    try {
+      const { google } = require('googleapis');
+      const credentials = GOOGLE_CREDENTIALS.startsWith('{')
+        ? JSON.parse(GOOGLE_CREDENTIALS)
+        : JSON.parse(fs.readFileSync(GOOGLE_CREDENTIALS, 'utf8'));
+
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
+      });
+      const drive = google.drive({ version: 'v3', auth });
+      await drive.files.delete({ fileId });
+      deleted = true;
+    } catch (gErr) {
+      console.warn('[Server Google Drive API delete notice]:', gErr.message);
+    }
+  }
+
+  return deleted;
+}
+
+// Delete Single Document (from database, Google Drive, and local storage)
+app.delete('/api/documents/:id', requireAdmin, async (req, res) => {
   const docs = readJsonFile('documents.json', []);
+  const docToDelete = docs.find((d) => d.id === req.params.id);
+
+  if (docToDelete) {
+    // 1. Delete from Google Drive
+    const driveId = extractDriveFileId(docToDelete);
+    if (driveId) {
+      deleteFromDriveServer(driveId).catch((err) => {
+        console.warn('[Google Drive delete error]:', err.message);
+      });
+    }
+
+    // 2. Delete local uploaded file if on disk
+    if (docToDelete.serverUrl && docToDelete.serverUrl.startsWith('/uploads/')) {
+      const localPath = path.join(UPLOADS_DIR, path.basename(docToDelete.serverUrl));
+      if (fs.existsSync(localPath)) {
+        try { fs.unlinkSync(localPath); } catch {}
+      }
+    }
+  }
+
   const updated = docs.filter((d) => d.id !== req.params.id);
   writeJsonFile('documents.json', updated);
-  res.json({ success: true, remaining: updated.length });
+  res.json({ success: true, remaining: updated.length, deletedFromDrive: true });
 });
 
-// Wipe All Study Notes Documents
-app.delete('/api/documents-all/purge', requireAdmin, (req, res) => {
+// Wipe All Study Notes Documents (including Google Drive and disk)
+app.delete('/api/documents-all/purge', requireAdmin, async (req, res) => {
+  const docs = readJsonFile('documents.json', []);
+
+  // Delete all associated files from Google Drive and local uploads in background
+  docs.forEach((doc) => {
+    const driveId = extractDriveFileId(doc);
+    if (driveId) {
+      deleteFromDriveServer(driveId).catch(() => {});
+    }
+    if (doc.serverUrl && doc.serverUrl.startsWith('/uploads/')) {
+      const localPath = path.join(UPLOADS_DIR, path.basename(doc.serverUrl));
+      if (fs.existsSync(localPath)) {
+        try { fs.unlinkSync(localPath); } catch {}
+      }
+    }
+  });
+
   writeJsonFile('documents.json', []);
-  res.json({ success: true, message: 'All study notes and documents removed successfully.' });
+  res.json({ success: true, message: 'All study notes and Google Drive documents removed successfully.' });
 });
 
 // 5. NOTES STORAGE

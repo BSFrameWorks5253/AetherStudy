@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { api, ServerDocument } from '../../services/api';
 import { getUserStorageItem, setUserStorageItem } from '../../utils/userStorage';
 import { TestPaper } from '../../types/testPaper';
-import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
+import { uploadDirectToGoogleDrive, deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import { CardSkeleton } from '../common/LoadingSkeleton';
 import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
@@ -1161,10 +1161,14 @@ export const SubjectRooms: React.FC = () => {
   // Delete Document Handler
   const handleDeleteDocument = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to remove this study document?')) return;
+    if (!window.confirm('Are you sure you want to remove this study document? It will also be deleted from Google Drive.')) return;
 
     try {
-      await api.deleteDocument(id, currentUser?.email);
+      const docToDelete = documents.find((d) => d.id === id);
+      if (docToDelete) {
+        deleteFromGoogleDrive(docToDelete).catch((err) => console.warn('[Drive delete notice]:', err));
+      }
+      await api.deleteDocument(id, currentUser?.email, docToDelete);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
       if (readingDoc?.id === id) handleCloseReader();
     } catch (err: any) {

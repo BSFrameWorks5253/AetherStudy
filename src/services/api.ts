@@ -1,6 +1,7 @@
 import { UserProfile, UserRole } from '../types/auth';
 import { TestPaper } from '../types/testPaper';
 import { firebaseTimetable, firebasePaperRequests } from './firebase';
+import { deleteFromGoogleDrive } from './clientGoogleDrive';
 
 export interface ServerDocument {
   id: string;
@@ -485,12 +486,20 @@ export const api = {
     return uploadedDocs;
   },
 
-  async deleteDocument(id: string, requesterEmail?: string): Promise<boolean> {
+  async deleteDocument(id: string, requesterEmail?: string, docMeta?: ServerDocument): Promise<boolean> {
+    // 1. Delete from Google Drive client-side (Zero-cost Apps Script / OAuth)
     try {
       const local = api.getLocalDocuments();
+      const targetDoc = docMeta || local.find((d) => d.id === id);
+      if (targetDoc) {
+        deleteFromGoogleDrive(targetDoc).catch((e) => console.warn('[Drive Delete Warning]:', e));
+      } else {
+        deleteFromGoogleDrive(id).catch((e) => console.warn('[Drive Delete Warning]:', e));
+      }
       api.saveLocalDocuments(local.filter((d) => d.id !== id));
     } catch {}
 
+    // 2. Delete on server (removes from database, local disk, and server Google Drive)
     try {
       const res = await fetch(`${API_BASE}/documents/${id}`, {
         method: 'DELETE',
@@ -505,6 +514,11 @@ export const api = {
 
   async purgeAllDocuments(): Promise<boolean> {
     try {
+      const local = api.getLocalDocuments();
+      // Concurrently trigger Google Drive deletion for all Drive files
+      local.forEach((doc) => {
+        deleteFromGoogleDrive(doc).catch(() => {});
+      });
       localStorage.removeItem('aether_cached_documents');
     } catch {}
 

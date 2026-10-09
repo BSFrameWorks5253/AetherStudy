@@ -279,3 +279,103 @@ export async function uploadDirectToGoogleDrive(
     uploadedAt: new Date().toISOString(),
   };
 }
+
+/**
+ * Extracts Google Drive file ID from a Drive URL, file ID string, or document object
+ */
+export function extractDriveFileId(
+  input?: string | { id?: string; streamUrl?: string; serverUrl?: string; url?: string } | null
+): string | null {
+  if (!input) return null;
+
+  if (typeof input === 'object') {
+    const candidates = [input.streamUrl, input.serverUrl, input.url, input.id].filter(Boolean) as string[];
+    for (const c of candidates) {
+      const extracted = extractDriveFileId(c);
+      if (extracted) return extracted;
+    }
+    return null;
+  }
+
+  const str = String(input).trim();
+  // 1. Match /file/d/<fileId>/
+  const matchD = str.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (matchD && matchD[1]) return matchD[1];
+
+  // 2. Match id=<fileId> query param
+  const matchId = str.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (matchId && matchId[1]) return matchId[1];
+
+  // 3. Raw drive ID (typically 25 to 55 alphanumeric/dash/underscore chars)
+  if (/^[a-zA-Z0-9_-]{25,60}$/.test(str) && !str.startsWith('doc-') && !str.startsWith('local-')) {
+    return str;
+  }
+
+  return null;
+}
+
+/**
+ * Deletes a file from Google Drive via Google Apps Script and/or OAuth REST API
+ */
+export async function deleteFromGoogleDrive(
+  fileIdOrDoc?: string | { id?: string; streamUrl?: string; serverUrl?: string; url?: string } | null
+): Promise<boolean> {
+  const fileId = extractDriveFileId(fileIdOrDoc);
+  if (!fileId) {
+    return false;
+  }
+
+  let deleted = false;
+
+  // 1. Google Apps Script Web App deletion (Zero GCP requirement)
+  if (GOOGLE_APPS_SCRIPT_URL) {
+    try {
+      await fetch(GOOGLE_APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          fileId: fileId,
+        }),
+        redirect: 'follow',
+      });
+      deleted = true;
+    } catch (gasErr) {
+      console.warn('[Apps Script POST delete notice]:', gasErr);
+    }
+
+    // Secondary GET fallback to bypass browser CORS redirection limitations
+    try {
+      const checkDelUrl = `${GOOGLE_APPS_SCRIPT_URL}${
+        GOOGLE_APPS_SCRIPT_URL.includes('?') ? '&' : '?'
+      }action=delete&fileId=${encodeURIComponent(fileId)}&t=${Date.now()}`;
+      await fetch(checkDelUrl, { method: 'GET', redirect: 'follow' });
+      deleted = true;
+    } catch (gasGetErr) {
+      console.warn('[Apps Script GET delete notice]:', gasGetErr);
+    }
+  }
+
+  // 2. Google OAuth REST API v3 deletion if token is available
+  try {
+    const token = accessToken || (GOOGLE_CLIENT_ID ? await requestGoogleDriveToken().catch(() => null) : null);
+    if (token) {
+      const driveDelRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (driveDelRes.ok || driveDelRes.status === 204 || driveDelRes.status === 404) {
+        deleted = true;
+      }
+    }
+  } catch (oauthErr) {
+    console.warn('[Google Drive OAuth delete notice]:', oauthErr);
+  }
+
+  return deleted;
+}
+
