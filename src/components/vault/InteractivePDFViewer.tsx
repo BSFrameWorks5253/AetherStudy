@@ -142,18 +142,18 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-col h-full w-full bg-slate-950 text-slate-100 overflow-hidden font-sans select-none"
+      className="relative flex flex-col h-full w-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans select-none transition-colors"
     >
       {/* ============================================================== */}
       {/* TOP CONTROL BAR (HIGH-CONTRAST, MIN 48x48PX TOUCH TARGETS)     */}
       {/* ============================================================== */}
-      <header className="sticky top-0 z-40 h-16 bg-slate-900/95 border-b border-slate-800/80 backdrop-blur-md px-3 md:px-5 flex items-center justify-between shadow-lg">
+      <header className="sticky top-0 z-40 h-16 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800/80 backdrop-blur-md px-3 md:px-5 flex items-center justify-between shadow-xs transition-colors">
         {/* Left: Close & Title Info */}
         <div className="flex items-center space-x-2 md:space-x-3 min-w-0 mr-2">
           {onClose && (
             <button
               onClick={onClose}
-              className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-all hover:scale-105 active:scale-95 cursor-pointer border border-slate-700/60"
+              className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all hover:scale-105 active:scale-95 cursor-pointer border border-slate-200 dark:border-slate-700/60 shadow-xs"
               title="Return to Archive Dashboard"
               aria-label="Close Viewer"
             >
@@ -163,19 +163,19 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
 
           <div className="truncate">
             <div className="flex items-center space-x-2">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30 uppercase tracking-wider">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-500/20 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-500/30 uppercase tracking-wider">
                 {subject}
               </span>
               {year && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
                   {year}
                 </span>
               )}
-              <span className="hidden sm:inline-block text-[10px] text-slate-400 font-mono">
+              <span className="hidden sm:inline-block text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                 ⏳ {Math.round(durationMinutes / 60)}h | 💯 {totalMarks}m
               </span>
             </div>
-            <h2 className="text-xs md:text-sm font-bold text-white truncate max-w-xs sm:max-w-md md:max-w-lg mt-0.5">
+            <h2 className="text-xs md:text-sm font-bold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-md md:max-w-lg mt-0.5">
               {title}
             </h2>
           </div>
@@ -186,17 +186,17 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           <button
             onClick={prevPage}
             disabled={displayPage <= 1}
-            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-800/80 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 text-slate-200 transition-all cursor-pointer border border-slate-700/60"
+            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-100 dark:disabled:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer border border-slate-200 dark:border-slate-700/60 shadow-xs"
             title="Previous Page (PgUp / Left Arrow)"
             aria-label="Previous Page"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center space-x-1 px-3 py-1.5 rounded-2xl bg-slate-800/90 border border-slate-700/70 text-xs font-mono">
-            <span className="font-bold text-brand-300 text-sm">{displayPage}</span>
-            <span className="text-slate-500">/</span>
-            <span className="text-slate-400">{totalPages}</span>
+          <div className="flex items-center space-x-1 px-3 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/70 text-xs font-mono shadow-xs">
+            <span className="font-bold text-brand-600 dark:text-brand-300 text-sm">{displayPage}</span>
+            <span className="text-slate-400 dark:text-slate-500">/</span>
+            <span className="text-slate-600 dark:text-slate-400">{totalPages}</span>
             {isPendingSync && (
               <span
                 className="w-2 h-2 rounded-full bg-amber-400 animate-ping ml-1"
@@ -208,7 +208,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           <button
             onClick={nextPage}
             disabled={displayPage >= totalPages}
-            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-800/80 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 text-slate-200 transition-all cursor-pointer border border-slate-700/60"
+            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-100 dark:disabled:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer border border-slate-200 dark:border-slate-700/60 shadow-xs"
             title="Next Page (PgDn / Right Arrow)"
             aria-label="Next Page"
           >
@@ -227,16 +227,16 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
                 setIsAddingBookmark(true);
               }
             }}
-            className={`min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl border transition-all cursor-pointer ${
+            className={`min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl border transition-all cursor-pointer shadow-xs ${
               isCurrentPageBookmarked
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-md shadow-amber-500/20'
-                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60'
+                ? 'bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-300 dark:border-amber-500/50 shadow-md shadow-amber-500/20'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60'
             }`}
             title={isCurrentPageBookmarked ? 'Remove Bookmark from this page' : 'Add Study Bookmark'}
             aria-label="Bookmark this page"
           >
             {isCurrentPageBookmarked ? (
-              <BookmarkCheck className="w-5 h-5 text-amber-400" />
+              <BookmarkCheck className="w-5 h-5 text-amber-500 dark:text-amber-400" />
             ) : (
               <Bookmark className="w-5 h-5" />
             )}
@@ -245,15 +245,15 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           {/* Notes & Bookmarks Drawer Toggle */}
           <button
             onClick={() => setShowNotesDrawer(!showNotesDrawer)}
-            className={`min-w-[48px] min-h-[48px] px-3.5 h-12 flex items-center justify-center space-x-1.5 rounded-2xl border transition-all cursor-pointer ${
+            className={`min-w-[48px] min-h-[48px] px-3.5 h-12 flex items-center justify-center space-x-1.5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
               showNotesDrawer
                 ? 'bg-brand-600 text-white border-brand-500 shadow-md shadow-brand-500/20'
-                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60'
             }`}
             title="Toggle Notes & Bookmarks Drawer"
             aria-label="Toggle Notes & Bookmarks"
           >
-            <Bookmark className="w-4 h-4 text-brand-300" />
+            <Bookmark className="w-4 h-4 text-brand-600 dark:text-brand-300" />
             <span className="hidden sm:inline text-xs font-semibold">
               Notes ({activeBookmarks.length})
             </span>
@@ -262,16 +262,16 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           {/* Mark Complete Toggle */}
           <button
             onClick={() => toggleComplete(activeDocId)}
-            className={`min-w-[48px] min-h-[48px] px-3.5 h-12 flex items-center justify-center space-x-1.5 rounded-2xl border transition-all cursor-pointer ${
+            className={`min-w-[48px] min-h-[48px] px-3.5 h-12 flex items-center justify-center space-x-1.5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
               isDocCompleted
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-md shadow-emerald-500/20 font-bold'
-                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60 font-medium'
+                ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/50 shadow-md shadow-emerald-500/20 font-bold'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700/60 font-medium'
             }`}
             title="Toggle Completed Paper Status"
             aria-label="Mark Paper as Completed"
           >
             <CheckCircle
-              className={`w-5 h-5 ${isDocCompleted ? 'text-emerald-400' : 'text-slate-400'}`}
+              className={`w-5 h-5 ${isDocCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}
             />
             <span className="hidden xl:inline text-xs">
               {isDocCompleted ? 'Completed' : 'Mark Done'}
@@ -283,7 +283,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
             href={urlBundle.downloadUrl || url}
             target="_blank"
             rel="noopener noreferrer"
-            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-all border border-slate-700/60 cursor-pointer"
+            className="min-w-[48px] min-h-[48px] w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
             title="Open in Native Viewer / Drive"
             aria-label="Open in Native Viewer"
           >
@@ -293,7 +293,7 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
           {/* Desktop Fullscreen */}
           <button
             onClick={handleToggleFullscreen}
-            className="hidden md:flex min-w-[48px] min-h-[48px] w-12 h-12 items-center justify-center rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-all border border-slate-700/60 cursor-pointer"
+            className="hidden md:flex min-w-[48px] min-h-[48px] w-12 h-12 items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
             title="Toggle Fullscreen"
             aria-label="Fullscreen"
           >
@@ -377,15 +377,15 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
         {/* SLIDE-OVER DESKTOP NOTES PANEL                               */}
         {/* ------------------------------------------------------------ */}
         {showNotesDrawer && (
-          <aside className="hidden lg:flex w-80 xl:w-96 h-full flex-col bg-slate-900/95 border-l border-slate-800/80 backdrop-blur-md animate-in slide-in-from-right duration-200">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+          <aside className="hidden lg:flex w-80 xl:w-96 h-full flex-col bg-white/95 dark:bg-slate-900/95 border-l border-slate-200 dark:border-slate-800/80 backdrop-blur-md animate-in slide-in-from-right duration-200 shadow-xl transition-colors">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/40">
               <div className="flex items-center space-x-2">
-                <Bookmark className="w-4 h-4 text-amber-400" />
-                <h3 className="text-xs font-bold text-white">Study Notes & Bookmarks</h3>
+                <Bookmark className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white">Study Notes & Bookmarks</h3>
               </div>
               <button
                 onClick={() => setShowNotesDrawer(false)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 title="Close notes panel"
               >
                 <X className="w-4 h-4" />
@@ -394,22 +394,22 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                   {activeBookmarks.length} Saved Note{activeBookmarks.length === 1 ? '' : 's'}
                 </span>
                 <button
                   onClick={() => setIsAddingBookmark(true)}
-                  className="text-xs text-brand-400 hover:text-brand-300 font-bold flex items-center gap-1 cursor-pointer"
+                  className="text-xs text-brand-600 dark:text-brand-400 hover:text-brand-500 dark:hover:text-brand-300 font-bold flex items-center gap-1 cursor-pointer"
                 >
                   + Add at Page {displayPage}
                 </button>
               </div>
 
               {activeBookmarks.length === 0 ? (
-                <div className="text-center py-12 px-4 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-slate-500 text-xs">
-                  <Bookmark className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-50" />
-                  <p className="font-semibold text-slate-300">No study notes yet</p>
-                  <p className="text-[11px] mt-1 text-slate-500">
+                <div className="text-center py-12 px-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 text-slate-500 text-xs">
+                  <Bookmark className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto mb-2 opacity-50" />
+                  <p className="font-semibold text-slate-700 dark:text-slate-300">No study notes yet</p>
+                  <p className="text-[11px] mt-1 text-slate-500 dark:text-slate-400">
                     Bookmark important adjustment tips, accounts, or formulas to review later.
                   </p>
                 </div>
@@ -417,26 +417,26 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
                 activeBookmarks.map((bm, idx) => (
                   <div
                     key={idx}
-                    className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-1.5 group"
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-1.5 group shadow-xs"
                   >
                     <div className="flex items-center justify-between">
                       <button
                         onClick={() => setPage(bm.page)}
-                        className="text-xs font-bold text-amber-300 hover:underline flex items-center gap-1.5 cursor-pointer"
+                        className="text-xs font-bold text-amber-600 dark:text-amber-300 hover:underline flex items-center gap-1.5 cursor-pointer"
                       >
-                        <BookmarkCheck className="w-3.5 h-3.5 text-amber-400" />
+                        <BookmarkCheck className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                         <span>Jump to Page {bm.page}</span>
                       </button>
                       <button
                         onClick={() => removeBookmark(activeDocId, bm.page)}
-                        className="text-slate-500 hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        className="text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                         title="Delete note"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                     {bm.note && (
-                      <p className="text-xs text-slate-200 leading-relaxed font-sans">{bm.note}</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-sans">{bm.note}</p>
                     )}
                   </div>
                 ))
@@ -451,16 +451,16 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
       {/* ============================================================== */}
       {showNotesDrawer && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-3xl max-h-[75vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 rounded-t-3xl max-h-[75vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200 text-slate-900 dark:text-white">
             {/* Drawer Header Handle */}
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/40">
               <div className="flex items-center space-x-2">
-                <Bookmark className="w-4 h-4 text-amber-400" />
-                <h3 className="text-xs font-bold text-white">Study Notes & Bookmarks</h3>
+                <Bookmark className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white">Study Notes & Bookmarks</h3>
               </div>
               <button
                 onClick={() => setShowNotesDrawer(false)}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-slate-800 text-slate-300 cursor-pointer"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -469,12 +469,12 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
             {/* Mobile Drawer Scrollable Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   {activeBookmarks.length} Saved Note{activeBookmarks.length === 1 ? '' : 's'}
                 </span>
                 <button
                   onClick={() => setIsAddingBookmark(true)}
-                  className="text-xs text-brand-400 hover:text-brand-300 font-bold"
+                  className="text-xs text-brand-600 dark:text-brand-400 hover:text-brand-500 dark:hover:text-brand-300 font-bold"
                 >
                   + Add at Page {displayPage}
                 </button>
@@ -486,25 +486,25 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
                 </p>
               ) : (
                 activeBookmarks.map((bm, idx) => (
-                  <div key={idx} className="p-3 bg-slate-800/80 rounded-2xl space-y-1">
+                  <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl space-y-1 shadow-xs">
                     <div className="flex items-center justify-between">
                       <button
                         onClick={() => {
                           setPage(bm.page);
                           setShowNotesDrawer(false);
                         }}
-                        className="text-xs font-bold text-amber-300"
+                        className="text-xs font-bold text-amber-600 dark:text-amber-300"
                       >
                         Jump to Page {bm.page}
                       </button>
                       <button
                         onClick={() => removeBookmark(activeDocId, bm.page)}
-                        className="text-slate-400 hover:text-rose-400 text-xs p-1"
+                        className="text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 text-xs p-1"
                       >
                         Delete
                       </button>
                     </div>
-                    {bm.note && <p className="text-xs text-slate-200 mt-1">{bm.note}</p>}
+                    {bm.note && <p className="text-xs text-slate-700 dark:text-slate-200 mt-1">{bm.note}</p>}
                   </div>
                 ))
               )}

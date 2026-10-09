@@ -239,22 +239,22 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-slate-950 text-slate-100 flex flex-col font-sans select-none pb-24 md:pb-12">
+    <div className="h-full w-full overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans select-none pb-24 md:pb-12 transition-colors">
       {/* ============================================================== */}
       {/* 1. HERO HEADER BLUEPRINT & UNIFIED TOP NAVIGATION              */}
       {/* ============================================================== */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pt-6 pb-6 bg-gradient-to-b from-brand-950/40 via-slate-950 to-slate-950 border-b border-slate-800/80">
+      <section className="relative px-4 sm:px-6 lg:px-8 pt-6 pb-6 bg-gradient-to-b from-brand-50/70 via-slate-50 to-slate-50 dark:from-brand-950/40 dark:via-slate-950 dark:to-slate-950 border-b border-slate-200 dark:border-slate-800/80">
         <div className="max-w-7xl mx-auto space-y-4">
-          {/* Integrated Mode Switcher & Admin Upload Toolbar (Eliminates Double Header) */}
+          {/* Integrated Mode Switcher & Admin Upload Toolbar */}
           {setDisplayMode && (
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/60">
-              <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800/60">
+              <div className="flex items-center bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
                 <button
                   onClick={() => setDisplayMode('vault')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     displayMode === 'vault'
                       ? 'bg-brand-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <FileCheck2 className="w-3.5 h-3.5" />
@@ -265,7 +265,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     displayMode === 'funnel'
                       ? 'bg-brand-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
@@ -276,7 +276,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                     displayMode === 'list'
                       ? 'bg-brand-600 text-white shadow-xs'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
@@ -310,8 +310,8 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
           )}
 
           {/* Absolute Syllabus Anchor Banner */}
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-300 text-xs font-semibold shadow-xs">
-            <ShieldCheck className="w-4 h-4 text-brand-400" />
+          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/30 text-brand-700 dark:text-brand-300 text-xs font-semibold shadow-xs">
+            <ShieldCheck className="w-4 h-4 text-brand-600 dark:text-brand-400" />
             <span className="tracking-wide">
               Aligned Strictly with Maharashtra State Board HSC Commerce Board Syllabus
             </span>
@@ -320,22 +320,22 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
           {/* Primary High-Converting Emotional Hook */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
                 HSC Commerce Board Exam Vault
               </h1>
-              <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-2xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed">
                 Authentic previous year question papers for Standard {activeStandard}. Instant search by subject, year, and examination session.
               </p>
             </div>
 
             {/* Quick Stats Retention Pill */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 shadow-xs flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                 <span>{papers.length} Verified Papers</span>
               </span>
-              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-semibold text-amber-400 flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-amber-400" />
+              <span className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-amber-600 dark:text-amber-400 shadow-xs flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-amber-500" />
                 <span>{completedPapers.length} Solved by You</span>
               </span>
               <button
@@ -356,18 +356,18 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
       <section className="px-4 sm:px-6 lg:px-8 py-5 max-w-7xl mx-auto w-full space-y-4">
         {/* Instant Search Bar */}
         <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search papers by subject or year (e.g., 'Book-Keeping 2024', 'Economics March')..."
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-sm text-slate-100 placeholder-slate-500 focus:outline-hidden focus:border-brand-500 transition-all shadow-inner"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all shadow-xs"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white cursor-pointer"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
             >
               Clear
             </button>
@@ -375,10 +375,10 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
         </div>
 
         {/* Faceted Filter Tags */}
-        <div className="space-y-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+        <div className="space-y-3 p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 shadow-xs">
           {/* Subject Facet: Clean, Non-Duplicated Chips */}
           <div className="flex flex-col sm:flex-row sm:items-start gap-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider min-w-[70px] pt-1">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[70px] pt-1">
               Subject:
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -391,7 +391,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                     className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-brand-600 text-white shadow-xs'
-                        : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                     }`}
                   >
                     {sub.label}
@@ -403,7 +403,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
 
           {/* Year Facet */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider min-w-[70px]">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[70px]">
               Year:
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -416,7 +416,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                     className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-amber-600 text-white shadow-xs'
-                        : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                     }`}
                   >
                     {yr}
@@ -428,7 +428,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
 
           {/* Resource Type Facet */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider min-w-[70px]">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[70px]">
               Resource:
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -441,7 +441,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                     className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
                     }`}
                   >
                     {t}
@@ -462,25 +462,25 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
             {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
               <div
                 key={n}
-                className="h-64 rounded-3xl bg-slate-900/80 border border-slate-800/60 p-5 space-y-3"
+                className="h-64 rounded-3xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/60 p-5 space-y-3"
               >
-                <div className="h-4 bg-slate-800 rounded-full w-24" />
-                <div className="h-5 bg-slate-800 rounded-full w-48" />
-                <div className="h-20 bg-slate-800/50 rounded-2xl" />
-                <div className="h-8 bg-slate-800 rounded-xl" />
+                <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-full w-24" />
+                <div className="h-5 bg-slate-100 dark:bg-slate-800 rounded-full w-48" />
+                <div className="h-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl" />
+                <div className="h-8 bg-slate-100 dark:bg-slate-800 rounded-xl" />
               </div>
             ))}
           </div>
         ) : filteredPapers.length === 0 ? (
           /* Smart Content Fallback & Lead Magnet Form */
-          <div className="rounded-3xl bg-slate-900/40 border border-slate-800/80 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-4 my-8">
-            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-400 flex items-center justify-center mx-auto">
+          <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/80 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-4 my-8 shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto border border-brand-100 dark:border-brand-900">
               <Sparkles className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-bold text-white">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
               No papers found matching your filter
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               We upload new Maharashtra State Board papers regularly. Request this specific paper and our academic team will notify you directly.
             </p>
             <button
@@ -509,17 +509,17 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
               return (
                 <div
                   key={paper.id}
-                  className="group relative flex flex-col justify-between p-4 rounded-3xl bg-slate-900/80 border border-slate-800/80 hover:border-brand-500/50 hover:bg-slate-900 transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                  className="group relative flex flex-col justify-between p-4 rounded-3xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 hover:border-brand-500/60 dark:hover:border-brand-500/50 hover:bg-white dark:hover:bg-slate-900 transition-all duration-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5"
                 >
                   <div>
                     {/* Card Top Badges */}
                     <div className="flex items-center justify-between gap-1 mb-2.5">
                       <div className="flex items-center space-x-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg bg-brand-500/20 text-brand-300 border border-brand-500/30">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg bg-brand-50 dark:bg-brand-500/20 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-500/30">
                           {paper.subject}
                         </span>
                         {paper.year && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
                             {paper.year}
                           </span>
                         )}
@@ -529,16 +529,16 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                       <div className="flex items-center space-x-1">
                         {paperDone && (
                           <span
-                            className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30"
                             title="Completed Paper"
                           >
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                             <span>Done</span>
                           </span>
                         )}
                         {lastReadPage && lastReadPage > 1 && !paperDone && (
                           <span
-                            className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 animate-pulse"
                             title={`Resume at page ${lastReadPage}`}
                           >
                             <span>p.{lastReadPage}</span>
@@ -548,26 +548,26 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                     </div>
 
                     {/* Paper Title */}
-                    <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-brand-300 transition-colors line-clamp-2 leading-snug mb-2">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300 transition-colors line-clamp-2 leading-snug mb-2">
                       {paper.title}
                     </h3>
 
                     {/* Time-to-Solve Metric */}
-                    <div className="flex items-center space-x-2 text-[11px] text-slate-400 font-mono py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 mb-3">
+                    <div className="flex items-center space-x-2 text-[11px] text-slate-600 dark:text-slate-400 font-mono py-1.5 px-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 mb-3">
                       <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                         <span>⏳ {solveHours} Hours</span>
                       </span>
-                      <span className="text-slate-600">|</span>
+                      <span className="text-slate-300 dark:text-slate-600">|</span>
                       <span className="flex items-center gap-1">
-                        <Award className="w-3.5 h-3.5 text-brand-400" />
+                        <Award className="w-3.5 h-3.5 text-brand-500 dark:text-brand-400" />
                         <span>💯 {solveMarks} Marks</span>
                       </span>
                     </div>
                   </div>
 
                   {/* Actions: Question Paper & Optional Solution Key */}
-                  <div className="space-y-2 pt-2 border-t border-slate-800/60">
+                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
                     {paper.answerKeyPdfUrl &&
                     paper.answerKeyPdfUrl.trim() !== '' &&
                     paper.answerKeyPdfUrl !== paper.questionPdfUrl ? (
@@ -598,7 +598,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                               modeTitle: `${paper.title} • Model Solution Key`,
                             });
                           }}
-                          className="py-2.5 px-2.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="py-2.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
                           title="Open Official Solution Key"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -629,8 +629,8 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                       onClick={() => toggleComplete(paper.id)}
                       className={`w-full py-1.5 rounded-xl text-[11px] font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
                         isCompleted(paper.id)
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800/80'
+                          ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30'
+                          : 'bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800/80'
                       }`}
                     >
                       <Check className="w-3 h-3" />
@@ -650,20 +650,20 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
       {/* 4. LEAD MAGNET "REQUEST PAPER" MODAL (DIRECT ADMIN EMAIL DISPATCH) */}
       {/* ============================================================== */}
       {showRequestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative text-slate-900 dark:text-white">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
-                <div className="w-9 h-9 rounded-xl bg-brand-600/20 text-brand-300 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-600/20 text-brand-600 dark:text-brand-300 flex items-center justify-center border border-brand-100 dark:border-brand-900">
                   <Sparkles className="w-5 h-5" />
                 </div>
-                <h3 className="text-sm font-bold text-white">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                   Request Missing Board Paper
                 </h3>
               </div>
               <button
                 onClick={() => setShowRequestModal(false)}
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
               >
                 ✕
               </button>
@@ -671,22 +671,22 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
 
             {requestSubmitted ? (
               <div className="text-center py-6 space-y-2">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-100 dark:border-emerald-900">
                   <Check className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-bold text-white">Request Dispatched!</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Request Dispatched!</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   {requestNotice || 'Notification sent directly to the Super Admin (bs.framework5253@gmail.com). You will receive an update once uploaded.'}
                 </p>
               </div>
             ) : (
               <form onSubmit={handleRequestSubmit} className="space-y-3.5">
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   Looking for a specific past year exam or solution key? Enter your details below and an instant request will be emailed to our administration team.
                 </p>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 block">
                     Your Email Address *
                   </label>
                   <input
@@ -695,19 +695,19 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                     value={requestForm.email}
                     onChange={(e) => setRequestForm({ ...requestForm, email: e.target.value })}
                     placeholder="student@gmail.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-hidden focus:border-brand-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:border-brand-500"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 mb-1 block">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 block">
                       Subject
                     </label>
                     <select
                       value={requestForm.subject}
                       onChange={(e) => setRequestForm({ ...requestForm, subject: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-hidden"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white focus:outline-hidden"
                     >
                       <option value="Book-Keeping & Accountancy">Book-Keeping (BK)</option>
                       <option value="Economics">Economics</option>
@@ -720,7 +720,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-400 mb-1 block">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 block">
                       Target Exam Year
                     </label>
                     <input
@@ -728,13 +728,13 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                       value={requestForm.year}
                       onChange={(e) => setRequestForm({ ...requestForm, year: e.target.value })}
                       placeholder="e.g., 2024, 2023"
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-hidden"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white focus:outline-hidden"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 mb-1 block">
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1 block">
                     Specific Paper / Notes (Optional)
                   </label>
                   <input
@@ -742,7 +742,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                     value={requestForm.notes}
                     onChange={(e) => setRequestForm({ ...requestForm, notes: e.target.value })}
                     placeholder="e.g., July Repeater Exam or Model Solutions"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-hidden"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white focus:outline-hidden"
                   />
                 </div>
 
@@ -750,7 +750,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowRequestModal(false)}
-                    className="px-4 py-2 text-xs text-slate-400 hover:text-white rounded-xl cursor-pointer"
+                    className="px-4 py-2 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl cursor-pointer"
                   >
                     Cancel
                   </button>
