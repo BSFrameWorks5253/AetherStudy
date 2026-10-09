@@ -70,7 +70,7 @@ try {
   if (fs.existsSync(serverDocsPath)) {
     try {
       const docs = JSON.parse(fs.readFileSync(serverDocsPath, 'utf8'));
-      if (Array.isArray(docs) && docs.length > 0) {
+      if (Array.isArray(docs)) {
         catalog.documents = docs;
         changed = true;
       }

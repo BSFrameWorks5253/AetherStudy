@@ -15,7 +15,11 @@ export interface ServerDocument {
   subject: string;
   uploadedBy?: string;
   standard?: string;
-  category?: 'textbook' | 'notes';
+  category?: 'textbook' | 'notes' | string;
+  chapterNumber?: string;
+  chapterTitle?: string;
+  customFilter?: string;
+  tags?: string[];
   uploadCount?: number;
 }
 
@@ -410,7 +414,11 @@ export const api = {
     subject: string = 'General',
     uploadedBy: string = '',
     standard?: string,
-    category?: 'textbook' | 'notes'
+    category?: 'textbook' | 'notes' | string,
+    chapterNumber?: string,
+    chapterTitle?: string,
+    customFilter?: string,
+    tags?: string[]
   ): Promise<ServerDocument> {
     const formData = new FormData();
     formData.append('file', file);
@@ -418,6 +426,10 @@ export const api = {
     formData.append('uploadedBy', uploadedBy);
     if (standard) formData.append('standard', standard);
     if (category) formData.append('category', category);
+    if (chapterNumber) formData.append('chapterNumber', chapterNumber);
+    if (chapterTitle) formData.append('chapterTitle', chapterTitle);
+    if (customFilter) formData.append('customFilter', customFilter);
+    if (tags && tags.length > 0) formData.append('tags', tags.join(','));
 
     const res = await fetch(`${API_BASE}/documents/upload`, {
       method: 'POST',
@@ -434,6 +446,45 @@ export const api = {
     return uploaded;
   },
 
+  async uploadMultipleDocuments(
+    files: File[],
+    subject: string = 'General',
+    uploadedBy: string = '',
+    standard?: string,
+    category?: 'textbook' | 'notes' | string,
+    chapterNumber?: string,
+    chapterTitle?: string,
+    customFilter?: string,
+    tags?: string[]
+  ): Promise<ServerDocument[]> {
+    if (files.length === 0) return [];
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+    formData.append('subject', subject);
+    formData.append('uploadedBy', uploadedBy);
+    if (standard) formData.append('standard', standard);
+    if (category) formData.append('category', category);
+    if (chapterNumber) formData.append('chapterNumber', chapterNumber);
+    if (chapterTitle) formData.append('chapterTitle', chapterTitle);
+    if (customFilter) formData.append('customFilter', customFilter);
+    if (tags && tags.length > 0) formData.append('tags', tags.join(','));
+
+    const res = await fetch(`${API_BASE}/documents/upload-multiple`, {
+      method: 'POST',
+      headers: getAuthHeaders(false),
+      body: formData,
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Server batch file upload failed');
+    }
+    const data = await res.json();
+    const uploadedDocs: ServerDocument[] = data.documents || [];
+    const local = api.getLocalDocuments();
+    api.saveLocalDocuments([...uploadedDocs, ...local]);
+    return uploadedDocs;
+  },
+
   async deleteDocument(id: string, requesterEmail?: string): Promise<boolean> {
     try {
       const local = api.getLocalDocuments();
@@ -445,6 +496,22 @@ export const api = {
         method: 'DELETE',
         headers: getAuthHeaders(true),
         body: JSON.stringify({ requesterEmail }),
+      });
+      return res.ok;
+    } catch {
+      return true;
+    }
+  },
+
+  async purgeAllDocuments(): Promise<boolean> {
+    try {
+      localStorage.removeItem('aether_cached_documents');
+    } catch {}
+
+    try {
+      const res = await fetch(`${API_BASE}/documents-all/purge`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(true),
       });
       return res.ok;
     } catch {

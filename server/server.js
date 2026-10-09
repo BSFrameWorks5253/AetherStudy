@@ -1113,17 +1113,6 @@ app.post('/api/subjects', (req, res) => {
 app.get('/api/documents', (req, res) => {
   const { standard } = req.query;
   let docs = readJsonFile('documents.json', []);
-  if (!docs || docs.length === 0) {
-    const catalogPath = path.join(__dirname, '../src/data/catalog.json');
-    if (fs.existsSync(catalogPath)) {
-      try {
-        const cat = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
-        if (cat.documents && Array.isArray(cat.documents) && cat.documents.length > 0) {
-          docs = cat.documents;
-        }
-      } catch (e) {}
-    }
-  }
 
   // Compute upload frequency for each unique file
   const nameCounts = {};
@@ -1141,6 +1130,10 @@ app.get('/api/documents', (req, res) => {
       uploadCount: d.uploadCount || (key ? nameCounts[key] : 1) || 1,
       standard: d.standard || '12',
       category: d.category || 'notes',
+      chapterNumber: d.chapterNumber || '',
+      chapterTitle: d.chapterTitle || '',
+      customFilter: d.customFilter || '',
+      tags: Array.isArray(d.tags) ? d.tags : [],
     };
   });
 
@@ -1153,12 +1146,13 @@ app.get('/api/documents', (req, res) => {
   res.json(docs);
 });
 
+// Single Document Upload
 app.post('/api/documents/upload', requireAdmin, upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file received or rejected by security filter.' });
   }
 
-  const { subject, standard, category } = req.body;
+  const { subject, standard, category, chapterNumber, chapterTitle, customFilter, tags } = req.body;
   const user = req.user;
   const isSuper = (Boolean(SUPER_ADMIN_EMAIL) && user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) || user.role === 'SUPER_ADMIN';
 
@@ -1177,8 +1171,14 @@ app.post('/api/documents/upload', requireAdmin, upload.single('file'), (req, res
     (d) => (d.originalName || d.name || '').trim().toLowerCase() === req.file.originalname.trim().toLowerCase()
   ).length;
 
+  const parsedTags = Array.isArray(tags)
+    ? tags
+    : typeof tags === 'string'
+    ? tags.split(',').map((t) => t.trim()).filter(Boolean)
+    : [];
+
   const newDoc = {
-    id: 'doc-' + Date.now(),
+    id: 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
     name: req.file.filename,
     originalName: req.file.originalname,
     serverUrl: `/uploads/${req.file.filename}`,
@@ -1189,7 +1189,11 @@ app.post('/api/documents/upload', requireAdmin, upload.single('file'), (req, res
     uploadedBy: user.email,
     subject: cleanSubject,
     standard: targetStandard,
-    category: category === 'textbook' ? 'textbook' : 'notes',
+    category: category === 'textbook' ? 'textbook' : (category || 'notes'),
+    chapterNumber: (chapterNumber || '').trim(),
+    chapterTitle: (chapterTitle || '').trim(),
+    customFilter: (customFilter || '').trim(),
+    tags: parsedTags,
     uploadCount: matchingCount + 1,
   };
 
@@ -1199,11 +1203,78 @@ app.post('/api/documents/upload', requireAdmin, upload.single('file'), (req, res
   res.status(201).json(newDoc);
 });
 
+// Multi-Document Bulk Batch Upload (Up to 30 files at once)
+app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 30), (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: 'No files received or rejected by security filter.' });
+  }
+
+  const { subject, standard, category, chapterNumber, chapterTitle, customFilter, tags } = req.body;
+  const user = req.user;
+  const isSuper = (Boolean(SUPER_ADMIN_EMAIL) && user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) || user.role === 'SUPER_ADMIN';
+  const targetStandard = isSuper ? (standard || '12') : (user.standard || standard || '12');
+
+  const cleanSubject = subject && subject.trim() ? subject.trim() : 'General';
+  const subjects = readJsonFile('subjects.json', DEFAULT_SUBJECTS);
+  if (!subjects.includes(cleanSubject)) {
+    subjects.push(cleanSubject);
+    writeJsonFile('subjects.json', subjects);
+  }
+
+  const parsedTags = Array.isArray(tags)
+    ? tags
+    : typeof tags === 'string'
+    ? tags.split(',').map((t) => t.trim()).filter(Boolean)
+    : [];
+
+  const docs = readJsonFile('documents.json', []);
+  const createdDocs = [];
+
+  for (const file of req.files) {
+    const matchingCount = docs.filter(
+      (d) => (d.originalName || d.name || '').trim().toLowerCase() === file.originalname.trim().toLowerCase()
+    ).length;
+
+    const newDoc = {
+      id: 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      name: file.filename,
+      originalName: file.originalname,
+      serverUrl: `/uploads/${file.filename}`,
+      mimeType: file.mimetype,
+      sizeBytes: file.size,
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: user.email,
+      subject: cleanSubject,
+      standard: targetStandard,
+      category: category === 'textbook' ? 'textbook' : (category || 'notes'),
+      chapterNumber: (chapterNumber || '').trim(),
+      chapterTitle: (chapterTitle || '').trim(),
+      customFilter: (customFilter || '').trim(),
+      tags: parsedTags,
+      uploadCount: matchingCount + 1,
+    };
+
+    docs.unshift(newDoc);
+    createdDocs.push(newDoc);
+  }
+
+  writeJsonFile('documents.json', docs);
+  res.status(201).json({ documents: createdDocs, count: createdDocs.length });
+});
+
+// Delete Single Document
 app.delete('/api/documents/:id', requireAdmin, (req, res) => {
   const docs = readJsonFile('documents.json', []);
   const updated = docs.filter((d) => d.id !== req.params.id);
   writeJsonFile('documents.json', updated);
   res.json({ success: true, remaining: updated.length });
+});
+
+// Wipe All Study Notes Documents
+app.delete('/api/documents-all/purge', requireAdmin, (req, res) => {
+  writeJsonFile('documents.json', []);
+  res.json({ success: true, message: 'All study notes and documents removed successfully.' });
 });
 
 // 5. NOTES STORAGE

@@ -31,6 +31,10 @@ import {
   ListChecks,
   FolderUp,
   History,
+  Search,
+  Tag,
+  Grid,
+  List,
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey } from '../../services/readingMemory';
 
@@ -47,13 +51,16 @@ interface SubjectMeta {
 export const getSubjectSlug = (name: string): string => {
   if (!name) return 'general';
   const lower = name.toLowerCase();
+  if (lower.includes('hindi')) return 'hindi';
+  if (lower.includes('marathi')) return 'marathi';
+  if (lower.includes('english')) return 'english';
   if (lower.includes('account') || lower.includes('bk')) return 'accounts';
   if (lower.includes('ocm') || lower.includes('organization') || lower.includes('organisation')) return 'ocm';
   if (lower.includes('eco')) return 'eco';
   if (lower.includes('math')) return 'maths';
-  if (lower.includes('english') || lower.includes('yuvakbharati')) return 'english';
   if (lower.includes('information') || lower.includes('it')) return 'it';
   if (lower.includes('secretarial') || lower.includes('sp')) return 'sp';
+  if (lower.includes('yuvakbharati')) return 'english';
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 };
 
@@ -72,10 +79,26 @@ export const findSubjectBySlug = (slug: string, subjects: SubjectMeta[]): string
 
 export const matchSubjectDoc = (roomName: string, docSubject: string): boolean => {
   if (!roomName || !docSubject) return false;
+  const rTrim = roomName.trim().toLowerCase();
+  const dTrim = docSubject.trim().toLowerCase();
+  if (rTrim === dTrim) return true;
+
+  // Strict language isolation: never cross-contaminate Hindi, English, or Marathi
+  const isRHindi = rTrim.includes('hindi');
+  const isDHindi = dTrim.includes('hindi');
+  if (isRHindi !== isDHindi) return false;
+
+  const isRMarathi = rTrim.includes('marathi');
+  const isDMarathi = dTrim.includes('marathi');
+  if (isRMarathi !== isDMarathi) return false;
+
+  const isREnglish = rTrim.includes('english');
+  const isDEnglish = dTrim.includes('english');
+  if (isREnglish !== isDEnglish) return false;
+
   const rSlug = getSubjectSlug(roomName);
   const dSlug = getSubjectSlug(docSubject);
-  if (rSlug === dSlug) return true;
-  return roomName.trim().toLowerCase() === docSubject.trim().toLowerCase();
+  return rSlug === dSlug;
 };
 
 export interface ChapterItem {
@@ -172,6 +195,30 @@ export const COMMERCE_STD12_CHAPTERS: Record<string, ChapterItem[]> = {
     { number: 'Chapter 11', title: 'Financial Market', keyTopics: 'Money market vs Capital market, Primary market vs Secondary market' },
     { number: 'Chapter 12', title: 'Stock Exchange', keyTopics: 'BSE, NSE, Functions of Stock exchange, Trading procedure, SEBI regulation' },
   ],
+  hindi: [
+    { number: 'Chapter 1', title: 'नवनिर्माण (त्रिलोचन) - कविता', keyTopics: 'चतुष्पदियाँ, संघर्ष व आशावाद, जीवन मूल्य' },
+    { number: 'Chapter 2', title: 'निराले भाई (महादेवी वर्मा) - संस्मरण', keyTopics: 'सूर्यकांत त्रिपाठी निराला जी का व्यक्तित्व, उदारता, साहित्य सेवा' },
+    { number: 'Chapter 3', title: 'सच हम नहीं सच तुम नहीं (डॉ. जगदीश गुप्त)', keyTopics: 'नई कविता, संघर्ष ही जीवन है, सत्य का स्वरूप' },
+    { number: 'Chapter 4', title: 'आदर्श बदला (सुदर्शन) - कहानी', keyTopics: 'बैजू बावरा, तानसेन, संगीत साधना, प्रतिशोध से क्षमा' },
+    { number: 'Chapter 5', title: 'गुरुबानी (गुरु नानक) - पद', keyTopics: 'ईश्वर भक्ति, गुरु महत्ता, मानवता, सत्कर्म' },
+    { number: 'Chapter 6', title: 'पाप के चार हथियार (कन्हैयालाल मिश्र ‘प्रभाकर’)', keyTopics: 'निबंध, समाज सुधारक, उपेक्षा, निंदा, हत्या, जय-जयकार' },
+    { number: 'Chapter 7', title: 'पेड़ का दर्द (सर्वेश्वर दयाल सक्सेना)', keyTopics: 'पर्यावरण संचेतना, आधुनिकता और प्रकृति विनाश' },
+    { number: 'Chapter 8', title: 'सुनो किशुनी (आशापूर्णा देवी)', keyTopics: 'नारी सशक्तिकरण, सामाजिक कुरीतियाँ, आत्मसम्मान' },
+    { number: 'Chapter 9', title: 'चुनिंदा शेर (कैलाश सेंगर)', keyTopics: 'ग़ज़ल विधा, समकालीन यथार्थ, मानवीय संवेदनाएँ' },
+    { number: 'Chapter 10', title: 'ओज (रामधारी सिंह ‘दिनकर’)', keyTopics: 'वीर रस, राष्ट्र प्रेम, प्रेरणादायी विचार' },
+    { number: 'Chapter 11', title: 'कनुप्रिया (धर्मवीर भारती) - विशेष अध्ययन', keyTopics: 'सेतुबंध, अमंगल छाया, एक प्रश्न, राधा-कृष्ण दर्शन' },
+    { number: 'Chapter 12', title: 'व्यावहारिक हिंदी व व्याकरण', keyTopics: 'पल्लवन, फीचर लेखन, ब्लॉग लेखन, प्रकाशक के नाम पत्र, रस, अलंकार, मुहावरे' },
+  ],
+  marathi: [
+    { number: 'Chapter 1', title: 'वेगवशता (प्रा. शिवाजीराव भोसले)', keyTopics: 'वैचारिक निबंध, आधुनिक गती आणि विकृती, संयमी जीवन' },
+    { number: 'Chapter 2', title: 'रोज मातीत (कल्पना दुधाळ) - कविता', keyTopics: 'शेतकरी कष्ट, श्रमप्रतिष्ठा, शेतातील जिव्हाळा' },
+    { number: 'Chapter 3', title: 'आयुष्य... आनंदाचा उत्सव (व. पु. काळे)', keyTopics: 'ललित गद्य, जीवन जगण्याची कला, सकारात्मक दृष्टिकोन' },
+    { number: 'Chapter 4', title: 'रंग माझा वेगळा (सुरेश भट) - गझल', keyTopics: 'कलंदर वृत्ती, सामाजिक बांधिलकी, मानवी दुःख' },
+    { number: 'Chapter 5', title: 'वीरांना सलामी (अनुराधा प्रभूदेसाई)', keyTopics: 'सैनिकांचे जीवन, कारगिल अनुभव, देशभक्ती' },
+    { number: 'Chapter 6', title: 'रंग आकाशाचे (कविता)', keyTopics: 'निसर्ग सौंदर्य, मानवी भावभावना' },
+    { number: 'Chapter 7', title: 'कथा साहित्यप्रकार (शोध - व. पु. काळे, गढी)', keyTopics: 'कथेचे घटक, व्यक्तिचित्रण, संघर्ष व संवाद' },
+    { number: 'Chapter 8', title: 'उपयोजित मराठी व व्याकरण', keyTopics: 'मुलाखत, माहितीपत्रक, अहवाल, वृत्तलेख, वाक्यप्रकार, समास, प्रयोग' },
+  ],
 };
 
 export const COMMERCE_STD11_CHAPTERS: Record<string, ChapterItem[]> = {
@@ -259,6 +306,19 @@ export const COMMERCE_STD11_CHAPTERS: Record<string, ChapterItem[]> = {
     { number: 'Chapter 11', title: 'Correspondence with Banks', keyTopics: 'Opening Current Account, Requesting Overdraft, Stop Payment of Cheque' },
     { number: 'Chapter 12', title: 'Correspondence with Statutory Authorities', keyTopics: 'Letters to Registrar of Companies (ROC), Ministry of Corporate Affairs, Tax Authorities' },
   ],
+  hindi: [
+    { number: 'Chapter 1', title: 'प्रेरणा (त्रिपुरारि)', keyTopics: 'त्रिवेणी विधा, जीवन दर्शन, प्रेरणा' },
+    { number: 'Chapter 2', title: 'लघुकथाएँ (संतोष श्रीवास्तव)', keyTopics: 'उषा की दीपावली, मुस्कुराहट, मानवीय संवेदना' },
+    { number: 'Chapter 3', title: 'पंद्रह अगस्त (गिरिजाकुमार माथुर)', keyTopics: 'देशभक्ति, स्वतंत्रता के मायने, सतर्कता' },
+    { number: 'Chapter 4', title: 'परिश्रम ही जीवन है', keyTopics: 'कर्मनिष्ठा, सफलता का मूलमंत्र' },
+    { number: 'Chapter 5', title: 'व्याकरण व व्यावहारिक हिंदी', keyTopics: 'पत्रलेखन, निबंध, मुहावरे, शब्द संपदा' },
+  ],
+  marathi: [
+    { number: 'Chapter 1', title: 'मामू (शिवाजी सावंत)', keyTopics: 'व्यक्तिचित्रण, प्रामाणिकपणा, सेवाभाव' },
+    { number: 'Chapter 2', title: 'प्राणसई (इंदिरा संत)', keyTopics: 'भावकविता, विरह, मैत्री' },
+    { number: 'Chapter 3', title: 'ऐशी अक्षरे रसिके', keyTopics: 'मराठी भाषेचे वैभव, ज्ञानेश्वरी संदर्भासह' },
+    { number: 'Chapter 4', title: 'व्याकरण व उपयोजित मराठी', keyTopics: 'शब्दसंपत्ती, निबंध, पत्रव्यवहार' },
+  ],
 };
 
 export const ALL_SYLLABUS_CHAPTERS: Record<string, Record<string, ChapterItem[]>> = {
@@ -291,6 +351,20 @@ export const getDocsForChapter = (
       if (d.standard && d.standard !== 'ALL' && d.standard !== targetStandard) {
         return false;
       }
+    }
+
+    // Direct explicit chapter assignment check (Highest Priority)
+    if (d.chapterNumber && d.chapterNumber !== 'All' && d.chapterNumber !== 'General') {
+      if (
+        d.chapterNumber === ch.number ||
+        d.chapterNumber.toLowerCase() === ch.number.toLowerCase() ||
+        (ch.part && d.chapterNumber.includes(ch.number)) ||
+        (d.chapterTitle && d.chapterTitle.trim().toLowerCase() === ch.title.trim().toLowerCase())
+      ) {
+        return true;
+      }
+      // If a document was explicitly tagged with another specific chapter, do NOT attach it here
+      return false;
     }
 
     const dName = (d.originalName || d.name || '').toLowerCase();
@@ -598,13 +672,32 @@ export const SubjectRooms: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
   const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
   const [uploadSubject, setUploadSubject] = useState<string>('');
-  const [uploadTitle, setUploadTitle] = useState<string>('');
-  const [uploadCategory, setUploadCategory] = useState<'textbook' | 'notes'>('textbook');
+  const [uploadChapterTitle, setUploadChapterTitle] = useState<string>('');
+  const [uploadCategory, setUploadCategory] = useState<'textbook' | 'notes'>('notes');
   const [uploadStandard, setUploadStandard] = useState<string>('12');
+  const [uploadChapterNumber, setUploadChapterNumber] = useState<string>('All');
+  const [uploadCustomChapter, setUploadCustomChapter] = useState<string>('');
+  const [uploadCustomFilter, setUploadCustomFilter] = useState<string>('Theory Notes');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadSuccess, setUploadSuccess] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Notes Tab View & Custom Filters
+  const [notesViewMode, setNotesViewMode] = useState<'chapter' | 'grid'>('chapter');
+  const [selectedCustomFilter, setSelectedCustomFilter] = useState<string>('All');
+  const [noteSearchQuery, setNoteSearchQuery] = useState<string>('');
+  const [customFiltersList, setCustomFiltersList] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('aether_custom_filters');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return ['Theory Notes', 'Question Bank', 'Formula Sheet', 'Summary & Revision', 'Solved Examples'];
+  });
+  const [newTagInput, setNewTagInput] = useState<string>('');
+  const [showAddTagModal, setShowAddTagModal] = useState<boolean>(false);
+  const [isPurgingNotes, setIsPurgingNotes] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -950,16 +1043,62 @@ export const SubjectRooms: React.FC = () => {
     return [];
   }, [activeSubjectSlug, effectiveStandard, roomDocuments]);
 
+  // Dynamically aggregated custom filters for this room
+  const availableCustomFilters = useMemo(() => {
+    const set = new Set<string>(customFiltersList);
+    notesDocs.forEach((d) => {
+      if (d.customFilter && d.customFilter.trim()) {
+        set.add(d.customFilter.trim());
+      }
+      if (Array.isArray(d.tags)) {
+        d.tags.forEach((t) => {
+          if (t && t.trim()) set.add(t.trim());
+        });
+      }
+    });
+    return Array.from(set);
+  }, [customFiltersList, notesDocs]);
+
   // Selected Chapter filter for Notes and Textbooks tabs
   const [selectedChapterFilter, setSelectedChapterFilter] = useState<string>('All');
 
-  // Filter documents by selected chapter
+  // Filter documents by custom tag, live search, and selected chapter
   const filteredNotesDocs = useMemo(() => {
-    if (selectedChapterFilter === 'All') return notesDocs;
-    const targetChapter = activeRoomChapters.find((ch) => ch.number === selectedChapterFilter);
-    if (!targetChapter) return notesDocs;
-    return notesDocs.filter((d) => getDocsForChapter(targetChapter, [d], effectiveStandard).length > 0);
-  }, [notesDocs, selectedChapterFilter, activeRoomChapters, effectiveStandard]);
+    let list = notesDocs;
+
+    // 1. Filter by custom filter tag
+    if (selectedCustomFilter !== 'All') {
+      const tagLower = selectedCustomFilter.toLowerCase();
+      list = list.filter((d) => {
+        if (d.customFilter && d.customFilter.toLowerCase() === tagLower) return true;
+        if (d.tags && d.tags.some((t) => t.toLowerCase() === tagLower)) return true;
+        const nameLower = (d.originalName || d.name || '').toLowerCase();
+        return nameLower.includes(tagLower);
+      });
+    }
+
+    // 2. Filter by search query
+    if (noteSearchQuery.trim()) {
+      const q = noteSearchQuery.trim().toLowerCase();
+      list = list.filter((d) => {
+        const dName = (d.originalName || d.name || '').toLowerCase();
+        const ch = (d.chapterNumber || '').toLowerCase();
+        const chTitle = (d.chapterTitle || '').toLowerCase();
+        const filter = (d.customFilter || '').toLowerCase();
+        return dName.includes(q) || ch.includes(q) || chTitle.includes(q) || filter.includes(q);
+      });
+    }
+
+    // 3. Filter by selected chapter
+    if (selectedChapterFilter !== 'All') {
+      const targetChapter = activeRoomChapters.find((ch) => ch.number === selectedChapterFilter);
+      if (targetChapter) {
+        list = list.filter((d) => getDocsForChapter(targetChapter, [d], effectiveStandard).length > 0);
+      }
+    }
+
+    return list;
+  }, [notesDocs, selectedCustomFilter, noteSearchQuery, selectedChapterFilter, activeRoomChapters, effectiveStandard]);
 
   const filteredTextbookDocs = useMemo(() => {
     if (selectedChapterFilter === 'All') return textbookDocs;
@@ -1033,11 +1172,36 @@ export const SubjectRooms: React.FC = () => {
     }
   };
 
-  // Handle Upload
+  // Purge All Study Notes (Super Admin only - preserves PYQs)
+  const handlePurgeAllNotes = async () => {
+    if (!isSuperAdmin) return;
+    const confirmed = window.confirm(
+      '⚠️ DANGER: Are you sure you want to completely erase ALL study notes from the database?\n\n' +
+      '• All uploaded notes will be permanently removed so you can upload fresh ones.\n' +
+      '• ALL PYQ past board exam papers will remain 100% SAFE and untouched.\n\n' +
+      'Click OK to proceed with erasing all notes.'
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsPurgingNotes(true);
+      await api.purgeAllDocuments();
+      setDocuments((prev) => prev.filter((d) => d.category === 'textbook'));
+      localStorage.removeItem('aether_cached_documents');
+      alert('All study notes have been wiped cleanly. All PYQ exam papers remain intact.');
+    } catch (err: any) {
+      alert(err.message || 'Failed to purge documents.');
+    } finally {
+      setIsPurgingNotes(false);
+    }
+  };
+
+  // Handle Upload (supports single or multiple files in batch)
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile) {
-      setUploadError('Please select a PDF document.');
+    const filesToUpload = selectedFiles.length > 0 ? selectedFiles : (selectedFile ? [selectedFile] : []);
+    if (filesToUpload.length === 0) {
+      setUploadError('Please select at least one study document or PDF.');
       return;
     }
 
@@ -1052,99 +1216,160 @@ export const SubjectRooms: React.FC = () => {
 
       const targetSub = uploadSubject || activeRoom || availableSubjects[0]?.name || 'General';
       const targetStd = isSuperAdmin ? uploadStandard : (currentUser?.standard || activeStandard || '12');
+      const finalChapterNumber = uploadChapterNumber === 'custom' 
+        ? uploadCustomChapter.trim() 
+        : (uploadChapterNumber !== 'All' ? uploadChapterNumber : '');
+      const matchedChapterItem = activeRoomChapters.find((c) => c.number === finalChapterNumber);
+      const finalChapterTitle = uploadChapterTitle || matchedChapterItem?.title || (uploadChapterNumber === 'custom' ? uploadCustomChapter.trim() : '');
+      const finalFilter = uploadCustomFilter.trim();
 
-      let uploadedRecord: ServerDocument;
-
-      // 1. Attempt Direct Google Drive Upload first
-      let driveResult: any = null;
-      try {
-        driveResult = await uploadDirectToGoogleDrive(
-          selectedFile,
-          targetSub,
-          currentUser?.email || 'admin'
-        );
-      } catch (driveErr: any) {
-        console.warn('Direct Google Drive upload error, falling back to server upload:', driveErr);
+      // If user typed a new custom filter, persist it
+      if (finalFilter && !customFiltersList.includes(finalFilter)) {
+        const updated = [...customFiltersList, finalFilter];
+        setCustomFiltersList(updated);
+        try {
+          localStorage.setItem('aether_custom_filters', JSON.stringify(updated));
+        } catch {}
       }
 
-      if (driveResult && driveResult.id) {
-        // Direct Google Drive upload succeeded! The file is safely in Google Drive
-        const driveDoc: ServerDocument = {
-          id: driveResult.id,
-          name: driveResult.name || selectedFile.name,
-          originalName: selectedFile.name,
-          streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-          serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-          mimeType: selectedFile.type || 'application/pdf',
-          sizeBytes: selectedFile.size,
-          size: driveResult.size || `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
-          uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
-          uploadedBy: currentUser?.email || 'admin',
-          subject: targetSub,
-          standard: targetStd,
-          category: uploadCategory,
-          uploadCount: 1,
-        };
+      const newlyUploaded: ServerDocument[] = [];
 
-        // Attach & sync with server database (non-blocking, client cache is guaranteed)
+      // If multiple files, use batch upload API directly
+      if (filesToUpload.length > 1) {
         try {
-          const attachRes = await api.attachDriveDoc(targetSub, driveDoc);
-          uploadedRecord = attachRes.document || driveDoc;
-        } catch (syncErr) {
-          console.warn('Server sync notice:', syncErr);
-          uploadedRecord = driveDoc;
+          const batchDocs = await api.uploadMultipleDocuments(
+            filesToUpload,
+            targetSub,
+            currentUser?.email || 'admin',
+            targetStd,
+            uploadCategory,
+            finalChapterNumber,
+            finalChapterTitle,
+            finalFilter,
+            finalFilter ? [finalFilter] : []
+          );
+          newlyUploaded.push(...batchDocs);
+        } catch (batchErr: any) {
+          console.warn('Batch upload server error, falling back to sequential uploads:', batchErr);
+          for (const file of filesToUpload) {
+            try {
+              const doc = await api.uploadDocument(
+                file,
+                targetSub,
+                currentUser?.email || 'admin',
+                targetStd,
+                uploadCategory,
+                finalChapterNumber,
+                finalChapterTitle,
+                finalFilter,
+                finalFilter ? [finalFilter] : []
+              );
+              newlyUploaded.push(doc);
+            } catch (singleErr) {
+              console.warn(`Failed to upload ${file.name}:`, singleErr);
+            }
+          }
         }
       } else {
-        // Fallback 1: Try backend Google Drive storage proxy
+        // Single file upload: Attempt Direct Google Drive or fallback
+        const singleFile = filesToUpload[0];
+        let uploadedRecord: ServerDocument | null = null;
+        let driveResult: any = null;
+
         try {
-          const driveRes = await api.uploadToGoogleDrive(
-            selectedFile,
+          driveResult = await uploadDirectToGoogleDrive(
+            singleFile,
             targetSub,
             currentUser?.email || 'admin'
           );
-          if (driveRes && driveRes.document) {
-            uploadedRecord = driveRes.document;
-          } else {
-            throw new Error('Proxy upload returned no document');
+        } catch (driveErr: any) {
+          console.warn('Direct Google Drive upload error, falling back to server upload:', driveErr);
+        }
+
+        if (driveResult && driveResult.id) {
+          const driveDoc: ServerDocument = {
+            id: driveResult.id,
+            name: driveResult.name || singleFile.name,
+            originalName: singleFile.name,
+            streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+            serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+            mimeType: singleFile.type || 'application/pdf',
+            sizeBytes: singleFile.size,
+            size: driveResult.size || `${(singleFile.size / (1024 * 1024)).toFixed(2)} MB`,
+            uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
+            uploadedBy: currentUser?.email || 'admin',
+            subject: targetSub,
+            standard: targetStd,
+            category: uploadCategory,
+            chapterNumber: finalChapterNumber,
+            chapterTitle: finalChapterTitle,
+            customFilter: finalFilter,
+            tags: finalFilter ? [finalFilter] : [],
+            uploadCount: 1,
+          };
+
+          try {
+            const attachRes = await api.attachDriveDoc(targetSub, driveDoc);
+            uploadedRecord = attachRes.document || driveDoc;
+          } catch {
+            uploadedRecord = driveDoc;
           }
-        } catch {
-          // Fallback 2: Try standard server upload endpoint
+        } else {
+          // Standard server upload with chapter and filter metadata
           try {
             uploadedRecord = await api.uploadDocument(
-              selectedFile,
+              singleFile,
               targetSub,
               currentUser?.email || 'admin',
               targetStd,
-              uploadCategory
+              uploadCategory,
+              finalChapterNumber,
+              finalChapterTitle,
+              finalFilter,
+              finalFilter ? [finalFilter] : []
             );
           } catch {
-            // Fallback 3: Client resilient instant document (never blocks user)
+            // Instant offline client document fallback
             const localId = `doc-${Date.now()}`;
-            const localUrl = URL.createObjectURL(selectedFile);
+            const localUrl = URL.createObjectURL(singleFile);
             uploadedRecord = {
               id: localId,
-              name: selectedFile.name,
-              originalName: selectedFile.name,
+              name: singleFile.name,
+              originalName: singleFile.name,
               streamUrl: localUrl,
               serverUrl: localUrl,
-              mimeType: selectedFile.type || 'application/pdf',
-              sizeBytes: selectedFile.size,
-              size: `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
+              mimeType: singleFile.type || 'application/pdf',
+              sizeBytes: singleFile.size,
+              size: `${(singleFile.size / (1024 * 1024)).toFixed(2)} MB`,
               uploadedAt: new Date().toISOString(),
               uploadedBy: currentUser?.email || 'admin',
               subject: targetSub,
               standard: targetStd,
               category: uploadCategory,
+              chapterNumber: finalChapterNumber,
+              chapterTitle: finalChapterTitle,
+              customFilter: finalFilter,
+              tags: finalFilter ? [finalFilter] : [],
               uploadCount: 1,
             };
           }
         }
+
+        if (uploadedRecord) {
+          newlyUploaded.push(uploadedRecord);
+        }
       }
 
-      setDocuments((prev) => [uploadedRecord, ...prev]);
+      if (newlyUploaded.length === 0) {
+        throw new Error('No files were successfully processed. Please try again.');
+      }
+
+      setDocuments((prev) => [...newlyUploaded, ...prev]);
       setUploadSuccess(true);
+      setSelectedFiles([]);
       setSelectedFile(null);
-      setUploadTitle('');
+      setUploadChapterTitle('');
+      setUploadCustomChapter('');
       setTimeout(() => {
         setUploadSuccess(false);
         setShowUploadModal(false);
@@ -1568,7 +1793,8 @@ export const SubjectRooms: React.FC = () => {
                                       type="button"
                                       onClick={() => {
                                         setUploadSubject(activeRoom);
-                                        setUploadTitle(`${activeRoom} - ${ch.number}: ${ch.title}`);
+                                        setUploadChapterNumber(ch.number);
+                                        setUploadChapterTitle(ch.title);
                                         setShowUploadModal(true);
                                       }}
                                       className="text-brand-600 dark:text-brand-400 font-bold hover:underline"
@@ -1774,149 +2000,597 @@ export const SubjectRooms: React.FC = () => {
                     </p>
                   )}
                   {canUpload && (
-                    <div className="pt-2">
+                    <div className="pt-2 flex items-center justify-center gap-2">
                       <button
                         onClick={() => {
                           setUploadSubject(activeRoom);
                           setUploadCategory('notes');
                           setShowUploadModal(true);
                         }}
-                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition-all"
+                        className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                       >
-                        + Upload Class {effectiveStandard} Notes
+                        <Plus className="w-4 h-4" />
+                        <span>Upload Class {effectiveStandard} Notes</span>
                       </button>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {/* Chapter Filter Bar for Study Notes */}
-                  {activeRoomChapters.length > 0 && (
-                    <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chapter:</span>
-                        <select
-                          value={selectedChapterFilter}
-                          onChange={(e) => setSelectedChapterFilter(e.target.value)}
-                          className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl px-3 py-1.5 outline-none cursor-pointer"
-                        >
-                          <option value="All">All Chapters ({notesDocs.length} Notes)</option>
-                          {activeRoomChapters.map((ch) => {
-                            const count = getDocsForChapter(ch, notesDocs, effectiveStandard).length;
-                            return (
-                              <option key={ch.number} value={ch.number}>
-                                {ch.number}: {ch.title} ({count} {count === 1 ? 'PDF' : 'PDFs'})
-                              </option>
-                            );
-                          })}
-                        </select>
+                <div className="space-y-5">
+                  {/* Notes Control Bar: View Switcher, Search, and Quick Actions */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                    {/* View Switcher: By Chapter vs All Notes Grid */}
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setNotesViewMode('chapter')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          notesViewMode === 'chapter'
+                            ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <List className="w-3.5 h-3.5" />
+                        <span>By Chapter</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotesViewMode('grid')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          notesViewMode === 'grid'
+                            ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Grid className="w-3.5 h-3.5" />
+                        <span>All Notes Grid ({filteredNotesDocs.length})</span>
+                      </button>
+                    </div>
+
+                    {/* Search and Action Buttons */}
+                    <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
+                      <div className="relative min-w-[180px] max-w-xs flex-1">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={noteSearchQuery}
+                          onChange={(e) => setNoteSearchQuery(e.target.value)}
+                          placeholder="Search notes or topics..."
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs pl-8 pr-7 py-1.5 rounded-xl outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                        {noteSearchQuery && (
+                          <button
+                            onClick={() => setNoteSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
-                      {selectedChapterFilter !== 'All' && (
+
+                      {isSuperAdmin && (
                         <button
-                          onClick={() => setSelectedChapterFilter('All')}
-                          className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline"
+                          type="button"
+                          onClick={handlePurgeAllNotes}
+                          disabled={isPurgingNotes}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                          title="Purge all study notes from database while preserving PYQ test papers"
                         >
-                          Show All Chapters
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Purge Notes</span>
+                        </button>
+                      )}
+
+                      {canUpload && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploadSubject(activeRoom);
+                            setUploadCategory('notes');
+                            setShowUploadModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Upload PDF</span>
                         </button>
                       )}
                     </div>
-                  )}
+                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredNotesDocs.map((doc) => {
-                      const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc], effectiveStandard).length > 0);
-                      const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
-                      const progress = readingMemory.getProgress(docKey);
-                      const hasProgress = progress && progress.currentPage > 1;
+                  {/* Custom Filter Pills Bar */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1 shrink-0">
+                      <Tag className="w-3 h-3" />
+                      <span>Tag:</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCustomFilter('All')}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        selectedCustomFilter === 'All'
+                          ? 'bg-brand-600 text-white shadow-xs'
+                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      All ({notesDocs.length})
+                    </button>
+
+                    {availableCustomFilters.map((filter) => {
+                      const count = notesDocs.filter((d) => {
+                        const filterLower = filter.toLowerCase();
+                        if (d.customFilter && d.customFilter.toLowerCase() === filterLower) return true;
+                        if (d.tags && d.tags.some((t) => t.toLowerCase() === filterLower)) return true;
+                        const dName = (d.originalName || d.name || '').toLowerCase();
+                        return dName.includes(filterLower);
+                      }).length;
 
                       return (
-                        <div
-                          key={doc.id}
-                          onClick={() => handleOpenDoc(doc)}
-                          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => setSelectedCustomFilter(filter)}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                            selectedCustomFilter === filter
+                              ? 'bg-amber-600 text-white shadow-xs'
+                              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          }`}
                         >
-                          <div>
-                            <div className="flex items-start justify-between gap-2 mb-3">
-                              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-100 dark:border-amber-900">
-                                <FileText className="w-5 h-5" />
+                          <span>{filter}</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                              selectedCustomFilter === filter
+                                ? 'bg-white/20 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {/* Add Custom Filter Tag Button */}
+                    {showAddTagModal ? (
+                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-full border border-brand-500 shrink-0">
+                        <input
+                          type="text"
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          placeholder="New tag..."
+                          className="bg-transparent text-xs px-2 py-0.5 text-slate-800 dark:text-white outline-none w-24"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newTagInput.trim()) {
+                              const tag = newTagInput.trim();
+                              if (!customFiltersList.includes(tag)) {
+                                const updated = [...customFiltersList, tag];
+                                setCustomFiltersList(updated);
+                                localStorage.setItem('aether_custom_filters', JSON.stringify(updated));
+                              }
+                              setSelectedCustomFilter(tag);
+                              setNewTagInput('');
+                              setShowAddTagModal(false);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (newTagInput.trim()) {
+                              const tag = newTagInput.trim();
+                              if (!customFiltersList.includes(tag)) {
+                                const updated = [...customFiltersList, tag];
+                                setCustomFiltersList(updated);
+                                localStorage.setItem('aether_custom_filters', JSON.stringify(updated));
+                              }
+                              setSelectedCustomFilter(tag);
+                              setNewTagInput('');
+                            }
+                            setShowAddTagModal(false);
+                          }}
+                          className="p-1 text-emerald-600 hover:text-emerald-700 font-bold text-xs"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewTagInput('');
+                            setShowAddTagModal(false);
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-600 text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddTagModal(true)}
+                        className="px-2.5 py-1 rounded-full text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/50 border border-dashed border-brand-300 dark:border-brand-800 hover:bg-brand-100 dark:hover:bg-brand-900/50 transition-all shrink-0 cursor-pointer flex items-center gap-1"
+                        title="Add custom filter tag"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Tag</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* ========================================================
+                      VIEW MODE 1: BY CHAPTER ACCORDION / NAVIGATION VIEW
+                  ======================================================== */}
+                  {notesViewMode === 'chapter' ? (
+                    <div className="space-y-4">
+                      {activeRoomChapters.map((ch) => {
+                        // All docs matching this chapter
+                        const allChDocs = notesDocs.filter((d) => getDocsForChapter(ch, [d], effectiveStandard).length > 0);
+                        // Filtered docs matching active tag and search query
+                        const chDocs = allChDocs.filter((d) => {
+                          if (selectedCustomFilter !== 'All') {
+                            const tagLower = selectedCustomFilter.toLowerCase();
+                            const matchesTag = (d.customFilter && d.customFilter.toLowerCase() === tagLower) ||
+                              (d.tags && d.tags.some((t) => t.toLowerCase() === tagLower)) ||
+                              (d.originalName || d.name || '').toLowerCase().includes(tagLower);
+                            if (!matchesTag) return false;
+                          }
+                          if (noteSearchQuery.trim()) {
+                            const q = noteSearchQuery.trim().toLowerCase();
+                            const dName = (d.originalName || d.name || '').toLowerCase();
+                            const filter = (d.customFilter || '').toLowerCase();
+                            if (!dName.includes(q) && !filter.includes(q)) return false;
+                          }
+                          return true;
+                        });
+
+                        return (
+                          <div
+                            key={ch.number}
+                            className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden transition-all hover:border-slate-300 dark:hover:border-slate-700"
+                          >
+                            {/* Chapter Header */}
+                            <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                    {ch.number}
+                                  </span>
+                                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                                    {ch.title}
+                                  </h3>
+                                </div>
+                                {ch.keyTopics && (
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                                    Topics: {ch.keyTopics}
+                                  </p>
+                                )}
                               </div>
 
-                              <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                                {matchedCh && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
-                                    {matchedCh.number}
-                                  </span>
-                                )}
-
-                                {hasProgress && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                                    <History className="w-2.5 h-2.5" /> p.{progress.currentPage} ({progress.percent}%)
-                                  </span>
-                                )}
-
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                                  Study Material
+                              {/* Chapter Actions: Count Badge & Upload Button */}
+                              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl ${
+                                  allChDocs.length > 0
+                                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800'
+                                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                                }`}>
+                                  {allChDocs.length} {allChDocs.length === 1 ? 'PDF' : 'PDFs'}
                                 </span>
 
-                                {/* Super Admin Upload Count Tracker */}
-                                {isSuperAdmin && (
-                                  <span
-                                    className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                                    title="Number of times this document has been uploaded"
+                                {canUpload && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setUploadSubject(activeRoom);
+                                      setUploadChapterNumber(ch.number);
+                                      setUploadChapterTitle(ch.title);
+                                      setUploadCategory('notes');
+                                      setShowUploadModal(true);
+                                    }}
+                                    className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                                    title={`Upload notes directly to ${ch.number}`}
                                   >
-                                    {doc.uploadCount || 1} {doc.uploadCount === 1 ? 'upload' : 'uploads'}
-                                  </span>
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>Add PDF</span>
+                                  </button>
                                 )}
                               </div>
                             </div>
 
-                            <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
-                              {doc.name || doc.originalName}
-                            </h4>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
-                              <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
-                              <span>•</span>
-                              <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
-                            </div>
-                          </div>
+                            {/* Chapter PDFs List */}
+                            <div className="p-4 sm:p-5">
+                              {chDocs.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                                  {chDocs.map((doc) => {
+                                    const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
+                                    const progress = readingMemory.getProgress(docKey);
+                                    const hasProgress = progress && progress.currentPage > 1;
 
-                          <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
-                            {hasProgress ? (
-                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                <Eye className="w-3.5 h-3.5" /> Resume Page {progress.currentPage}
-                              </span>
-                            ) : (
-                              <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
-                                <Eye className="w-3.5 h-3.5" /> Read Notes
-                              </span>
-                            )}
+                                    return (
+                                      <div
+                                        key={doc.id}
+                                        onClick={() => handleOpenDoc(doc)}
+                                        className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 hover:border-amber-500/50 dark:hover:border-amber-500/50 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+                                      >
+                                        <div>
+                                          <div className="flex items-start justify-between gap-2 mb-2">
+                                            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                                              <FileText className="w-4 h-4" />
+                                            </div>
 
-                            <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                              <a
-                                href={getDownloadUrl(doc)}
-                                target="_blank"
-                                rel="noreferrer"
-                                download={doc.originalName || doc.name}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                title="Download PDF"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </a>
-                              {canUpload && (
-                                <button
-                                  onClick={(e) => handleDeleteDocument(doc.id, e)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                                  title="Delete from room"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                            <div className="flex items-center gap-1 flex-wrap justify-end">
+                                              {doc.customFilter && (
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                                  {doc.customFilter}
+                                                </span>
+                                              )}
+
+                                              {hasProgress && (
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                                                  <History className="w-2.5 h-2.5" /> p.{progress.currentPage}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+                                            {doc.name || doc.originalName}
+                                          </h4>
+                                          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-2">
+                                            <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
+                                            <span>•</span>
+                                            <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/60">
+                                          {hasProgress ? (
+                                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                              <Eye className="w-3 h-3" /> Resume
+                                            </span>
+                                          ) : (
+                                            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                              <Eye className="w-3 h-3" /> Read PDF
+                                            </span>
+                                          )}
+
+                                          <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                                            <a
+                                              href={getDownloadUrl(doc)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              download={doc.originalName || doc.name}
+                                              className="p-1 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                                              title="Download PDF"
+                                            >
+                                              <Download className="w-3.5 h-3.5" />
+                                            </a>
+                                            {canUpload && (
+                                              <button
+                                                onClick={(e) => handleDeleteDocument(doc.id, e)}
+                                                className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                                                title="Delete document"
+                                              >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="py-6 px-4 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-2">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {selectedCustomFilter !== 'All' || noteSearchQuery
+                                      ? `No study notes in ${ch.number} matched the selected filter or search.`
+                                      : `No study notes or PDFs uploaded for ${ch.number} yet.`}
+                                  </p>
+                                  {canUpload && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setUploadSubject(activeRoom);
+                                        setUploadChapterNumber(ch.number);
+                                        setUploadChapterTitle(ch.title);
+                                        setUploadCategory('notes');
+                                        setShowUploadModal(true);
+                                      }}
+                                      className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      <span>Upload PDF for {ch.number}</span>
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+
+                      {/* Uncategorized / General Notes Section */}
+                      {(() => {
+                        const uncategorizedDocs = notesDocs.filter(
+                          (d) => !activeRoomChapters.some((ch) => getDocsForChapter(ch, [d], effectiveStandard).length > 0)
+                        );
+                        if (uncategorizedDocs.length === 0) return null;
+
+                        return (
+                          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+                            <div className="p-4 sm:p-5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+                              <div>
+                                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                                  General & Comprehensive Subject Notes
+                                </h3>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                  Full-syllabus guides, formula summaries, and unassigned reference materials
+                                </p>
+                              </div>
+                              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                {uncategorizedDocs.length} PDFs
+                              </span>
+                            </div>
+
+                            <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                              {uncategorizedDocs.map((doc) => (
+                                <div
+                                  key={doc.id}
+                                  onClick={() => handleOpenDoc(doc)}
+                                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 transition-all cursor-pointer group flex flex-col justify-between"
+                                >
+                                  <div>
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                                        <FileText className="w-4 h-4" />
+                                      </div>
+                                      {doc.customFilter && (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                          {doc.customFilter}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 transition-colors line-clamp-2">
+                                      {doc.name || doc.originalName}
+                                    </h4>
+                                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-2">
+                                      <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/60">
+                                    <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
+                                      <Eye className="w-3 h-3" /> Read PDF
+                                    </span>
+                                    <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                                      <a
+                                        href={getDownloadUrl(doc)}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        download={doc.originalName || doc.name}
+                                        className="p-1 rounded-lg text-slate-400 hover:text-brand-600 transition-colors"
+                                      >
+                                        <Download className="w-3.5 h-3.5" />
+                                      </a>
+                                      {canUpload && (
+                                        <button
+                                          onClick={(e) => handleDeleteDocument(doc.id, e)}
+                                          className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    /* ========================================================
+                        VIEW MODE 2: ALL NOTES GRID VIEW
+                    ======================================================== */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredNotesDocs.map((doc) => {
+                        const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc], effectiveStandard).length > 0);
+                        const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
+                        const progress = readingMemory.getProgress(docKey);
+                        const hasProgress = progress && progress.currentPage > 1;
+
+                        return (
+                          <div
+                            key={doc.id}
+                            onClick={() => handleOpenDoc(doc)}
+                            className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500/50 dark:hover:border-amber-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-2 mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-100 dark:border-amber-900">
+                                  <FileText className="w-5 h-5" />
+                                </div>
+
+                                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                  {matchedCh && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                                      {matchedCh.number}
+                                    </span>
+                                  )}
+
+                                  {doc.customFilter && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                      {doc.customFilter}
+                                    </span>
+                                  )}
+
+                                  {hasProgress && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                                      <History className="w-2.5 h-2.5" /> p.{progress.currentPage} ({progress.percent}%)
+                                    </span>
+                                  )}
+
+                                  {/* Super Admin Upload Count Tracker */}
+                                  {isSuperAdmin && (
+                                    <span
+                                      className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                                      title="Upload count tracker"
+                                    >
+                                      {doc.uploadCount || 1} {doc.uploadCount === 1 ? 'upload' : 'uploads'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+                                {doc.name || doc.originalName}
+                              </h4>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
+                                <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
+                                <span>•</span>
+                                <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
+                              {hasProgress ? (
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                  <Eye className="w-3.5 h-3.5" /> Resume Page {progress.currentPage}
+                                </span>
+                              ) : (
+                                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                  <Eye className="w-3.5 h-3.5" /> Read Notes
+                                </span>
+                              )}
+
+                              <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                                <a
+                                  href={getDownloadUrl(doc)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  download={doc.originalName || doc.name}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                  title="Download PDF"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </a>
+                                {canUpload && (
+                                  <button
+                                    onClick={(e) => handleDeleteDocument(doc.id, e)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                                    title="Delete from room"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )
             ) : activeCategoryTab === 'pyq' ? (
@@ -2130,189 +2804,315 @@ export const SubjectRooms: React.FC = () => {
       {/* ========================================================
           UPLOAD MODAL (Super Admin & Admin Only)
       ======================================================== */}
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 relative">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">
-                  <Upload className="w-4 h-4" />
+      {/* ========================================================
+          UPLOAD MODAL (Super Admin & Admin Only - Batch & Chapter Aware)
+      ======================================================== */}
+      {showUploadModal && (() => {
+        const modalSubject = uploadSubject || activeRoom || availableSubjects[0]?.name || 'General';
+        const modalSubSlug = getSubjectSlug(modalSubject);
+        const modalChapters = ALL_SYLLABUS_CHAPTERS[uploadStandard]?.[modalSubSlug] || ALL_SYLLABUS_CHAPTERS['12']?.[modalSubSlug] || [];
+        const filesCount = selectedFiles.length > 0 ? selectedFiles.length : (selectedFile ? 1 : 0);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
+            <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 relative my-8">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">
+                    <Upload className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Upload Study Materials
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Upload single or multiple PDFs tagged by chapter and section
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Upload PDF Material
-                </h3>
-              </div>
 
-              <button
-                onClick={() => {
-                  setShowUploadModal(false);
-                  setUploadError(null);
-                }}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            {uploadError && (
-              <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{uploadError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs">
-              {/* File Selection */}
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Study Document or Note (PDF, Word, Text, Images)
-                </label>
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-brand-500 cursor-pointer text-center bg-slate-50 dark:bg-slate-800/50 transition-colors"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadError(null);
+                    setSelectedFiles([]);
+                    setSelectedFile(null);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1 rounded-lg"
                 >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.rtf,.epub,.html,.htm,.png,.jpg,.jpeg,.webp,.svg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files.length > 0) {
-                        const file = e.target.files[0];
-                        setSelectedFile(file);
-                        if (!uploadTitle) setUploadTitle(file.name.replace(/\.[a-zA-Z0-9]+$/i, ''));
-                      }
-                    }}
-                  />
-                  {selectedFile ? (
-                    <div className="text-slate-800 dark:text-slate-200 font-bold truncate">
-                      {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
-                    </div>
-                  ) : (
+                  ✕
+                </button>
+              </div>
+
+              {uploadError && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs">
+                {/* Multi-File Selection Box */}
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Select PDF Files (Upload One or Multiple at Once)
+                  </label>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-brand-500 cursor-pointer text-center bg-slate-50 dark:bg-slate-800/50 transition-colors"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.rtf,.epub,.html,.htm,.png,.jpg,.jpeg,.webp,.svg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          const newFileList = Array.from(e.target.files);
+                          setSelectedFiles((prev) => [...prev, ...newFileList]);
+                          setSelectedFile(null);
+                        }
+                      }}
+                    />
                     <div className="text-slate-500 dark:text-slate-400">
-                      <Upload className="w-6 h-6 mx-auto mb-1 text-slate-400" />
-                      <span>Click to select PDF or study document</span>
+                      <Upload className="w-6 h-6 mx-auto mb-1 text-brand-500" />
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        Click or drag PDFs here to select
+                      </span>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Batch selection supported — you can select multiple PDFs simultaneously
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Selected Files List Preview */}
+                  {selectedFiles.length > 0 && (
+                    <div className="mt-3 space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                        <span>Selected Files ({selectedFiles.length}):</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFiles([])}
+                          className="text-rose-500 hover:underline"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                      {selectedFiles.map((file, idx) => (
+                        <div
+                          key={`${file.name}-${idx}`}
+                          className="flex items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                        >
+                          <div className="flex items-center space-x-2 truncate">
+                            <FileText className="w-3.5 h-3.5 text-brand-500 shrink-0" />
+                            <span className="truncate font-medium">{file.name}</span>
+                            <span className="text-[10px] text-slate-400 shrink-0">
+                              ({(file.size / (1024 * 1024)).toFixed(2)} MB)
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-500 transition-colors ml-2"
+                            title="Remove file"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
-                </div>
-                <div className="mt-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowUploadModal(false);
-                      setShowBulkModal(true);
-                    }}
-                    className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:underline inline-flex items-center gap-1.5 cursor-pointer py-1"
-                  >
-                    <FolderUp className="w-3.5 h-3.5" />
-                    <span>Want to upload a complete folder instead? Click here</span>
-                  </button>
-                </div>
-              </div>
 
-              {/* Category Selector: Textbook vs Notes */}
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Document Section
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setUploadCategory('textbook')}
-                    className={`py-2 px-3 rounded-xl border text-left font-bold transition-all flex items-center gap-2 ${
-                      uploadCategory === 'textbook'
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <BookOpen className="w-4 h-4 shrink-0" />
-                    <span>📚 Textbook PDF</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setUploadCategory('notes')}
-                    className={`py-2 px-3 rounded-xl border text-left font-bold transition-all flex items-center gap-2 ${
-                      uploadCategory === 'notes'
-                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <FileText className="w-4 h-4 shrink-0" />
-                    <span>📝 Study Notes</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Academic Standard Target */}
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Target Standard
-                </label>
-                {isSuperAdmin ? (
-                  <select
-                    value={uploadStandard}
-                    onChange={(e) => setUploadStandard(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="12">Standard 12 (HSC Senior Secondary)</option>
-                    <option value="10">Standard 10 (SSC Board Examination)</option>
-                    <option value="11">Standard 11 (FYJC Junior College)</option>
-                    <option value="9">Standard 9 (Class IX Foundation)</option>
-                    <option value="ALL">ALL Standards (Universal Material)</option>
-                  </select>
-                ) : (
-                  <div className="w-full bg-slate-100 dark:bg-slate-800/80 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                    Standard {currentUser?.standard || activeStandard} (Enrolled Admin Grade)
+                  <div className="mt-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUploadModal(false);
+                        setShowBulkModal(true);
+                      }}
+                      className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline inline-flex items-center gap-1.5 cursor-pointer py-0.5"
+                    >
+                      <FolderUp className="w-3.5 h-3.5" />
+                      <span>Want to upload a complete folder instead? Click here</span>
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* Subject Room Target */}
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Subject Room
-                </label>
-                <select
-                  value={uploadSubject || (availableSubjects[0]?.name || 'General')}
-                  onChange={(e) => setUploadSubject(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                {/* Document Section: Textbook vs Notes */}
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Document Section
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setUploadCategory('notes')}
+                      className={`py-2 px-3 rounded-xl border text-left font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                        uploadCategory === 'notes'
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <FileText className="w-4 h-4 shrink-0" />
+                      <span>📝 Study Notes</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUploadCategory('textbook')}
+                      className={`py-2 px-3 rounded-xl border text-left font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                        uploadCategory === 'textbook'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <BookOpen className="w-4 h-4 shrink-0" />
+                      <span>📚 Textbook PDF</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target Standard and Subject Room */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Target Standard
+                    </label>
+                    {isSuperAdmin ? (
+                      <select
+                        value={uploadStandard}
+                        onChange={(e) => setUploadStandard(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                      >
+                        <option value="12">Standard 12 (HSC)</option>
+                        <option value="11">Standard 11 (FYJC)</option>
+                        <option value="10">Standard 10 (SSC)</option>
+                        <option value="9">Standard 9 (Foundation)</option>
+                        <option value="ALL">ALL Standards</option>
+                      </select>
+                    ) : (
+                      <div className="w-full bg-slate-100 dark:bg-slate-800/80 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                        Class {currentUser?.standard || activeStandard}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Subject Room
+                    </label>
+                    <select
+                      value={uploadSubject || (activeRoom || availableSubjects[0]?.name || 'General')}
+                      onChange={(e) => setUploadSubject(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    >
+                      {availableSubjects.map((sub) => (
+                        <option key={sub.name} value={sub.name}>
+                          {sub.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Chapter Association Dropdown */}
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Associate with Chapter
+                  </label>
+                  <select
+                    value={uploadChapterNumber}
+                    onChange={(e) => setUploadChapterNumber(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                  >
+                    <option value="All">General / All Chapters (Full Syllabus)</option>
+                    {modalChapters.map((ch) => (
+                      <option key={ch.number} value={ch.number}>
+                        {ch.number}: {ch.title}
+                      </option>
+                    ))}
+                    <option value="custom">✏️ Enter Custom Chapter Name...</option>
+                  </select>
+
+                  {uploadChapterNumber === 'custom' && (
+                    <input
+                      type="text"
+                      value={uploadCustomChapter}
+                      onChange={(e) => setUploadCustomChapter(e.target.value)}
+                      placeholder="e.g. Chapter 7: Advanced Revision"
+                      className="mt-2 w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                      autoFocus
+                    />
+                  )}
+                </div>
+
+                {/* Custom Filter / Tag Input */}
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Custom Filter / Tag
+                  </label>
+                  {/* Quick Tag Pills */}
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {availableCustomFilters.slice(0, 6).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setUploadCustomFilter(tag)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                          uploadCustomFilter === tag
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  <input
+                    type="text"
+                    value={uploadCustomFilter}
+                    onChange={(e) => setUploadCustomFilter(e.target.value)}
+                    placeholder="Enter custom filter (e.g. Theory Notes, Question Bank, Formula Sheet)"
+                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isUploading || filesCount === 0}
+                  className="w-full py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center justify-center space-x-1.5 transition-all mt-2 cursor-pointer"
                 >
-                  {availableSubjects.map((sub) => (
-                    <option key={sub.name} value={sub.name}>
-                      {sub.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isUploading || !selectedFile}
-                className="w-full py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center justify-center space-x-1.5 transition-all mt-2"
-              >
-                {isUploading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Uploading PDF Material...</span>
-                  </>
-                ) : uploadSuccess ? (
-                  <>
-                    <CheckCircle className="w-4 h-4 text-emerald-300" />
-                    <span>Upload Completed!</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    <span>Confirm & Upload PDF</span>
-                  </>
-                )}
-              </button>
-            </form>
+                  {isUploading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Uploading {filesCount} {filesCount === 1 ? 'PDF' : 'PDFs'}...</span>
+                    </>
+                  ) : uploadSuccess ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-emerald-300" />
+                      <span>Upload Completed Successfully!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>
+                        Upload {filesCount > 0 ? `${filesCount} ${filesCount === 1 ? 'PDF' : 'PDFs'}` : 'PDF Material'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Intelligent Bulk Uploader Modal */}
       {showBulkModal && (
