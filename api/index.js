@@ -24,10 +24,13 @@ module.exports = (req, res) => {
   }
 
   // Handle pre-parsed body from Vercel runtime
-  if (req.body && typeof req.body === 'string') {
-    try {
-      req.body = JSON.parse(req.body);
-    } catch {}
+  if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'string') {
+      try {
+        req.body = JSON.parse(req.body);
+      } catch {}
+    }
+    req._body = true;
   }
 
   try {

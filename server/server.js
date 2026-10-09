@@ -183,7 +183,19 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: '10mb' }));
+// Serverless body-parser guard: Vercel Node runtime pre-parses req.body.
+// Setting req._body = true prevents body-parser from hanging on the already-consumed stream.
+app.use((req, res, next) => {
+  if (req.body !== undefined && req.body !== null) {
+    req._body = true;
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
+app.use((req, res, next) => {
+  if (req._body) return next();
+  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
 app.use('/uploads', express.static(UPLOADS_DIR));
 app.use('/material', express.static(path.join(__dirname, '../Material')));
 app.use('/Material', express.static(path.join(__dirname, '../Material')));
