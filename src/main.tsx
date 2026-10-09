@@ -5,6 +5,8 @@ import { AuthProvider } from './context/AuthContext';
 import { PomodoroProvider } from './context/PomodoroContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { registerServiceWorker } from './registerServiceWorker';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './index.css';
 
 // Initialize PWA Offline Engine
@@ -19,6 +21,8 @@ if (rootElement) {
         <AuthProvider>
           <PomodoroProvider>
             <App />
+            <Analytics />
+            <SpeedInsights />
           </PomodoroProvider>
         </AuthProvider>
       </ThemeProvider>

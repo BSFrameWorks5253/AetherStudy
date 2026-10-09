@@ -4,7 +4,7 @@ import { api, ServerDocument } from '../../services/api';
 import { TestPaper } from '../../types/testPaper';
 import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
-import { CardSkeleton, PdfLoaderOverlay } from '../common/LoadingSkeleton';
+import { CardSkeleton } from '../common/LoadingSkeleton';
 import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
 import {
   GraduationCap,
@@ -13,15 +13,11 @@ import {
   Upload,
   ArrowLeft,
   Download,
-  ExternalLink,
   Trash2,
   Plus,
   RefreshCw,
   CheckCircle,
   Eye,
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
   Calculator,
   Globe,
   Sparkles,
@@ -33,8 +29,9 @@ import {
   CheckCircle2,
   ListChecks,
   FolderUp,
-  Smartphone,
+  History,
 } from 'lucide-react';
+import { readingMemory, getCanonicalDocKey } from '../../services/readingMemory';
 
 interface SubjectMeta {
   name: string;
@@ -586,11 +583,6 @@ export const SubjectRooms: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPdfLoading, setIsPdfLoading] = useState<boolean>(false);
 
-  // Reader Controls
-  const [zoom, setZoom] = useState<number>(100);
-  const [rotation, setRotation] = useState<number>(0);
-  const [useMobileViewer, setUseMobileViewer] = useState<boolean>(false);
-
   // Auto-dismiss PDF loader overlay after 2.5s to prevent freezing on mobile
   useEffect(() => {
     if (readingDoc && isPdfLoading) {
@@ -600,13 +592,6 @@ export const SubjectRooms: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [readingDoc, isPdfLoading]);
-
-  const getDirectPdfUrl = (rawUrl?: string): string => {
-    if (!rawUrl) return '';
-    return rawUrl.startsWith('http')
-      ? rawUrl
-      : `${window.location.origin}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
-  };
 
   // Upload Modal State
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
@@ -1169,158 +1154,15 @@ export const SubjectRooms: React.FC = () => {
           VIEW 1: DISTRACTION-FREE PDF READER
       ======================================================== */}
       {readingDoc ? (
-        <div className="flex flex-col h-full w-full overflow-hidden animate-fade-in">
-          {/* Reader Top Bar */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xs z-20">
-            <div className="flex items-center space-x-3 truncate mr-2">
-              <button
-                onClick={handleCloseReader}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700 text-xs font-bold transition-all text-slate-700 dark:text-slate-300"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Back to {readingDoc.subject}</span>
-              </button>
-
-              <div className="truncate">
-                <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                  {readingDoc.name || readingDoc.originalName}
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                  <span>{readingDoc.subject}</span>
-                  <span>•</span>
-                  <span>{readingDoc.category === 'textbook' ? 'Textbook' : 'Study Notes'}</span>
-                  <span>•</span>
-                  <span>Class {toRomanStandard(readingDoc.standard || activeStandard)}</span>
-                  {isSuperAdmin && (
-                    <>
-                      <span>•</span>
-                      <span className="text-purple-600 dark:text-purple-400 font-semibold">
-                        Uploaded {readingDoc.uploadCount || 1} {readingDoc.uploadCount === 1 ? 'time' : 'times'}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Reader Controls */}
-            <div className="flex items-center space-x-1.5 shrink-0">
-              <div className="flex items-center space-x-1 px-2 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs">
-                <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 px-1 font-bold">
-                  {zoom}%
-                </span>
-                <button
-                  onClick={() => setZoom((z) => Math.max(z - 15, 50))}
-                  className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-                  title="Zoom Out"
-                >
-                  <ZoomOut className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => setZoom((z) => Math.min(z + 15, 200))}
-                  className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-                  title="Zoom In"
-                >
-                  <ZoomIn className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => setRotation((r) => (r + 90) % 360)}
-                  className="p-1 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-                  title="Rotate 90°"
-                >
-                  <RotateCw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <button
-                onClick={() => setUseMobileViewer(!useMobileViewer)}
-                className={`hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                  useMobileViewer
-                    ? 'bg-purple-50 dark:bg-purple-950/70 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300'
-                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                }`}
-                title="Toggle Google Docs mobile viewer engine vs direct browser embed"
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>{useMobileViewer ? 'Google Engine' : 'Direct Embed'}</span>
-              </button>
-
-              <a
-                href={getDirectPdfUrl(readingDoc.streamUrl || readingDoc.serverUrl)}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white transition-all text-xs font-bold shadow-xs"
-                title="Open directly in phone's native PDF reader app (Google Drive / Samsung / Adobe)"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Open in App</span>
-              </a>
-
-              <a
-                href={getDownloadUrl(readingDoc)}
-                target="_blank"
-                rel="noreferrer"
-                download={readingDoc.originalName || readingDoc.name}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-brand-50 dark:bg-brand-950/70 border border-brand-200 dark:border-brand-800 text-brand-700 dark:text-brand-300 hover:bg-brand-600 hover:text-white transition-all text-xs font-bold"
-                title="Download PDF"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Download</span>
-              </a>
-            </div>
-          </div>
-
-          {/* Mobile PDF Guidance Quick Bar */}
-          <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-gradient-to-r from-brand-50 to-purple-50 dark:from-slate-900 dark:to-purple-950/40 border-b border-brand-200 dark:border-purple-900/50 text-xs">
-            <div className="flex items-center space-x-2 text-slate-800 dark:text-purple-200 truncate mr-2">
-              <Smartphone className="w-4 h-4 text-brand-600 dark:text-purple-400 shrink-0" />
-              <span className="text-[11px] truncate font-medium">
-                {useMobileViewer ? 'Google Docs Engine' : 'Direct Stream'} • Mobile students: tap <strong>Open Full PDF</strong> for pinch-to-zoom!
-              </span>
-            </div>
-            <div className="flex items-center space-x-2 shrink-0">
-              <button
-                onClick={() => {
-                  setUseMobileViewer(!useMobileViewer);
-                  setIsPdfLoading(true);
-                }}
-                className="px-2 py-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[10px] border border-slate-200 dark:border-slate-700 transition-colors shadow-xs"
-                title="Toggle between Direct Browser Embed and Google Docs Viewer"
-              >
-                {useMobileViewer ? 'Direct Mode' : 'Web Engine'}
-              </button>
-              <a
-                href={getDirectPdfUrl(readingDoc.streamUrl || readingDoc.serverUrl)}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-[10px] flex items-center space-x-1 shadow-sm transition-colors"
-                title="Open PDF directly in phone's native PDF reader (Google Drive / Acrobat / Books)"
-              >
-                <ExternalLink className="w-3 h-3" />
-                <span>Open Full PDF ↗</span>
-              </a>
-            </div>
-          </div>
-
-          {/* PDF Viewer Frame */}
-          <div className="flex-1 relative overflow-auto bg-slate-200/50 dark:bg-slate-900/50 p-2 sm:p-4 flex flex-col items-center justify-center">
-            {isPdfLoading && (
-              <PdfLoaderOverlay message={`Loading ${readingDoc.originalName || readingDoc.name}...`} />
-            )}
-            <div
-              className="w-full h-full max-w-6xl mx-auto rounded-2xl shadow-xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 transition-transform duration-150 relative"
-              style={{
-                transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
-                transformOrigin: 'center center',
-              }}
-            >
-              <UniversalPdfViewer
-                url={readingDoc.streamUrl || readingDoc.serverUrl || ''}
-                title={readingDoc.originalName || readingDoc.name}
-                className="w-full h-full"
-              />
-            </div>
-          </div>
+        <div className="flex flex-col h-full w-full overflow-hidden animate-fade-in bg-slate-950">
+          <UniversalPdfViewer
+            url={readingDoc.streamUrl || readingDoc.serverUrl || ''}
+            title={readingDoc.name || readingDoc.originalName}
+            subtitle={`${readingDoc.subject} • Class ${toRomanStandard(readingDoc.standard || activeStandard)}`}
+            onClose={handleCloseReader}
+            backLabel={`Back to ${readingDoc.subject}`}
+            className="w-full h-full"
+          />
         </div>
       ) : activeRoom ? (
         /* ========================================================
@@ -1682,24 +1524,42 @@ export const SubjectRooms: React.FC = () => {
 
                               {chapterDocs.length > 0 ? (
                                 <div className="space-y-1.5">
-                                  {chapterDocs.slice(0, 2).map((doc) => (
-                                    <div
-                                      key={doc.id}
-                                      onClick={() => handleOpenDoc(doc)}
-                                      className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-brand-50 dark:bg-slate-800/60 dark:hover:bg-brand-950/40 border border-slate-200 dark:border-slate-700/60 transition-colors cursor-pointer group/doc"
-                                      title={`Read ${doc.originalName || doc.name}`}
-                                    >
-                                      <div className="flex items-center space-x-2 truncate mr-2">
-                                        <BookOpen className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
-                                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover/doc:text-brand-600 dark:group-hover/doc:text-brand-400 truncate">
-                                          {doc.name || doc.originalName}
-                                        </span>
+                                  {chapterDocs.slice(0, 2).map((doc) => {
+                                    const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
+                                    const progress = readingMemory.getProgress(docKey);
+                                    const hasProgress = progress && progress.currentPage > 1;
+
+                                    return (
+                                      <div
+                                        key={doc.id}
+                                        onClick={() => handleOpenDoc(doc)}
+                                        className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-brand-50 dark:bg-slate-800/60 dark:hover:bg-brand-950/40 border border-slate-200 dark:border-slate-700/60 transition-colors cursor-pointer group/doc"
+                                        title={`Read ${doc.originalName || doc.name}`}
+                                      >
+                                        <div className="flex items-center space-x-2 truncate mr-2">
+                                          <BookOpen className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
+                                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover/doc:text-brand-600 dark:group-hover/doc:text-brand-400 truncate">
+                                            {doc.name || doc.originalName}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center space-x-1.5 shrink-0">
+                                          {hasProgress && (
+                                            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                                              <History className="w-2.5 h-2.5" /> p.{progress.currentPage}
+                                            </span>
+                                          )}
+                                          <span
+                                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg text-white shadow-xs flex items-center gap-1 ${
+                                              hasProgress ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-brand-600 hover:bg-brand-500'
+                                            }`}
+                                          >
+                                            <Eye className="w-3 h-3" /> {hasProgress ? 'Resume' : 'Read'}
+                                          </span>
+                                        </div>
                                       </div>
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white shrink-0 shadow-xs flex items-center gap-1">
-                                        <Eye className="w-3 h-3" /> Read
-                                      </span>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                   {chapterDocs.length > 2 && (
                                     <button
                                       type="button"
@@ -1812,6 +1672,9 @@ export const SubjectRooms: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredTextbookDocs.map((doc) => {
                       const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc], effectiveStandard).length > 0);
+                      const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
+                      const progress = readingMemory.getProgress(docKey);
+                      const hasProgress = progress && progress.currentPage > 1;
 
                       return (
                         <div
@@ -1832,6 +1695,12 @@ export const SubjectRooms: React.FC = () => {
                                   </span>
                                 )}
 
+                                {hasProgress && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                                    <History className="w-2.5 h-2.5" /> p.{progress.currentPage} ({progress.percent}%)
+                                  </span>
+                                )}
+
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                   Official Textbook
                                 </span>
@@ -1849,9 +1718,15 @@ export const SubjectRooms: React.FC = () => {
                           </div>
 
                           <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
-                            <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
-                              <Eye className="w-3.5 h-3.5" /> Read PDF
-                            </span>
+                            {hasProgress ? (
+                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <Eye className="w-3.5 h-3.5" /> Resume Page {progress.currentPage}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
+                                <Eye className="w-3.5 h-3.5" /> Read PDF
+                              </span>
+                            )}
 
                             <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
                               <a
@@ -1946,6 +1821,9 @@ export const SubjectRooms: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredNotesDocs.map((doc) => {
                       const matchedCh = activeRoomChapters.find((ch) => getDocsForChapter(ch, [doc], effectiveStandard).length > 0);
+                      const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
+                      const progress = readingMemory.getProgress(docKey);
+                      const hasProgress = progress && progress.currentPage > 1;
 
                       return (
                         <div
@@ -1963,6 +1841,12 @@ export const SubjectRooms: React.FC = () => {
                                 {matchedCh && (
                                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
                                     {matchedCh.number}
+                                  </span>
+                                )}
+
+                                {hasProgress && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                                    <History className="w-2.5 h-2.5" /> p.{progress.currentPage} ({progress.percent}%)
                                   </span>
                                 )}
 
@@ -1993,9 +1877,15 @@ export const SubjectRooms: React.FC = () => {
                           </div>
 
                           <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
-                            <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
-                              <Eye className="w-3.5 h-3.5" /> Read Notes
-                            </span>
+                            {hasProgress ? (
+                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <Eye className="w-3.5 h-3.5" /> Resume Page {progress.currentPage}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
+                                <Eye className="w-3.5 h-3.5" /> Read Notes
+                              </span>
+                            )}
 
                             <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
                               <a
@@ -2077,16 +1967,20 @@ export const SubjectRooms: React.FC = () => {
                               uploadedBy: paper.uploadedBy,
                               uploadedAt: paper.uploadedAt,
                             })}
-                            className="flex-1 py-1.5 px-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs"
+                            className={`py-2 px-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all ${
+                              paper.answerKeyPdfUrl && paper.answerKeyPdfUrl.trim() !== '' && paper.answerKeyPdfUrl !== paper.questionPdfUrl
+                                ? 'flex-1'
+                                : 'w-full'
+                            }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>Questions</span>
+                            <span>View Question Paper</span>
                           </button>
-                          {paper.answerKeyPdfUrl && (
+                          {paper.answerKeyPdfUrl && paper.answerKeyPdfUrl.trim() !== '' && paper.answerKeyPdfUrl !== paper.questionPdfUrl && (
                             <button
                               onClick={() => handleOpenDoc({
                                 id: paper.id + '-sol',
-                                name: paper.title + ' (Model Solution)',
+                                name: paper.title + ' (Solution Key)',
                                 originalName: paper.answerKeyPdfName,
                                 streamUrl: paper.answerKeyPdfUrl,
                                 serverUrl: paper.answerKeyPdfUrl,
@@ -2096,10 +1990,10 @@ export const SubjectRooms: React.FC = () => {
                                 uploadedBy: paper.uploadedBy,
                                 uploadedAt: paper.uploadedAt,
                               })}
-                              className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs"
+                              className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Solutions</span>
+                              <span>Model Solution</span>
                             </button>
                           )}
                         </div>

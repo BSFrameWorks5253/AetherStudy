@@ -3,7 +3,6 @@ import { Sidebar, ActiveTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { LiquidBackground } from './components/layout/LiquidBackground';
 import { SplitWorkspace } from './components/workspace/SplitWorkspace';
-import { CommunityLounge } from './components/community/CommunityLounge';
 import { TestPapers } from './components/tests/TestPapers';
 import { TimetableGrid } from './components/timetable/TimetableGrid';
 import { TrackerTree } from './components/syllabus/TrackerTree';
@@ -16,7 +15,6 @@ import { useTheme } from './context/ThemeContext';
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
-  const [isMobileChatOpen, setIsMobileChatOpen] = useState<boolean>(false);
   const { theme } = useTheme();
   const { isSuperAdmin, activeStandard, setActiveStandard } = useAuth();
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
@@ -25,9 +23,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleUrlChange = () => {
       const path = window.location.pathname;
-      if (path.startsWith('/community')) {
-        setActiveTab('community');
-      } else if (path.startsWith('/tests')) {
+      if (path.startsWith('/tests')) {
         setActiveTab('tests');
       } else if (path.startsWith('/timetable')) {
         setActiveTab('timetable');
@@ -48,15 +44,10 @@ export const App: React.FC = () => {
 
   const handleTabChange = (tab: ActiveTab) => {
     setActiveTab(tab);
-    if (tab !== 'community') {
-      setIsMobileChatOpen(false);
-    }
     if (tab === 'workspace') {
       if (!window.location.pathname.startsWith('/studyroom')) {
         window.history.pushState(null, '', '/studyroom');
       }
-    } else if (tab === 'community') {
-      window.history.pushState(null, '', '/community');
     } else if (tab === 'tests') {
       window.history.pushState(null, '', '/tests');
     } else if (tab === 'timetable') {
@@ -70,10 +61,8 @@ export const App: React.FC = () => {
     switch (activeTab) {
       case 'workspace':
         return `Subject Rooms Desk • Standard ${activeStandard}`;
-      case 'community':
-        return `Peer Discussion Lounge • Standard ${activeStandard} Live Chat`;
       case 'tests':
-        return 'Board Exam Vault • Previous Year Papers & Model Answers';
+        return 'Board PYQs & Solutions • Maharashtra State Board HSC Commerce';
       case 'timetable':
         return 'Study Planner • Daily Timetable & Focus Blocks';
       case 'syllabus':
@@ -92,24 +81,17 @@ export const App: React.FC = () => {
         onTabChange={handleTabChange}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        isMobileChatOpen={isMobileChatOpen}
       />
 
       {/* Main Workspace Stage */}
       <div className="flex flex-col flex-1 h-full min-w-0 overflow-hidden relative z-10">
         {/* Universal Control Header Bar */}
-        <Header title={getTitle()} isMobileChatOpen={isMobileChatOpen} />
+        <Header title={getTitle()} />
 
         {/* Dynamic Active Module Container */}
-        <PullToRefresh className={`flex-1 relative min-h-0 ${activeTab === 'community' && isMobileChatOpen ? 'pb-0' : 'pb-16 md:pb-0'}`}>
+        <PullToRefresh className="flex-1 relative min-h-0 pb-16 md:pb-0">
           <main className="h-full w-full">
             {activeTab === 'workspace' && <SplitWorkspace />}
-            {activeTab === 'community' && (
-              <CommunityLounge
-                isMobileChatOpen={isMobileChatOpen}
-                onMobileChatToggle={setIsMobileChatOpen}
-              />
-            )}
             {activeTab === 'tests' && (
               isBoardExamGrade ? (
                 <TestPapers />

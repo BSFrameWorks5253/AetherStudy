@@ -854,95 +854,32 @@ app.delete('/api/notifications/:id', (req, res) => {
   res.json({ success: true, remaining: updated.length });
 });
 
-// ---------------- STANDARD-SCOPED PEER CHAT (WHATSAPP/DISCORD STYLE) ----------------
-const initialChatMessages = [
-  {
-    id: 'chat-seed-1',
-    standard: '12',
-    channelId: 'general',
-    senderEmail: 'student.hsc@example.com',
-    senderName: 'Rohit K.',
-    senderRole: 'USER',
-    content: 'Hey everyone! Has anyone started practicing the Partnership Final Accounts adjustment sums for the preliminary exams?',
-    timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-    reactions: { '👍': 4, '💡': 2 },
-  },
-  {
-    id: 'chat-seed-2',
-    standard: '12',
-    channelId: 'general',
-    senderEmail: 'bs.framework5253@gmail.com',
-    senderName: 'Super Admin',
-    senderRole: 'SUPER_ADMIN',
-    content: 'Welcome to the Standard 12 HSC Peer Lounge! You can discuss solutions, ask doubts about Book-Keeping, OCM, Economics, and Maths, and prepare together.',
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
-    reactions: { '🔥': 6, '❤️': 5 },
-  },
-  {
-    id: 'chat-seed-3',
-    standard: '12',
-    channelId: 'accounts',
-    senderEmail: 'priya.accounts@example.com',
-    senderName: 'Priya S.',
-    senderRole: 'USER',
-    content: 'Can someone explain the treatment of Goods distributed as free samples in Trading A/c vs P&L A/c?',
-    timestamp: new Date(Date.now() - 1800000).toISOString(),
-    reactions: { '📚': 3 },
-  },
-];
-
-app.get('/api/chat/messages', (req, res) => {
-  const { standard = '12', channelId = 'general' } = req.query;
-  const messages = readJsonFile('chat-messages.json', initialChatMessages);
-  const filtered = messages.filter((m) => {
-    const channelMatches = m.channelId === channelId;
-    const stdMatches =
-      !m.standard ||
-      m.standard === 'ALL' ||
-      standard === 'ALL' ||
-      m.standard === standard;
-    return channelMatches && stdMatches;
-  });
-  res.json(filtered);
+// Reading Progress & Bookmarks Cloud Sync
+app.get('/api/user/reading-memory', (req, res) => {
+  const { email } = req.query;
+  const memoryData = readJsonFile('reading-memory.json', {});
+  const userKey = (email || 'guest@aetherstudy.internal').trim().toLowerCase();
+  res.json(memoryData[userKey] || { progress: {}, bookmarks: {} });
 });
 
-app.post('/api/chat/messages', (req, res) => {
-  const { standard, channelId, senderEmail, senderName, senderRole, content } = req.body;
-  if (!content || !content.trim()) {
-    return res.status(400).json({ error: 'Message content cannot be empty.' });
+app.post('/api/user/reading-memory', (req, res) => {
+  const { email, action, progress, docKey, bookmarks } = req.body;
+  const userKey = (email || 'guest@aetherstudy.internal').trim().toLowerCase();
+  const memoryData = readJsonFile('reading-memory.json', {});
+  if (!memoryData[userKey]) {
+    memoryData[userKey] = { progress: {}, bookmarks: {} };
   }
 
-  const newMsg = {
-    id: 'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-    standard: standard || '12',
-    channelId: channelId || 'general',
-    senderEmail: (senderEmail || 'student@example.com').trim().toLowerCase(),
-    senderName: (senderName || 'Student').trim(),
-    senderRole: senderRole || 'USER',
-    content: content.trim(),
-    timestamp: new Date().toISOString(),
-    reactions: {},
-  };
+  if (action === 'SAVE_PROGRESS' && progress && progress.docKey) {
+    if (!memoryData[userKey].progress) memoryData[userKey].progress = {};
+    memoryData[userKey].progress[progress.docKey] = progress;
+  } else if (action === 'SAVE_BOOKMARKS' && docKey) {
+    if (!memoryData[userKey].bookmarks) memoryData[userKey].bookmarks = {};
+    memoryData[userKey].bookmarks[docKey] = bookmarks || [];
+  }
 
-  const messages = readJsonFile('chat-messages.json', initialChatMessages);
-  messages.push(newMsg);
-  if (messages.length > 500) messages.splice(0, messages.length - 500);
-  writeJsonFile('chat-messages.json', messages);
-  res.status(201).json(newMsg);
-});
-
-app.post('/api/chat/messages/:id/react', (req, res) => {
-  const { emoji } = req.body;
-  if (!emoji) return res.status(400).json({ error: 'Emoji is required' });
-
-  const messages = readJsonFile('chat-messages.json', initialChatMessages);
-  const msg = messages.find((m) => m.id === req.params.id);
-  if (!msg) return res.status(404).json({ error: 'Message not found' });
-
-  if (!msg.reactions) msg.reactions = {};
-  msg.reactions[emoji] = (msg.reactions[emoji] || 0) + 1;
-  writeJsonFile('chat-messages.json', messages);
-  res.json({ success: true, reactions: msg.reactions });
+  writeJsonFile('reading-memory.json', memoryData);
+  res.json({ success: true });
 });
 
 // 3. SUBJECTS MANAGEMENT API
@@ -1186,7 +1123,6 @@ app.get('/api/db/sync', async (req, res) => {
     'subjects.json',
     'notifications.json',
     'users.json',
-    'chat-messages.json',
   ]);
   if (!ALLOWED_DB_FILES.has(fileName)) {
     return res.status(400).json({ error: 'Access to requested data file is restricted.' });

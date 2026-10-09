@@ -4,11 +4,13 @@ import { TestPaper } from '../../types/testPaper';
 import { useAuth } from '../../context/AuthContext';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
+import { VaultDashboard } from '../vault/VaultDashboard';
 import { ListSkeleton } from '../common/LoadingSkeleton';
 import { matchSubjectDoc, toRomanStandard } from '../workspace/SubjectRooms';
 import {
   GraduationCap,
   FileText,
+  FileCheck2,
   CheckCircle,
   Plus,
   Trash2,
@@ -35,8 +37,8 @@ export const TestPapers: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [activePaper, setActivePaper] = useState<TestPaper | null>(null);
 
-  // View style toggle: 'funnel' (Step-by-Step 1-2-3) vs 'list' (Classic shelf view)
-  const [displayMode, setDisplayMode] = useState<'funnel' | 'list'>('funnel');
+  // View style toggle: 'vault' (Faceted Scannable Archive) vs 'funnel' (Step-by-Step 1-2-3) vs 'list' (Classic shelf view)
+  const [displayMode, setDisplayMode] = useState<'vault' | 'funnel' | 'list'>('vault');
 
   // Classic list filters (when in list mode)
   const [listFilterSubject, setListFilterSubject] = useState<string>('All');
@@ -269,8 +271,19 @@ export const TestPapers: React.FC = () => {
 
         {/* Global Action Buttons */}
         <div className="flex items-center space-x-2">
-          {/* Mode Switcher: Step Funnel vs Classic Shelf */}
+          {/* Mode Switcher: Scannable Vault vs Step Funnel vs Classic Shelf */}
           <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setDisplayMode('vault')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                displayMode === 'vault'
+                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <FileCheck2 className="w-3.5 h-3.5" />
+              <span>Scannable Vault</span>
+            </button>
             <button
               onClick={() => setDisplayMode('funnel')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
@@ -280,7 +293,7 @@ export const TestPapers: React.FC = () => {
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Step-by-Step Funnel</span>
+              <span>Step Funnel</span>
             </button>
             <button
               onClick={() => setDisplayMode('list')}
@@ -317,6 +330,15 @@ export const TestPapers: React.FC = () => {
           )}
         </div>
       </header>
+
+      {/* =======================================================================
+          VIEW MODE 0: CONVERSION-DRIVEN SCANNABLE ARCHIVE (CRO VAULT DASHBOARD)
+      ======================================================================= */}
+      {displayMode === 'vault' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <VaultDashboard />
+        </div>
+      )}
 
       {/* =======================================================================
           VIEW MODE 1: 3-STEP GUIDED FUNNEL (YEAR -> SUBJECT -> QUESTION PAPER)
@@ -654,59 +676,56 @@ export const TestPapers: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Mode Switcher: Question Paper | Split & Compare | Answer Key */}
-                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
-                      <button
-                        onClick={() => setSolveViewMode('question')}
-                        className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          solveViewMode === 'question'
-                            ? 'bg-brand-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Question Paper</span>
-                      </button>
+                    {/* Mode Switcher: Only render if paper has a dedicated solution */}
+                    {hasDedicatedSolution && (
+                      <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <button
+                          onClick={() => setSolveViewMode('question')}
+                          className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            solveViewMode === 'question'
+                              ? 'bg-brand-600 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Question Paper</span>
+                        </button>
 
-                      <button
-                        onClick={() => setSolveViewMode('split')}
-                        className={`hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          solveViewMode === 'split'
-                            ? 'bg-brand-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                        title="Compare Question Paper and Answer Key side-by-side"
-                      >
-                        <Columns className="w-3.5 h-3.5" />
-                        <span>Split & Compare</span>
-                      </button>
+                        <button
+                          onClick={() => setSolveViewMode('split')}
+                          className={`hidden sm:flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            solveViewMode === 'split'
+                              ? 'bg-brand-600 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                          title="Compare Question Paper and Answer Key side-by-side"
+                        >
+                          <Columns className="w-3.5 h-3.5" />
+                          <span>Split & Compare</span>
+                        </button>
 
-                      <button
-                        onClick={() => setSolveViewMode('answer')}
-                        className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          solveViewMode === 'answer'
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        <span>Model Solutions</span>
-                        {!hasDedicatedSolution && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 ml-1">
-                            Notice
-                          </span>
-                        )}
-                      </button>
-                    </div>
+                        <button
+                          onClick={() => setSolveViewMode('answer')}
+                          className={`flex items-center space-x-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            solveViewMode === 'answer'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Model Solutions</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Document Rendering Stage - Direct In-Website Universal PDF Viewers */}
                   <div className="flex-1 flex overflow-hidden p-2 sm:p-4 gap-3">
                     {/* Questions Pane */}
-                    {(solveViewMode === 'question' || solveViewMode === 'split') && (
+                    {(!hasDedicatedSolution || solveViewMode === 'question' || solveViewMode === 'split') && (
                       <div
                         className={`h-full flex flex-col rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm ${
-                          solveViewMode === 'split' ? 'w-1/2' : 'w-full'
+                          hasDedicatedSolution && solveViewMode === 'split' ? 'w-1/2' : 'w-full'
                         }`}
                       >
                         <div className="px-3.5 py-2 bg-brand-50/80 dark:bg-brand-950/40 border-b border-brand-200 dark:border-brand-900/60 flex items-center justify-between text-xs font-bold text-brand-700 dark:text-brand-300">
@@ -738,8 +757,8 @@ export const TestPapers: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Answer Key / Solutions Pane */}
-                    {(solveViewMode === 'answer' || solveViewMode === 'split') && (
+                    {/* Answer Key / Solutions Pane (Only rendered if genuine solution exists) */}
+                    {hasDedicatedSolution && (solveViewMode === 'answer' || solveViewMode === 'split') && (
                       <div
                         className={`h-full flex flex-col rounded-2xl overflow-hidden border border-emerald-300 dark:border-emerald-800/80 bg-white dark:bg-slate-900 shadow-sm ${
                           solveViewMode === 'split' ? 'w-1/2' : 'w-full'

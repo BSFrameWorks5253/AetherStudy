@@ -8,19 +8,17 @@ import {
   ChevronLeft,
   ChevronRight,
   GraduationCap,
-  MessageSquare,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-export type ActiveTab = 'workspace' | 'community' | 'tests' | 'timetable' | 'syllabus';
+export type ActiveTab = 'workspace' | 'tests' | 'timetable' | 'syllabus';
 
 interface SidebarProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  isMobileChatOpen?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -28,7 +26,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   isCollapsed,
   onToggleCollapse,
-  isMobileChatOpen = false,
 }) => {
   const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout } = useAuth();
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
@@ -41,19 +38,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       description: 'Subject Rooms & PDFs',
       icon: BookOpen,
     },
-    {
-      id: 'community' as ActiveTab,
-      label: 'Peer Lounge',
-      mobileLabel: 'Chat',
-      description: `Std ${activeStandard} Live Chat`,
-      icon: MessageSquare,
-    },
     ...(isBoardExamGrade
       ? [
           {
             id: 'tests' as ActiveTab,
-            label: 'Exam Vault (PYQs)',
-            mobileLabel: 'Vault',
+            label: 'Board PYQs & Solutions',
+            mobileLabel: 'PYQs',
             description: 'Board Papers & Solutions',
             icon: FileCheck2,
           },
@@ -234,11 +224,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation Bar (< 768px viewports, hidden in active chat thread) */}
+      {/* Mobile Bottom Navigation Bar (< 768px viewports) */}
       <nav
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-1 py-1.5 justify-around items-center shadow-xl backdrop-blur-md transition-all ${
-          activeTab === 'community' && isMobileChatOpen ? 'hidden' : 'flex'
-        }`}
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-1 py-1.5 flex justify-around items-center shadow-xl backdrop-blur-md transition-all"
       >
         {navItems.map((item) => {
           const Icon = item.icon;

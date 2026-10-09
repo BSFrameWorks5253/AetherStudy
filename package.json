@@ -16,10 +16,13 @@
     "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "dotenv": "^18.0.6",
     "express": "^5.2.1",
+    "firebase": "^13.0.0",
     "googleapis": "^184.0.0",
     "helmet": "^8.3.0",
     "lucide-react": "^0.469.0",
@@ -29,7 +32,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "resend": "^6.32.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.0",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

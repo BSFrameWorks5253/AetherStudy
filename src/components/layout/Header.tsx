@@ -26,10 +26,9 @@ import { triggerPWAInstall } from '../common/PWAInstallBanner';
 
 interface HeaderProps {
   title: string;
-  isMobileChatOpen?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false }) => {
+export const Header: React.FC<HeaderProps> = ({ title }) => {
   const {
     timeLeft,
     isRunning,
@@ -96,7 +95,7 @@ export const Header: React.FC<HeaderProps> = ({ title, isMobileChatOpen = false 
 
   return (
     <>
-      <header className={`h-14 md:h-16 px-3 md:px-6 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 items-center justify-between select-none z-30 shadow-xs relative backdrop-blur-md ${isMobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
+      <header className="h-14 md:h-16 px-3 md:px-6 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between select-none z-30 shadow-xs relative backdrop-blur-md">
         {/* Module Title */}
         <div className="flex items-center space-x-2 min-w-0 flex-1 mr-2">
           <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate sm:hidden">
