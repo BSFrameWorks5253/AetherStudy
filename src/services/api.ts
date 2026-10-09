@@ -571,6 +571,14 @@ export const api = {
           body: JSON.stringify({ documents: allDocs }),
         }).catch(() => {});
       }
+      // Synchronize documents to Google Drive Cloud Catalog
+      if (GAS_URL) {
+        fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'sync_catalog', documents: allDocs }),
+        }).catch(() => {});
+      }
       // Auto-sync missing documents to Firebase in background if configured
       if (firebaseDocs.length < allDocs.length) {
         firebaseDocuments.saveAll(allDocs).catch(() => {});
@@ -582,6 +590,28 @@ export const api = {
     }
 
     return allDocs;
+  },
+
+  async syncLocalDocumentsToCloud(): Promise<void> {
+    const localDocs = api.getLocalDocuments();
+    if (localDocs.length === 0) return;
+    try {
+      await fetch(`${API_BASE}/documents/sync`, {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify({ documents: localDocs }),
+      });
+    } catch {}
+    const GAS_URL = (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL as string) || 'https://script.google.com/macros/s/AKfycbyP7ulx0qKE5dL57j_In3D8MWXjMAdK6lYd2a0WTDo50f1Y6YscA6qCp2SEv9F_-b5Wmg/exec';
+    if (GAS_URL) {
+      try {
+        await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'sync_catalog', documents: localDocs }),
+        });
+      } catch {}
+    }
   },
 
   async uploadDocument(

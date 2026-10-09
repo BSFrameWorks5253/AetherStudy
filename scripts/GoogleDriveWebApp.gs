@@ -55,6 +55,37 @@ function doPost(e) {
     }
 
     var payload = JSON.parse(e.postData.contents);
+
+    // Action: Delete file from Google Drive
+    if (payload.action === "delete" && payload.fileId) {
+      try {
+        var fileToDel = DriveApp.getFileById(payload.fileId);
+        fileToDel.setTrashed(true);
+        return jsonResponse({ success: true, deleted: true, fileId: payload.fileId });
+      } catch (delErr) {
+        return jsonResponse({ success: false, error: delErr.toString() });
+      }
+    }
+
+    // Action: Cloud Catalog Synchronization
+    if (payload.action === "sync_catalog" && Array.isArray(payload.documents)) {
+      try {
+        var root = getOrCreateFolderHierarchy(DriveApp.getRootFolder(), [ROOT_FOLDER_NAME]);
+        var catFiles = root.getFilesByName("aether_catalog.json");
+        var catFile;
+        if (catFiles.hasNext()) {
+          catFile = catFiles.next();
+          catFile.setContent(JSON.stringify(payload.documents));
+        } else {
+          catFile = root.createFile("aether_catalog.json", JSON.stringify(payload.documents), "application/json");
+          catFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        }
+        return jsonResponse({ success: true, count: payload.documents.length });
+      } catch (syncErr) {
+        return jsonResponse({ success: false, error: syncErr.toString() });
+      }
+    }
+
     var fileName = payload.fileName || ("study-material-" + new Date().getTime() + ".pdf");
     var base64Data = payload.fileBase64 || "";
     var mimeType = payload.mimeType || "application/pdf";
@@ -194,12 +225,40 @@ function doGet(e) {
       return jsonResponse({ success: false, error: "File not found yet." });
     }
 
+    // Action 2.5: Delete file via GET
+    if (action === "delete" && e && e.parameter && e.parameter.fileId) {
+      try {
+        var fileToDel = DriveApp.getFileById(e.parameter.fileId);
+        fileToDel.setTrashed(true);
+        return jsonResponse({ success: true, deleted: true, fileId: e.parameter.fileId });
+      } catch (delErr) {
+        return jsonResponse({ success: false, error: delErr.toString() });
+      }
+    }
+
     // Action 3: List all study materials across AetherStudy Google Drive folders
     if (action === "list" || action === "list_all") {
       var allFiles = [];
       var rootIter = DriveApp.getFoldersByName(ROOT_FOLDER_NAME);
       if (rootIter.hasNext()) {
         var rFolder = rootIter.next();
+
+        // 1. Check for fast cloud catalog file
+        var catIter = rFolder.getFilesByName("aether_catalog.json");
+        if (catIter.hasNext()) {
+          try {
+            var catContent = catIter.next().getBlob().getDataAsString();
+            var parsedCat = JSON.parse(catContent);
+            if (Array.isArray(parsedCat) && parsedCat.length > 0) {
+              return jsonResponse({
+                success: true,
+                count: parsedCat.length,
+                files: parsedCat,
+                source: "cloud_catalog"
+              });
+            }
+          } catch (cErr) {}
+        }
         function scanFolder(folder, pathSoFar) {
           var fIter = folder.getFiles();
           while (fIter.hasNext()) {

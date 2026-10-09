@@ -12,6 +12,7 @@ import { PullToRefresh } from './components/common/PullToRefresh';
 import { AuthRequiredGate } from './components/auth/AuthRequiredGate';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
+import { api } from './services/api';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
@@ -41,6 +42,11 @@ export const App: React.FC = () => {
     handleUrlChange();
     window.addEventListener('popstate', handleUrlChange);
     return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
+
+  // Proactively synchronize any local notes to Cloud Storage & Google Drive on startup
+  useEffect(() => {
+    api.syncLocalDocumentsToCloud().catch(() => {});
   }, []);
 
   const handleTabChange = (tab: ActiveTab) => {

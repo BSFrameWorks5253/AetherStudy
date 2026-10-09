@@ -19,6 +19,12 @@ module.exports = (req, res) => {
   }
 
   // Ensure the request URL maintains the /api prefix (or preserves /uploads static routes)
+  if (req.url && req.url.startsWith('/api/index.js')) {
+    const orig = req.headers['x-matched-path'] || req.headers['x-now-route-matches'];
+    if (orig && typeof orig === 'string') {
+      req.url = orig;
+    }
+  }
   if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
     req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
   }
