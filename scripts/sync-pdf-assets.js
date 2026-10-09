@@ -79,7 +79,7 @@ try {
   if (fs.existsSync(serverPapersPath)) {
     try {
       const papers = JSON.parse(fs.readFileSync(serverPapersPath, 'utf8'));
-      if (Array.isArray(papers) && papers.length > 0) {
+      if (Array.isArray(papers)) {
         catalog.testPapers = papers;
         changed = true;
       }

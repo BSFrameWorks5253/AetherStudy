@@ -423,41 +423,10 @@ if (!fs.existsSync(sampleAKPath)) {
   fs.writeFileSync(sampleAKPath, akHtml, 'utf8');
 }
 
-const initialTestPapers = [
-  {
-    id: 'tp-1',
-    title: 'MIT 6.824 End-Semester Final Examination',
-    subject: 'Distributed Systems',
-    year: 2024,
-    examType: 'Final Exam',
-    questionPdfUrl: '/uploads/MIT_6_824_2024_Final_Exam_Questions.html',
-    questionPdfName: 'MIT_6.824_2024_Final_Exam_Questions.pdf',
-    answerKeyPdfUrl: '/uploads/MIT_6_824_2024_Final_Exam_Solutions.html',
-    answerKeyPdfName: 'MIT_6.824_2024_Final_Exam_Solutions.pdf',
-    totalMarks: 100,
-    durationMinutes: 120,
-    uploadedBy: SUPER_ADMIN_EMAIL,
-    uploadedAt: new Date().toISOString(),
-  },
-  {
-    id: 'tp-2',
-    title: 'Quantum Information & Error Correction Midterm PYQ',
-    subject: 'Quantum Information Science',
-    year: 2023,
-    examType: 'PYQ',
-    questionPdfUrl: '/uploads/MIT_6_824_2024_Final_Exam_Questions.html',
-    questionPdfName: 'QIS_2023_Midterm_PYQ_Paper.pdf',
-    answerKeyPdfUrl: '/uploads/MIT_6_824_2024_Final_Exam_Solutions.html',
-    answerKeyPdfName: 'QIS_2023_Midterm_PYQ_Solutions.pdf',
-    totalMarks: 75,
-    durationMinutes: 90,
-    uploadedBy: SUPER_ADMIN_EMAIL,
-    uploadedAt: new Date().toISOString(),
-  },
-];
+const initialTestPapers = [];
 
 if (!fs.existsSync(path.join(DATA_DIR, 'test-papers.json'))) {
-  writeJsonFile('test-papers.json', initialTestPapers);
+  writeJsonFile('test-papers.json', []);
 }
 
 // ---------------- REST API ROUTES ----------------
@@ -760,18 +729,7 @@ app.put('/api/auth/users/role', requireSuperAdmin, (req, res) => {
 
 // 2. TEST PAPERS & PYQ VAULT (Subject + Year + Question PDF + Answer Key PDF)
 app.get('/api/test-papers', (req, res) => {
-  let testPapers = readJsonFile('test-papers.json', initialTestPapers);
-  if (!testPapers || testPapers.length <= 2) {
-    const catalogPath = path.join(__dirname, '../src/data/catalog.json');
-    if (fs.existsSync(catalogPath)) {
-      try {
-        const cat = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
-        if (cat.testPapers && Array.isArray(cat.testPapers) && cat.testPapers.length > 0) {
-          testPapers = cat.testPapers;
-        }
-      } catch (e) {}
-    }
-  }
+  const testPapers = readJsonFile('test-papers.json', []);
   res.json(testPapers);
 });
 
@@ -831,10 +789,16 @@ app.post(
 );
 
 app.delete('/api/test-papers/:id', requireAdmin, (req, res) => {
-  const testPapers = readJsonFile('test-papers.json', initialTestPapers);
+  const testPapers = readJsonFile('test-papers.json', []);
   const updated = testPapers.filter((tp) => tp.id !== req.params.id);
   writeJsonFile('test-papers.json', updated);
   res.json({ success: true, remaining: updated.length });
+});
+
+// Purge all test papers (Admin Only)
+app.delete('/api/test-papers-all/purge', requireAdmin, (req, res) => {
+  writeJsonFile('test-papers.json', []);
+  res.json({ success: true, message: 'All test papers wiped successfully.' });
 });
 
 // ---------------- NOTIFICATIONS & ADMIN ANNOUNCEMENTS ----------------

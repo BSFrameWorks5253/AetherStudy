@@ -194,7 +194,17 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     }
   }, [currentPage, isScrubbing]);
 
-  // Vertical Swipe Gesture Detection
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const unscaledPageDimRef = useRef<{ width: number; height: number }>({ width: 595, height: 842 });
+
+  // Reset scroll container to top whenever currentPage changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [currentPage]);
+
+  // Vertical Swipe Gesture Detection (Only transitions pages at top/bottom scroll boundaries)
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
@@ -206,25 +216,37 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     const diffY = touchStartY.current - endY;
     const diffX = touchStartX.current - endX;
 
-    // Minimum 40px vertical delta with vertical dominance
-    if (Math.abs(diffY) > 40 && Math.abs(diffY) > Math.abs(diffX)) {
-      if (diffY > 0) {
+    const el = scrollContainerRef.current;
+    const isAtBottom = el ? el.scrollTop + el.clientHeight >= el.scrollHeight - 25 : true;
+    const isAtTop = el ? el.scrollTop <= 25 : true;
+    const contentFitsOnScreen = el ? el.scrollHeight <= el.clientHeight + 15 : true;
+
+    // Minimum 55px vertical delta with vertical dominance
+    if (Math.abs(diffY) > 55 && Math.abs(diffY) > Math.abs(diffX) * 1.5) {
+      if (diffY > 0 && (isAtBottom || contentFitsOnScreen)) {
         goToNextPage();
-      } else {
+      } else if (diffY < 0 && (isAtTop || contentFitsOnScreen)) {
         goToPrevPage();
       }
     }
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    const now = Date.now();
-    if (now - lastWheelTime.current < 260) return;
+    const el = scrollContainerRef.current;
+    const isAtBottom = el ? el.scrollTop + el.clientHeight >= el.scrollHeight - 15 : true;
+    const isAtTop = el ? el.scrollTop <= 15 : true;
+    const contentFitsOnScreen = el ? el.scrollHeight <= el.clientHeight + 15 : true;
 
-    if (Math.abs(e.deltaY) > 35) {
-      lastWheelTime.current = now;
-      if (e.deltaY > 0) {
+    if (Math.abs(e.deltaY) > 30) {
+      if (e.deltaY > 0 && (isAtBottom || contentFitsOnScreen)) {
+        const now = Date.now();
+        if (now - lastWheelTime.current < 350) return;
+        lastWheelTime.current = now;
         goToNextPage();
-      } else {
+      } else if (e.deltaY < 0 && (isAtTop || contentFitsOnScreen)) {
+        const now = Date.now();
+        if (now - lastWheelTime.current < 350) return;
+        lastWheelTime.current = now;
         goToPrevPage();
       }
     }
@@ -234,11 +256,19 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        goToNextPage();
+        const el = scrollContainerRef.current;
+        const isAtBottom = el ? el.scrollTop + el.clientHeight >= el.scrollHeight - 20 : true;
+        if (isAtBottom) {
+          e.preventDefault();
+          goToNextPage();
+        }
       } else if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        goToPrevPage();
+        const el = scrollContainerRef.current;
+        const isAtTop = el ? el.scrollTop <= 20 : true;
+        if (isAtTop) {
+          e.preventDefault();
+          goToPrevPage();
+        }
       } else if (e.key === 'z' || e.key === 'Z') {
         setZenMode((prev) => !prev);
       }
@@ -283,6 +313,17 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
         setCurrentPage(targetPage);
         setScrubberValue(targetPage);
+
+        // Auto-scale to fit container width comfortably on first load
+        loadedDoc.getPage(targetPage).then((p: any) => {
+          if (isCancelled) return;
+          const baseVp = p.getViewport({ scale: 1, rotation: 0 });
+          unscaledPageDimRef.current = { width: baseVp.width, height: baseVp.height };
+          const containerW = containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800);
+          const pad = containerW < 640 ? 20 : 48;
+          const fitScale = Math.min(Math.max((containerW - pad) / baseVp.width, 0.55), 1.6);
+          setScale(Number(fitScale.toFixed(2)));
+        }).catch(() => {});
 
         if (saved && saved.currentPage > 1 && (!initialPage || initialPage === saved.currentPage)) {
           setResumeNotification({
@@ -334,6 +375,10 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
     pdfDoc.getPage(currentPage).then((page: any) => {
       if (isCancelled) return;
+
+      const unscaled = page.getViewport({ scale: 1, rotation });
+      unscaledPageDimRef.current = { width: unscaled.width, height: unscaled.height };
+
       const canvas = canvasRef.current;
       if (!canvas) {
         setIsPageRendering(false);
@@ -393,16 +438,25 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     };
   }, [pdfDoc, currentPage, scale, rotation, isGoogleDrive, engineMode]);
 
-  const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.2, 2.8));
-  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.2, 0.7));
+  const handleZoomIn = () => setScale((prev) => Math.min(Number((prev + 0.15).toFixed(2)), 3.0));
+  const handleZoomOut = () => setScale((prev) => Math.max(Number((prev - 0.15).toFixed(2)), 0.5));
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
-  const handleFitWidth = () => {
-    if (typeof window !== 'undefined') {
-      const containerWidth = containerRef.current?.clientWidth || window.innerWidth;
-      const targetScale = Math.min(Math.max((containerWidth - 48) / 600, 0.8), 2.2);
-      setScale(targetScale);
-    }
-  };
+
+  const handleFitWidth = useCallback(() => {
+    const containerW = containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800);
+    const pad = containerW < 640 ? 20 : 48;
+    const baseW = unscaledPageDimRef.current.width || 595;
+    const target = Math.min(Math.max((containerW - pad) / baseW, 0.55), 3.0);
+    setScale(Number(target.toFixed(2)));
+  }, []);
+
+  const handleFitPage = useCallback(() => {
+    const containerH = containerRef.current?.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 900);
+    const pad = 140; // header (56px) + footer (64px) + margin (20px)
+    const baseH = unscaledPageDimRef.current.height || 842;
+    const target = Math.min(Math.max((containerH - pad) / baseH, 0.45), 2.5);
+    setScale(Number(target.toFixed(2)));
+  }, []);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -599,7 +653,14 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
                 className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
                 title="Fit Page Width"
               >
-                Fit
+                Fit Width
+              </button>
+              <button
+                onClick={handleFitPage}
+                className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer hidden md:inline-block"
+                title="Fit Whole Page Height"
+              >
+                Fit Page
               </button>
               <button
                 onClick={handleZoomIn}
@@ -694,22 +755,27 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
         {/* ENGINE 3: HIGH-DPI CANVAS WITH SMOOTH SWIPE / SCROLL */}
         {engineMode === 'canvas' && (
-          <div className="w-full h-full overflow-y-auto overflow-x-auto p-2 sm:p-5 relative flex flex-col items-center">
-            <div
-              className={`my-auto shadow-2xl rounded-xl sm:rounded-2xl transition-all duration-200 shrink-0 overflow-visible ${
-                themeStyles.paperBg
-              }`}
-              style={{
-                filter: themeStyles.canvasFilter,
-              }}
-            >
-              <canvas
-                ref={canvasRef}
-                className="block cursor-default transition-opacity duration-150"
+          <div
+            ref={scrollContainerRef}
+            className="w-full h-full overflow-y-auto overflow-x-auto relative p-2 sm:p-6 pb-32 sm:pb-36"
+          >
+            <div className="flex flex-col items-center justify-start min-w-full">
+              <div
+                className={`shadow-2xl rounded-xl sm:rounded-2xl transition-all duration-200 shrink-0 overflow-visible max-w-none ${
+                  themeStyles.paperBg
+                }`}
                 style={{
-                  opacity: isPageRendering ? 0.75 : 1,
+                  filter: themeStyles.canvasFilter,
                 }}
-              />
+              >
+                <canvas
+                  ref={canvasRef}
+                  className="block cursor-default transition-opacity duration-150 max-w-none"
+                  style={{
+                    opacity: isPageRendering ? 0.75 : 1,
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

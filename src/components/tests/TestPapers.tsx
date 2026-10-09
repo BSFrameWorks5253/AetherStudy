@@ -323,6 +323,24 @@ export const TestPapers: React.FC = () => {
                   <FolderUp className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Bulk Folder</span>
                 </button>
+                {testPapers.length > 0 && (
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete ALL test papers? This cannot be undone.')) {
+                        await api.purgeAllTestPapers();
+                        setTestPapers([]);
+                        setSelectedYear(null);
+                        setSelectedSubject(null);
+                        setActivePaper(null);
+                      }
+                    }}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white border border-rose-500/20 shadow-sm cursor-pointer"
+                    title="Purge all test papers from website"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Purge All</span>
+                  </button>
+                )}
               </>
             )}
           </div>

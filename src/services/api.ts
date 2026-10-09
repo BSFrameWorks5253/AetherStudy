@@ -187,7 +187,7 @@ export const api = {
       const res = await fetch(`${API_BASE}/test-papers`);
       if (res.ok) {
         const papers = await res.json();
-        if (Array.isArray(papers) && papers.length > 0) {
+        if (Array.isArray(papers)) {
           localStorage.setItem('aether_cached_test_papers', JSON.stringify(papers));
           return papers;
         }
@@ -197,15 +197,15 @@ export const api = {
     }
 
     try {
-      const cached = localStorage.getItem('aether_cached_test_papers');
-      if (cached) return JSON.parse(cached);
-    } catch {}
-
-    try {
       const catalog = await import('../data/catalog.json');
       if (catalog && Array.isArray(catalog.testPapers) && catalog.testPapers.length > 0) {
         return catalog.testPapers as TestPaper[];
       }
+    } catch {}
+
+    try {
+      const cached = localStorage.getItem('aether_cached_test_papers');
+      if (cached) return JSON.parse(cached);
     } catch {}
 
     return [];
@@ -247,6 +247,21 @@ export const api = {
       } catch {}
     }
     return res.ok;
+  },
+
+  async purgeAllTestPapers(): Promise<boolean> {
+    try {
+      localStorage.removeItem('aether_cached_test_papers');
+    } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/test-papers-all/purge`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(true),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   },
 
   // 3. Subjects Management
@@ -359,6 +374,7 @@ export const api = {
 
   async getDocuments(standard?: string): Promise<ServerDocument[]> {
     let serverDocs: ServerDocument[] = [];
+    let serverOk = false;
     try {
       const url = standard && standard !== 'ALL'
         ? `${API_BASE}/documents?standard=${encodeURIComponent(standard)}`
@@ -366,6 +382,7 @@ export const api = {
       const res = await fetch(url);
       if (res.ok) {
         serverDocs = await res.json();
+        serverOk = true;
       }
     } catch (err) {
       console.warn('[Documents API] Server documents endpoint unreachable, reading local vault:', err);
@@ -375,32 +392,42 @@ export const api = {
     const docMap = new Map<string, ServerDocument>();
 
     // 1. Seed from catalog.json as base catalog
+    let catalogDocsCount = 0;
     try {
       const catalog = await import('../data/catalog.json');
       if (catalog && Array.isArray(catalog.documents)) {
+        catalogDocsCount = catalog.documents.length;
         catalog.documents.forEach((d: any) => {
           if (d && d.id) docMap.set(d.id, d as ServerDocument);
         });
       }
     } catch {}
 
-    // 2. Overlay client cached documents (ignoring legacy colliding IDs)
+    // 2. If server reported 0 documents and catalog is empty, wipe local cached documents
+    if (serverOk && serverDocs.length === 0 && catalogDocsCount === 0) {
+      api.saveLocalDocuments([]);
+      return [];
+    }
+
+    // 3. Overlay client cached documents (ignoring legacy colliding IDs)
     localDocs.forEach((d) => {
       if (d && d.id && !d.id.startsWith('doc-TWF0')) {
         docMap.set(d.id, d);
       }
     });
 
-    // 3. Overlay server documents
+    // 4. Overlay server documents
     serverDocs.forEach((d) => {
       if (d.id) docMap.set(d.id, d);
     });
 
     const allDocs = Array.from(docMap.values());
 
-    // Update local cache with complete merged list (NEVER save a standard-filtered subset)
+    // Update local cache with complete merged list
     if (allDocs.length > 0) {
       api.saveLocalDocuments(allDocs);
+    } else {
+      api.saveLocalDocuments([]);
     }
 
     if (standard && standard !== 'ALL') {

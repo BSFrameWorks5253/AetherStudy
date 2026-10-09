@@ -1391,7 +1391,7 @@ export const SubjectRooms: React.FC = () => {
           VIEW 1: DISTRACTION-FREE PDF READER
       ======================================================== */}
       {readingDoc ? (
-        <div className="flex flex-col h-full w-full overflow-hidden animate-fade-in bg-slate-950">
+        <div className="fixed inset-0 z-50 flex flex-col h-screen w-screen overflow-hidden animate-fade-in bg-slate-950">
           <UniversalPdfViewer
             url={readingDoc.streamUrl || readingDoc.serverUrl || ''}
             title={readingDoc.name || readingDoc.originalName}
