@@ -23,6 +23,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { triggerPWAInstall } from '../common/PWAInstallBanner';
+import { AmbientSoundPopover } from '../common/AmbientSoundPopover';
 
 interface HeaderProps {
   title: string;
@@ -278,6 +279,9 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
               </div>
             )}
           </div>
+
+          {/* Offline Binaural & Ambient Audio Synthesizer */}
+          <AmbientSoundPopover />
 
           {/* Install App Capsule */}
           {canInstall && (

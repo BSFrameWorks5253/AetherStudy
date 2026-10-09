@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BookOpen,
   FileCheck2,
@@ -9,10 +9,14 @@ import {
   ChevronRight,
   GraduationCap,
   LogOut,
+  Clock,
+  Sparkles,
+  Printer,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { RevisionExporterModal } from '../common/RevisionExporterModal';
 
-export type ActiveTab = 'workspace' | 'tests' | 'timetable' | 'syllabus';
+export type ActiveTab = 'workspace' | 'tests' | 'simulator' | 'flashcards' | 'timetable' | 'syllabus';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -28,6 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
 }) => {
   const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout } = useAuth();
+  const [showDossierModal, setShowDossierModal] = useState<boolean>(false);
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
 
   const navItems = [
@@ -46,6 +51,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             mobileLabel: 'PYQs',
             description: 'Question Papers & Keys',
             icon: FileCheck2,
+          },
+          {
+            id: 'simulator' as ActiveTab,
+            label: 'Exam Arena',
+            mobileLabel: 'Arena',
+            description: '3-Hour Exam Simulation',
+            icon: Clock,
+          },
+          {
+            id: 'flashcards' as ActiveTab,
+            label: 'Formula Deck',
+            mobileLabel: 'Deck',
+            description: 'Spaced Recall & Rules',
+            icon: Sparkles,
           },
         ]
       : []),
@@ -207,6 +226,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           {!isCollapsed && (
+            <button
+              type="button"
+              onClick={() => setShowDossierModal(true)}
+              className="w-full p-2.5 rounded-2xl bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 flex items-center justify-between text-xs font-bold text-brand-600 dark:text-brand-300 transition-all ios-pill cursor-pointer"
+              title="Generate 1-Click Printable Last Minute Revision Sheet"
+            >
+              <div className="flex items-center gap-2">
+                <Printer className="w-3.5 h-3.5" />
+                <span>Revision Dossier (LMR)</span>
+              </div>
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {!isCollapsed && (
             <div className="p-2.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
               <div className="flex items-center space-x-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -220,6 +254,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       </aside>
+
+      {/* 1-Click Printable Revision Dossier Modal */}
+      <RevisionExporterModal
+        isOpen={showDossierModal}
+        onClose={() => setShowDossierModal(false)}
+      />
 
       {/* Mobile Apple Floating Spatial Dock (< 768px viewports) */}
       <nav

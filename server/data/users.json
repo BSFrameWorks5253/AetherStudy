@@ -8,5 +8,11 @@
     "email": "test@example.com",
     "role": "USER",
     "lastLogin": "2026-10-08T09:15:23.276Z"
+  },
+  {
+    "email": "sounasathburhan5252@gmail.com",
+    "role": "USER",
+    "standard": "12",
+    "lastLogin": "2026-10-09T06:07:09.939Z"
   }
 ]
