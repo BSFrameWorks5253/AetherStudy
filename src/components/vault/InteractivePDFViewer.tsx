@@ -337,8 +337,17 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
 
   const isCurrentPageBookmarked = activeBookmarks.some((b) => b.page === displayPage);
 
-  const handleZoomIn = useCallback(() => setScale((prev) => Math.min(prev + 0.25, 3.0)), []);
-  const handleZoomOut = useCallback(() => setScale((prev) => Math.max(prev - 0.25, 0.6)), []);
+  const handleZoomIn = useCallback(() => setScale((prev) => Math.min(prev + 0.2, 3.0)), []);
+  const handleZoomOut = useCallback(() => setScale((prev) => Math.max(prev - 0.2, 0.5)), []);
+  const handleFitPage = useCallback(() => {
+    if (!containerRef.current || !pdfDoc) return;
+    pdfDoc.getPage(displayPage).then((page: any) => {
+      const defaultViewport = page.getViewport({ scale: 1 });
+      const availableHeight = (containerRef.current?.clientHeight || window.innerHeight) - 96;
+      const targetScale = Math.max(Math.min(availableHeight / defaultViewport.height, 2.0), 0.5);
+      setScale(Number(targetScale.toFixed(2)));
+    });
+  }, [pdfDoc, displayPage]);
 
   // Hydration guard
   if (!isMounted) {
@@ -441,6 +450,13 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
                 title="Zoom Out"
               >
                 <ZoomOut className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleFitPage}
+                className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                title="Fit Page to Screen (Full Height)"
+              >
+                Fit
               </button>
               <button
                 onClick={handleZoomIn}
@@ -597,10 +613,10 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
       {/* MAIN DOCUMENT VIEWPORT (MULTI-ENGINE FAIL-SAFE)                 */}
       {/* ============================================================== */}
       <div className="flex-1 flex overflow-hidden relative">
-        <div className="flex-1 h-full w-full relative overflow-hidden bg-slate-950 flex items-center justify-center">
+        <div className="flex-1 h-full w-full relative overflow-hidden bg-slate-950 flex flex-col">
           {/* ENGINE 1: HIGH-DPI CANVAS (DEFAULT FOR LOCAL EXAM PAPERS & TEXTBOOKS) */}
           {engineMode === 'canvas' && (
-            <div className="w-full h-full flex items-center justify-center overflow-auto p-4 relative bg-slate-950/90">
+            <div className="w-full h-full overflow-y-auto overflow-x-auto p-3 sm:p-6 relative bg-slate-950/90 flex flex-col items-center">
               {loadingDoc && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-xs z-20">
                   <RefreshCw className="w-8 h-8 text-brand-500 animate-spin mb-2" />
@@ -610,8 +626,8 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
                 </div>
               )}
 
-              <div className="max-w-full max-h-full flex items-center justify-center shadow-2xl rounded-2xl overflow-hidden bg-white">
-                <canvas ref={canvasRef} className="block max-w-full h-auto" />
+              <div className="my-auto shadow-2xl rounded-xl sm:rounded-2xl bg-white shrink-0 overflow-visible">
+                <canvas ref={canvasRef} className="block" />
               </div>
             </div>
           )}

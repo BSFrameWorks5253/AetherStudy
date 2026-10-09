@@ -688,9 +688,9 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
         {/* ENGINE 3: HIGH-DPI CANVAS WITH SMOOTH SWIPE / SCROLL */}
         {engineMode === 'canvas' && (
-          <div className="w-full h-full flex items-center justify-center overflow-auto p-2 sm:p-5 relative">
+          <div className="w-full h-full overflow-y-auto overflow-x-auto p-2 sm:p-5 relative flex flex-col items-center">
             <div
-              className={`max-w-full max-h-full flex items-center justify-center shadow-2xl rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-200 ${
+              className={`my-auto shadow-2xl rounded-xl sm:rounded-2xl transition-all duration-200 shrink-0 overflow-visible ${
                 themeStyles.paperBg
               }`}
               style={{
@@ -699,7 +699,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
             >
               <canvas
                 ref={canvasRef}
-                className="block max-w-full h-auto cursor-default transition-opacity duration-150"
+                className="block cursor-default transition-opacity duration-150"
                 style={{
                   opacity: isPageRendering ? 0.75 : 1,
                 }}
