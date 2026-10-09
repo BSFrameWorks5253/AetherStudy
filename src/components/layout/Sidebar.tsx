@@ -42,68 +42,63 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? [
           {
             id: 'tests' as ActiveTab,
-            label: 'Board PYQs & Solutions',
+            label: 'Board PYQs',
             mobileLabel: 'PYQs',
-            description: 'Board Papers & Solutions',
+            description: 'Question Papers & Keys',
             icon: FileCheck2,
           },
         ]
       : []),
     {
       id: 'timetable' as ActiveTab,
-      label: 'Study Timetable',
+      label: 'Academic Schedule',
       mobileLabel: 'Planner',
-      description: 'Schedule & Timer',
+      description: 'Timetable & Focus Blocks',
       icon: CalendarDays,
     },
     {
       id: 'syllabus' as ActiveTab,
-      label: 'Curriculum Tracker',
+      label: 'Curriculum Mastery',
       mobileLabel: 'Syllabus',
-      description: 'Chapters & Revision',
+      description: 'Chapters & Progress',
       icon: ListTodo,
     },
   ];
 
   return (
     <>
-      {/* Desktop/Tablet Left Sidebar (Hidden on mobile) */}
+      {/* Desktop / Tablet Left Apple Frosted Rail */}
       <aside
-        className={`hidden md:flex h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col justify-between transition-all duration-300 select-none z-30 shadow-sm ${
+        className={`hidden md:flex h-full ios-glass border-r border-black/[0.06] dark:border-white/[0.08] flex-col justify-between transition-all duration-300 select-none z-30 ${
           isCollapsed ? 'w-20' : 'w-72'
         }`}
       >
         <div>
           {/* Header Brand */}
-          <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between p-4 border-b border-black/[0.06] dark:border-white/[0.08]">
             <div className="flex items-center space-x-3 overflow-hidden">
-              <div className="w-10 h-10 rounded-2xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/25 shrink-0">
                 <GraduationCap className="w-5 h-5" />
               </div>
               {!isCollapsed && (
                 <div className="truncate">
-                  <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-none flex items-center gap-1.5">
+                  <h1 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white leading-tight flex items-center gap-1.5">
                     AetherStudy
-                    <span className="text-[10px] bg-brand-50 text-brand-700 dark:bg-brand-950/80 dark:text-brand-300 font-semibold px-2 py-0.5 rounded-full border border-brand-200 dark:border-brand-800">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-300 border border-brand-500/20">
                       Std {activeStandard}
                     </span>
                   </h1>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                    {activeStandard === '12'
-                      ? 'Higher Secondary • HSC'
-                      : activeStandard === '10'
-                      ? 'Secondary Board • SSC'
-                      : activeStandard === '11'
-                      ? 'Junior College • FYJC'
-                      : 'Foundation Curriculum'}
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-tight mt-0.5">
+                    Maharashtra State Board
                   </p>
                 </div>
               )}
             </div>
 
             <button
+              type="button"
               onClick={onToggleCollapse}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -119,13 +114,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <button
                   key={item.id}
+                  type="button"
                   onClick={() => onTabChange(item.id)}
-                  className={`w-full flex items-center rounded-2xl transition-all duration-150 ${
+                  className={`w-full flex items-center rounded-2xl transition-all duration-200 ios-pill ${
                     isCollapsed ? 'justify-center p-3.5' : 'px-4 py-3 space-x-3.5'
                   } ${
                     isActive
                       ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25 font-bold'
-                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/70 font-medium'
+                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
                   }`}
                   title={isCollapsed ? item.label : undefined}
                 >
@@ -136,9 +132,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   />
                   {!isCollapsed && (
                     <div className="text-left truncate">
-                      <div className="text-xs font-semibold leading-tight">{item.label}</div>
+                      <div className="text-xs font-semibold tracking-tight leading-tight">{item.label}</div>
                       <div
-                        className={`text-[10px] mt-0.5 ${
+                        className={`text-[10px] mt-0.5 font-normal ${
                           isActive ? 'text-brand-100' : 'text-slate-400 dark:text-slate-500'
                         }`}
                       >
@@ -153,18 +149,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Footer Status & User Account Controls */}
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
-          {/* User Account & Logout Control */}
+        <div className="p-3 border-t border-black/[0.06] dark:border-white/[0.08] space-y-2">
           {isAuthenticated && currentUser && (
             <div
-              className={`p-2 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center ${
+              className={`p-2 rounded-2xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.04] dark:border-white/[0.06] flex items-center ${
                 isCollapsed ? 'justify-center' : 'justify-between'
               }`}
             >
               {!isCollapsed ? (
                 <>
                   <div className="flex items-center space-x-2 truncate min-w-0 mr-1.5">
-                    <div className="w-8 h-8 rounded-xl bg-brand-100 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-brand-500/15 text-brand-700 dark:text-brand-300 flex items-center justify-center font-bold text-xs shrink-0">
                       {currentUser.email.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="truncate">
@@ -173,21 +168,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 capitalize truncate">
                         {isSuperAdmin
-                          ? 'Owner'
+                          ? 'Administrator'
                           : currentUser.role === 'ADMIN'
-                          ? 'Admin'
+                          ? 'Faculty Admin'
                           : `Class ${activeStandard}`}
                       </div>
                     </div>
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => {
-                      if (window.confirm('Log out of AetherStudy? You can log back in anytime.')) {
+                      if (window.confirm('Log out of AetherStudy? You can return anytime.')) {
                         logout();
                       }
                     }}
-                    className="p-1.5 rounded-xl text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shrink-0"
+                    className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors shrink-0"
                     title="Sign Out"
                   >
                     <LogOut className="w-4 h-4" />
@@ -195,12 +191,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </>
               ) : (
                 <button
+                  type="button"
                   onClick={() => {
-                    if (window.confirm('Log out of AetherStudy? You can log back in anytime.')) {
+                    if (window.confirm('Log out of AetherStudy? You can return anytime.')) {
                       logout();
                     }
                   }}
-                  className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                  className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors"
                   title="Sign Out"
                 >
                   <LogOut className="w-4 h-4" />
@@ -210,23 +207,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           {!isCollapsed && (
-            <div className="p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-200/50 dark:border-slate-800/50">
-              <div className="flex items-center space-x-2 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="w-3 h-3" />
-                <span>Notes & Progress Synced</span>
+            <div className="p-2.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+              <div className="flex items-center space-x-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Cloud Vault Connected</span>
               </div>
             </div>
           )}
 
           <div className="flex items-center justify-center text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-            {!isCollapsed ? <span>HSC Maharashtra Board</span> : <span>XII</span>}
+            {!isCollapsed ? <span>HSC Board Commerce</span> : <span>XII</span>}
           </div>
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation Bar (< 768px viewports) */}
+      {/* Mobile Apple Floating Spatial Dock (< 768px viewports) */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-1 py-1.5 flex justify-around items-center shadow-xl backdrop-blur-md transition-all"
+        className="md:hidden fixed bottom-3 left-3 right-3 z-40 ios-glass rounded-[28px] border border-black/[0.08] dark:border-white/[0.1] px-2 py-1.5 flex justify-around items-center shadow-2xl transition-all"
       >
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -235,16 +232,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => onTabChange(item.id)}
-              className={`flex-1 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all ios-pill ${
                 isActive
                   ? 'text-brand-600 dark:text-brand-400'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
               }`}
             >
               <div
-                className={`p-1 rounded-xl transition-all ${
-                  isActive ? 'bg-brand-50 dark:bg-brand-950/80 text-brand-600 dark:text-brand-400 scale-105' : ''
+                className={`p-1.5 rounded-2xl transition-all ${
+                  isActive ? 'bg-brand-500/15 text-brand-600 dark:text-brand-400 scale-105' : ''
                 }`}
               >
                 <Icon className="w-5 h-5" />

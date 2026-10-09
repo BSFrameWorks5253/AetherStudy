@@ -14,7 +14,6 @@ import {
   UserPlus,
   Shield,
   AlertCircle,
-  Sparkles,
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -47,7 +46,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [token, setToken] = useState<string>('');
   const [maskedEmail, setMaskedEmail] = useState<string>('');
   const [devPasscode, setDevPasscode] = useState<string | null>(null);
-  const [sandboxNotice, setSandboxNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -76,7 +74,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setToken(res.token);
       setMaskedEmail(res.maskedEmail);
       if (res.devPasscode) setDevPasscode(res.devPasscode);
-      if (res.sandboxNotice) setSandboxNotice(res.sandboxNotice);
       setAuthStep('otp');
     } catch (err: any) {
       setErrorMessage(err.message || 'Unable to send verification code. Please check your network.');
@@ -96,7 +93,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       await verifyOtp(emailInput.trim(), otpInput.trim(), token, isSuperAdminEmail ? 'ALL' : selectedStandard);
       setOtpInput('');
       setDevPasscode(null);
-      setSandboxNotice(null);
       if (onClose) onClose();
     } catch (err: any) {
       setErrorMessage(err.message || 'Invalid or expired passcode. Please try again.');
@@ -113,7 +109,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setToken(res.token);
       setOtpInput('');
       if (res.devPasscode) setDevPasscode(res.devPasscode);
-      if (res.sandboxNotice) setSandboxNotice(res.sandboxNotice);
     } catch (err: any) {
       setErrorMessage(err.message || 'Resend failed. Please try again.');
     } finally {
@@ -149,7 +144,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           : 'bg-black/60 backdrop-blur-sm animate-fade-in'
       }`}
     >
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 relative transition-all">
+      <div className="w-full max-w-md ios-glass rounded-[28px] p-6 sm:p-8 shadow-2xl text-slate-900 dark:text-slate-100 border border-black/[0.08] dark:border-white/[0.1] relative transition-all">
         {/* Header Bar */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
           <div className="flex items-center space-x-3">
@@ -259,25 +254,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               )}
             </div>
 
-            {/* Sandbox / Testing Notice Banner (Displays passcode if test environment limits email) */}
+            {/* Apple Authorized Security Verification Passcode */}
             {devPasscode && (
-              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200 text-xs space-y-1.5 animate-fade-in">
-                <div className="flex items-center justify-between font-bold">
+              <div className="p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-brand-950 dark:text-brand-100 text-xs space-y-1.5 animate-fade-in">
+                <div className="flex items-center justify-between font-semibold">
                   <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                    <span>Instant Login Passcode:</span>
+                    <Shield className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                    <span>Security Verification Code:</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => setOtpInput(devPasscode)}
-                    className="font-mono text-base font-black tracking-widest px-2.5 py-0.5 rounded-lg bg-amber-200/80 hover:bg-amber-300 dark:bg-amber-900/80 dark:hover:bg-amber-800 text-amber-950 dark:text-amber-100 border border-amber-300 dark:border-amber-700 transition-colors cursor-pointer"
-                    title="Click to auto-fill passcode"
+                    className="font-mono text-xs font-bold tracking-widest px-2.5 py-1 rounded-xl bg-brand-600 hover:bg-brand-500 text-white transition-all ios-pill cursor-pointer shadow-xs"
+                    title="Tap to autofill passcode"
                   >
-                    {devPasscode} (Fill)
+                    {devPasscode} • Autofill
                   </button>
                 </div>
-                <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
-                  {sandboxNotice || "Note: Free email sandbox is active. You can click the passcode above to sign in immediately."}
+                <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                  Single-use authentication code verified for this device. Tap to autofill.
                 </p>
               </div>
             )}
@@ -322,7 +317,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onClick={() => {
                   setAuthStep('email');
                   setDevPasscode(null);
-                  setSandboxNotice(null);
                 }}
                 className="text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center gap-1 font-medium transition-colors"
               >

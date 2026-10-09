@@ -29,7 +29,7 @@ export const SUGGESTED_SUBJECTS = [
   'Mathematics & Statistics',
   'Information Technology (IT)',
   'English (Yuvakbharati)',
-  'Board PYQ Mock Exam',
+  'Board PYQ Practice Exam',
 ];
 
 const INITIAL_SCHEDULE: TimeSlot[] = [
@@ -108,7 +108,7 @@ const INITIAL_SCHEDULE: TimeSlot[] = [
     day: 'Sunday',
     startTime: '09:00',
     endTime: '12:00',
-    subject: 'Board PYQ Mock Exam',
+    subject: 'Board PYQ Practice Exam',
     topic: 'Timed 3-Hour Exam Simulation & Model Solution Analysis',
     color: 'border-purple-400/50 bg-purple-500/10 text-purple-600 dark:text-purple-300',
     isCompleted: false,
@@ -122,7 +122,7 @@ const COLOR_OPTIONS = [
   { label: 'Amber / OCM', value: 'border-amber-400/50 bg-amber-500/10 text-amber-600 dark:text-amber-300' },
   { label: 'Blue / IT', value: 'border-blue-400/50 bg-blue-500/10 text-blue-600 dark:text-blue-300' },
   { label: 'Rose / SP', value: 'border-rose-400/50 bg-rose-500/10 text-rose-600 dark:text-rose-300' },
-  { label: 'Purple / Mock Test', value: 'border-purple-400/50 bg-purple-500/10 text-purple-600 dark:text-purple-300' },
+  { label: 'Purple / Practice Exam', value: 'border-purple-400/50 bg-purple-500/10 text-purple-600 dark:text-purple-300' },
 ];
 
 export const Timetable: React.FC = () => {
@@ -250,28 +250,28 @@ export const Timetable: React.FC = () => {
       {/* Top Banner and Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
         <div>
-          <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-wider mb-1">
-            <Calendar className="w-4 h-4" />
-            <span>Academic Scheduler & Dispatcher</span>
+          <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-[11px] font-bold uppercase tracking-wider mb-1">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Academic Focus Schedule</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            Academic Timetable
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Study Timetable
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-            <span>Coordinate multi-hour focus blocks linked with Pomodoro triggers.</span>
+            <span>Structured daily study blocks synchronized with Pomodoro focus timers.</span>
             <span
-              title="Realtime bi-directional cloud sync powered by Firebase Realtime Database & Firestore"
-              className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded-full liquid-glass-subtle border border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+              title="Real-time cloud sync powered by Firebase"
+              className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>{isSaving ? 'Cloud Syncing...' : firebaseStatus === 'connected' ? 'Firebase Realtime Live' : 'Offline Safe'}</span>
+              <span>{isSaving ? 'Saving...' : firebaseStatus === 'connected' ? 'Cloud Synchronized' : 'Offline Safe'}</span>
             </span>
             <span
-              title="Active students preparing for HSC examinations simultaneously"
-              className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded-full liquid-glass-subtle text-slate-600 dark:text-slate-300"
+              title="Students preparing simultaneously"
+              className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border border-black/[0.04] dark:border-white/[0.06]"
             >
               <Users className="w-3 h-3 text-brand-500" />
               <span>{activeStudents} Studying Online</span>
@@ -279,11 +279,11 @@ export const Timetable: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3 shrink-0">
+        <div className="flex items-center space-x-2.5 shrink-0">
           <select
             value={selectedSubjectFilter}
             onChange={(e) => setSelectedSubjectFilter(e.target.value)}
-            className="liquid-glass text-xs text-slate-700 dark:text-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+            className="ios-glass text-xs text-slate-700 dark:text-slate-200 rounded-full px-3.5 py-2 focus:outline-none font-medium border border-black/[0.06] dark:border-white/[0.08]"
           >
             <option value="All">All Subjects ({allSubjects.length})</option>
             {allSubjects.map((sub) => (
@@ -294,31 +294,33 @@ export const Timetable: React.FC = () => {
           </select>
 
           <button
+            type="button"
             onClick={() => {
               setNewDay(activeDay);
               setShowAddModal(true);
             }}
-            className="flex items-center space-x-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-500/25 transition-all active:scale-95 glass-pill"
+            className="flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-full shadow-md shadow-brand-500/25 transition-all ios-pill cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Add Study Block</span>
           </button>
         </div>
       </div>
 
-      {/* Weekday Switcher Tabs */}
-      <div className="grid grid-cols-7 gap-1 sm:gap-2 p-1.5 liquid-glass rounded-2xl mb-6 shadow-sm select-none shrink-0">
+      {/* Apple Segmented Weekday Switcher */}
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 p-1.5 ios-glass rounded-[22px] mb-6 shadow-sm select-none shrink-0 border border-black/[0.06] dark:border-white/[0.08]">
         {DAYS.map((day) => {
           const count = schedule.filter((s) => s.day === day).length;
           const isSelected = activeDay === day;
           return (
             <button
               key={day}
+              type="button"
               onClick={() => setActiveDay(day)}
-              className={`py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center sm:justify-between ${
+              className={`py-2 px-1 sm:px-3 rounded-2xl text-xs font-semibold transition-all ios-pill flex flex-col sm:flex-row items-center justify-center sm:justify-between cursor-pointer ${
                 isSelected
                   ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.05]'
               }`}
             >
               <span className="hidden sm:inline">{day.slice(0, 3)}</span>
@@ -338,15 +340,15 @@ export const Timetable: React.FC = () => {
       {/* Time Slots List */}
       <div className="space-y-3">
         {currentDaySlots.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-10 md:p-14 liquid-glass rounded-3xl text-center border border-slate-200/50 dark:border-slate-800/50">
-            <div className="w-14 h-14 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-3 border border-brand-100 dark:border-brand-900/40 shadow-xs">
+          <div className="flex flex-col items-center justify-center p-10 md:p-14 ios-glass rounded-[28px] text-center border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center mb-3 border border-brand-500/20 shadow-xs">
               <Clock className="w-7 h-7" />
             </div>
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
               No study blocks planned for {activeDay}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
-              Schedule your focused revision blocks to lock in productive flow.
+              Schedule focused revision sessions to optimize your board examination preparation.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
               <button
@@ -355,7 +357,7 @@ export const Timetable: React.FC = () => {
                   setNewDay(activeDay);
                   setShowAddModal(true);
                 }}
-                className="flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all active:scale-95 cursor-pointer"
+                className="flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-full shadow-md shadow-brand-500/20 transition-all ios-pill cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Block for {activeDay.slice(0, 3)}</span>
@@ -364,7 +366,7 @@ export const Timetable: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleLoadModelSchedule}
-                  className="flex items-center space-x-1.5 px-4 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-xs font-bold rounded-xl border border-purple-200 dark:border-purple-800 transition-all cursor-pointer"
+                  className="flex items-center space-x-1.5 px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 text-xs font-semibold rounded-full border border-purple-500/20 transition-all ios-pill cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Load Model HSC Schedule</span>
@@ -455,11 +457,11 @@ export const Timetable: React.FC = () => {
       {showAddModal && (
         <div
           onClick={() => setShowAddModal(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-800"
+            className="w-full max-w-md ios-glass rounded-[28px] p-6 sm:p-7 shadow-2xl text-slate-800 dark:text-slate-100 border border-black/[0.08] dark:border-white/[0.1]"
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 mb-4">
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">

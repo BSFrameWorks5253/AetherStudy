@@ -1,18 +1,22 @@
 import React from 'react';
 
+/**
+ * Apple iOS Spatial Liquid Ambient Canvas
+ * High-definition, low-overhead ambient luminous depth.
+ */
 export const LiquidBackground: React.FC = () => {
   return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      {/* Background base tone with soothing academic focus */}
-      <div className="absolute inset-0 bg-[#f8fafc] dark:bg-[#090d16] transition-colors duration-500" />
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">
+      {/* Dynamic Base Surface */}
+      <div className="absolute inset-0 bg-[#f6f8fc] dark:bg-[#07090f] transition-colors duration-700" />
 
-      {/* Subtle gentle ambient accents */}
-      <div className="absolute -top-[10%] -left-[5%] w-[45vw] h-[45vw] rounded-full bg-brand-500/8 dark:bg-brand-600/12 blur-[100px] pointer-events-none" />
-      <div className="absolute top-[45%] -right-[10%] w-[40vw] h-[40vw] rounded-full bg-sky-400/8 dark:bg-sky-600/10 blur-[100px] pointer-events-none" />
-      <div className="absolute -bottom-[10%] left-[30%] w-[35vw] h-[35vw] rounded-full bg-indigo-500/6 dark:bg-indigo-600/10 blur-[100px] pointer-events-none" />
+      {/* Luminous Spatial Radial Lights */}
+      <div className="absolute -top-[15%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-gradient-to-br from-indigo-500/10 via-purple-500/8 to-transparent dark:from-indigo-600/15 dark:via-purple-600/12 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[35%] -right-[15%] w-[45vw] h-[45vw] rounded-full bg-gradient-to-bl from-sky-400/8 via-cyan-500/6 to-transparent dark:from-sky-500/12 dark:via-cyan-600/10 blur-[130px] pointer-events-none" />
+      <div className="absolute -bottom-[20%] left-[25%] w-[40vw] h-[40vw] rounded-full bg-gradient-to-t from-violet-600/8 via-fuchsia-500/6 to-transparent dark:from-violet-700/12 dark:via-purple-800/10 blur-[120px] pointer-events-none" />
 
-      {/* Clean micro-dot grid pattern for depth without visual noise */}
-      <div className="absolute inset-0 bg-[radial-gradient(rgba(100,116,139,0.08)_1px,transparent_1px)] dark:bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:20px_20px]" />
+      {/* Ultra-Fine Optical Noise & Micro-Texture */}
+      <div className="absolute inset-0 bg-[radial-gradient(rgba(15,23,42,0.04)_1px,transparent_1px)] dark:bg-[radial-gradient(rgba(255,255,255,0.025)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
     </div>
   );
 };

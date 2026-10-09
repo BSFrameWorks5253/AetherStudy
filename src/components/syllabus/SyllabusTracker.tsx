@@ -390,7 +390,7 @@ export const SyllabusTracker: React.FC = () => {
         </div>
 
         {/* Global Progress Metrics Card with Circular Meter */}
-        <div className="flex items-center bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xs space-x-6 border border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="flex items-center ios-glass rounded-[28px] p-5 shadow-xs space-x-6 border border-black/[0.06] dark:border-white/[0.08] shrink-0">
           <CircularProgress
             percentage={percentage}
             size={130}
@@ -421,12 +421,12 @@ export const SyllabusTracker: React.FC = () => {
 
       {/* Subject Filter Bar and Add Topic Trigger */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6 shrink-0">
-        <div className="flex items-center space-x-1.5 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto no-scrollbar shadow-xs max-w-full">
+        <div className="flex items-center space-x-1.5 p-1.5 ios-glass border border-black/[0.06] dark:border-white/[0.08] rounded-full overflow-x-auto no-scrollbar shadow-xs max-w-full">
           <button
             onClick={() => setSelectedSubject('All')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 ios-pill cursor-pointer ${
               selectedSubject === 'All'
-                ? 'bg-brand-600 text-white shadow-md'
+                ? 'bg-brand-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -436,9 +436,9 @@ export const SyllabusTracker: React.FC = () => {
             <button
               key={sub}
               onClick={() => setSelectedSubject(sub)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 ios-pill cursor-pointer ${
                 selectedSubject === sub
-                  ? 'bg-brand-600 text-white shadow-md'
+                  ? 'bg-brand-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -449,7 +449,7 @@ export const SyllabusTracker: React.FC = () => {
 
         <button
           onClick={() => setIsAddingTopic(true)}
-          className="flex items-center space-x-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-500/25 transition-all active:scale-95 glass-pill"
+          className="flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-full shadow-md shadow-brand-500/25 transition-all ios-pill cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>New Topic Module</span>
@@ -460,32 +460,32 @@ export const SyllabusTracker: React.FC = () => {
       {isAddingTopic && (
         <form
           onSubmit={handleCreateTopic}
-          className="mb-6 p-5 liquid-glass rounded-2xl space-y-3 animate-fade-in border border-brand-500/50 shadow-xl"
+          className="mb-6 p-5 sm:p-6 ios-glass rounded-[28px] space-y-4 animate-fade-in border border-brand-500/30 shadow-xl"
         >
           <h3 className="text-xs font-bold text-brand-600 dark:text-brand-300 uppercase tracking-wider flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5" />
             Append New Topic Module
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Subject</label>
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Subject</label>
               <input
                 type="text"
                 value={newTopicSubject}
                 onChange={(e) => setNewTopicSubject(e.target.value)}
-                placeholder="e.g. Distributed Systems"
-                className="w-full liquid-glass-subtle rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                placeholder="e.g. Book-Keeping & Accountancy"
+                className="w-full px-4 py-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/[0.1] text-xs font-semibold focus:outline-hidden focus:border-brand-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">Topic Module Title</label>
+              <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">Topic Module Title</label>
               <input
                 type="text"
                 value={newTopicTitle}
                 onChange={(e) => setNewTopicTitle(e.target.value)}
-                placeholder="e.g. 5. Gossip Protocols & Epidemic Algorithms"
-                className="w-full liquid-glass-subtle rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none"
+                placeholder="e.g. Chapter 7: Bills of Exchange"
+                className="w-full px-4 py-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/[0.1] text-xs font-semibold focus:outline-hidden focus:border-brand-500"
                 required
               />
             </div>
@@ -494,13 +494,13 @@ export const SyllabusTracker: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAddingTopic(false)}
-              className="px-3.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white"
+              className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-full cursor-pointer ios-pill"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white rounded-xl shadow-md glass-pill"
+              className="px-5 py-2 text-xs font-bold bg-brand-600 hover:bg-brand-500 text-white rounded-full shadow-md ios-pill cursor-pointer"
             >
               Add Module
             </button>
@@ -511,7 +511,7 @@ export const SyllabusTracker: React.FC = () => {
       {/* Nested Tree List */}
       <div className="space-y-3.5">
         {filteredTopics.length === 0 ? (
-          <div className="text-center py-14 liquid-glass rounded-3xl text-slate-500 text-xs">
+          <div className="text-center py-14 ios-glass rounded-[28px] border border-black/[0.06] dark:border-white/[0.08] text-slate-500 text-xs">
             No topic modules configured for this subject. Click &quot;New Topic Module&quot; to begin.
           </div>
         ) : (
@@ -524,7 +524,7 @@ export const SyllabusTracker: React.FC = () => {
             return (
               <div
                 key={topic.id}
-                className="liquid-glass rounded-2xl overflow-hidden transition-all shadow-sm hover:shadow-md"
+                className="ios-glass rounded-[24px] border border-black/[0.06] dark:border-white/[0.08] overflow-hidden transition-all shadow-xs hover:shadow-md"
               >
                 {/* Topic Parent Node Bar */}
                 <div className="flex items-center justify-between p-4 border-b border-black/5 dark:border-white/5">

@@ -12,7 +12,6 @@ import {
   Timer,
   Sun,
   Moon,
-  User,
   Play,
   Pause,
   RotateCcw,
@@ -21,6 +20,7 @@ import {
   LogOut,
   LogIn,
   Download,
+  ChevronDown,
 } from 'lucide-react';
 import { triggerPWAInstall } from '../common/PWAInstallBanner';
 
@@ -95,139 +95,154 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
   return (
     <>
-      <header className="h-14 md:h-16 px-3 md:px-6 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between select-none z-30 shadow-xs relative backdrop-blur-md">
-        {/* Module Title */}
-        <div className="flex items-center space-x-2 min-w-0 flex-1 mr-2">
-          <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate sm:hidden">
+      <header className="h-14 md:h-16 px-4 md:px-7 ios-glass border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between select-none z-30 sticky top-0 transition-all">
+        {/* Module Title with Apple SF Pro Hierarchy */}
+        <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-3">
+          <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(124,58,237,0.6)] shrink-0 hidden sm:block" />
+          <span className="text-xs sm:text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate sm:hidden">
             {shortTitle}
           </span>
-          <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate hidden sm:inline">
+          <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate hidden sm:inline">
             {title}
           </span>
         </div>
 
-        {/* Header Right Actions */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
-          {/* Universal Grade Switcher (Available to All Students, Admins & Guests) */}
-          <div className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/60 text-xs font-semibold text-purple-900 dark:text-purple-200 shadow-xs">
-            <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase tracking-wider hidden sm:inline">
-              Class:
+        {/* Header Right Actions - Apple Spatial Capsule Layout */}
+        <div className="flex items-center space-x-2 shrink-0">
+          {/* Universal Grade Switcher Pill */}
+          <div className="relative flex items-center bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] rounded-full px-3 py-1.5 transition-all border border-black/[0.04] dark:border-white/[0.06]">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 mr-1.5 hidden sm:inline">
+              Class
             </span>
             <select
               value={activeStandard}
               onChange={(e) => setActiveStandard(e.target.value)}
-              className="bg-transparent font-bold text-xs outline-none cursor-pointer text-purple-900 dark:text-purple-100"
+              className="bg-transparent text-xs font-semibold tracking-tight outline-none cursor-pointer text-slate-900 dark:text-white pr-4 appearance-none"
               title="Switch Grade / Standard"
             >
-              <option value="12" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 12 (HSC)</option>
-              <option value="11" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 11 (FYJC)</option>
-              <option value="ALL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All Classes (11 + 12)</option>
-              <option value="10" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 10 (SSC)</option>
-              <option value="9" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Class 9 (Found.)</option>
+              <option value="12" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">12 (HSC)</option>
+              <option value="11" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">11 (FYJC)</option>
+              <option value="ALL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All (11+12)</option>
+              <option value="10" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">10 (SSC)</option>
+              <option value="9" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">9 (Found.)</option>
             </select>
+            <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2.5 pointer-events-none" />
           </div>
 
-          {/* User Sign In / Profile / Dedicated Log Out Control */}
+          {/* User Profile Capsule */}
           {isAuthenticated ? (
             <div className="flex items-center space-x-1.5">
               <button
+                type="button"
                 onClick={() => setShowAuthModal(true)}
-                className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-xs font-semibold text-slate-800 dark:text-slate-200 shadow-xs shrink-0"
-                title="Account Settings & Permissions"
+                className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.06] text-xs font-medium text-slate-800 dark:text-slate-200 transition-all ios-pill"
+                title="Account Settings"
               >
-                <User className={`w-3.5 h-3.5 ${isSuperAdmin ? 'text-purple-600 dark:text-purple-400' : 'text-brand-600 dark:text-brand-400'}`} />
-                <span className="hidden sm:inline max-w-[120px] truncate">
+                <div className="w-5 h-5 rounded-full bg-brand-500/15 dark:bg-brand-400/20 text-brand-600 dark:text-brand-300 flex items-center justify-center font-bold text-[10px]">
+                  {currentUser?.email.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden sm:inline max-w-[110px] truncate text-xs font-medium">
                   {currentUser?.email.split('@')[0]}
                 </span>
                 <span
-                  className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full ${
+                  className={`text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                     isSuperAdmin
-                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300'
+                      ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
                       : currentUser?.role === 'ADMIN'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300'
-                      : 'bg-slate-200/80 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-black/[0.05] dark:bg-white/[0.08] text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  {isSuperAdmin ? 'Owner' : currentUser?.role === 'ADMIN' ? 'Admin' : 'Student'}
+                  {isSuperAdmin ? 'Admin' : currentUser?.role === 'ADMIN' ? 'Faculty' : 'Student'}
                 </span>
               </button>
 
               <button
+                type="button"
                 onClick={() => {
-                  if (window.confirm('Log out of AetherStudy? You can log back in anytime.')) {
+                  if (window.confirm('Log out of AetherStudy? You can return anytime.')) {
                     logout();
                   }
                 }}
-                className="hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 text-xs font-bold transition-all shadow-xs"
-                title="Log Out of this account"
+                className="hidden md:flex p-2 rounded-full hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition-colors"
+                title="Log Out"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log Out</span>
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           ) : (
             <button
+              type="button"
               onClick={() => setShowAuthModal(true)}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-500/20 transition-all"
+              className="flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold tracking-tight shadow-sm transition-all ios-pill"
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>Log In</span>
+              <span>Sign In</span>
             </button>
           )}
 
-          {/* Clean Integrated Header Pomodoro Timer with Click Popover */}
+          {/* Apple Dynamic Island Style Focus Timer */}
           <div className="relative hidden sm:block">
             <button
+              type="button"
               onClick={() => setShowTimerPopover(!showTimerPopover)}
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs shadow-xs cursor-pointer transition-all"
-              title="Click to control focus timer"
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-full border transition-all ios-pill ${
+                isRunning
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                  : 'bg-black/[0.04] dark:bg-white/[0.07] border-black/[0.04] dark:border-white/[0.06] text-slate-700 dark:text-slate-200'
+              }`}
+              title="Focus Timer"
             >
-              <Timer className={`w-3.5 h-3.5 ${isRunning ? 'text-amber-500 animate-spin' : 'text-slate-500 dark:text-slate-400'}`} />
-              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+              <Timer className={`w-3.5 h-3.5 ${isRunning ? 'animate-spin' : ''}`} />
+              <span className="font-mono text-xs font-semibold tracking-tight">
                 {formatSecondsToTime(timeLeft)}
               </span>
               {activeSubject && (
-                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 border-l border-slate-300 dark:border-slate-700 pl-2 max-w-[80px] truncate hidden md:inline">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 border-l border-slate-300 dark:border-slate-700 pl-2 max-w-[80px] truncate hidden md:inline">
                   {activeSubject}
                 </span>
               )}
             </button>
 
-            {/* Non-intrusive Timer Dropdown Control Box */}
+            {/* iOS Floating Island Popover */}
             {showTimerPopover && (
-              <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-xl z-50 animate-fade-in border border-slate-200 dark:border-slate-800 text-center">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200">
-                  <span>Focus Timer</span>
-                  <span className="text-[10px] text-brand-600 dark:text-brand-400 font-mono font-semibold">
-                    {mode === 'work' ? 'Study Block' : 'Rest Break'}
+              <div className="absolute top-full right-0 mt-3 w-72 ios-glass rounded-[24px] p-5 shadow-2xl z-50 animate-fade-in text-center border border-black/[0.08] dark:border-white/[0.1]">
+                <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/[0.08] text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <span>Focus Block Timer</span>
+                  <span className="text-[10px] text-brand-600 dark:text-brand-400 font-mono">
+                    {mode === 'work' ? 'Study' : 'Rest'}
                   </span>
                 </div>
 
-                <div className="text-3xl font-mono font-black text-slate-900 dark:text-white my-3">
+                <div className="text-4xl font-mono font-bold tracking-tight text-slate-900 dark:text-white my-4">
                   {formatSecondsToTime(timeLeft)}
                 </div>
 
-                <div className="flex justify-center space-x-1.5 mb-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                {/* Segmented Mode Controller */}
+                <div className="ios-segmented w-full justify-between mb-4">
                   <button
+                    type="button"
                     onClick={() => setMode('work')}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${
-                      mode === 'work' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400'
+                    className={`ios-segmented-item flex-1 ${
+                      mode === 'work' ? 'ios-segmented-item-active' : 'text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Focus
+                    Study
                   </button>
                   <button
+                    type="button"
                     onClick={() => setMode('shortBreak')}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${
-                      mode === 'shortBreak' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400'
+                    className={`ios-segmented-item flex-1 ${
+                      mode === 'shortBreak' ? 'ios-segmented-item-active' : 'text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Short
+                    Break
                   </button>
                   <button
+                    type="button"
                     onClick={() => setMode('longBreak')}
-                    className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${
-                      mode === 'longBreak' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400'
+                    className={`ios-segmented-item flex-1 ${
+                      mode === 'longBreak' ? 'ios-segmented-item-active' : 'text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     Long
@@ -236,61 +251,67 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
                 <div className="flex items-center justify-center space-x-2">
                   <button
+                    type="button"
                     onClick={resetTimer}
-                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                    className="p-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] text-slate-600 dark:text-slate-300 transition-colors ios-pill"
                     title="Reset"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
+                    <RotateCcw className="w-4 h-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={isRunning ? pauseTimer : startTimer}
-                    className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-sm flex items-center space-x-1 transition-all"
+                    className="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-full shadow-md flex items-center space-x-1.5 transition-all ios-pill"
                   >
                     {isRunning ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                    <span>{isRunning ? 'Pause' : 'Start'}</span>
+                    <span>{isRunning ? 'Pause' : 'Start Focus'}</span>
                   </button>
                   <button
+                    type="button"
                     onClick={skipSession}
-                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                    className="p-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] text-slate-600 dark:text-slate-300 transition-colors ios-pill"
                     title="Skip"
                   >
-                    <SkipForward className="w-3.5 h-3.5" />
+                    <SkipForward className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Install App Button (When installable) */}
+          {/* Install App Capsule */}
           {canInstall && (
             <button
+              type="button"
               onClick={handleHeaderInstall}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-brand-600/10 to-purple-600/10 hover:from-brand-600/20 hover:to-purple-600/20 text-brand-700 dark:text-brand-300 border border-brand-300 dark:border-brand-800 text-xs font-bold transition-all shadow-xs"
-              title="Install AetherStudy Web App"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-300 hover:bg-brand-500/20 border border-brand-500/20 text-xs font-semibold transition-all ios-pill"
+              title="Install AetherStudy"
             >
-              <Download className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 animate-bounce" />
-              <span className="hidden sm:inline">Install App</span>
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Install</span>
             </button>
           )}
 
-          {/* Official Announcements & Notifications Bell */}
+          {/* Announcements & Notifications Bell */}
           <button
+            type="button"
             onClick={() => setShowNotificationsModal(true)}
-            className="relative p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-200 shadow-xs cursor-pointer"
-            title="Official Announcements & Notices"
+            className="relative p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all ios-pill"
+            title="Official Announcements"
           >
-            <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <Bell className="w-4 h-4" />
             {unreadNotifsCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center animate-pulse shadow-sm">
+              <span className="absolute top-0 right-0 min-w-[15px] h-[15px] px-1 bg-rose-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
                 {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
               </span>
             )}
           </button>
 
-          {/* Theme Toggle */}
+          {/* Theme Toggle Capsule */}
           <button
+            type="button"
             onClick={toggleTheme}
-            className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-200 shadow-xs"
+            className="p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all ios-pill"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {theme === 'dark' ? (
@@ -302,8 +323,9 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
           {/* Fullscreen Toggle */}
           <button
+            type="button"
             onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-200 shadow-xs hidden sm:flex"
+            className="p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all hidden sm:flex ios-pill"
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}

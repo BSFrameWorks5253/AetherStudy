@@ -2047,7 +2047,7 @@ export const SubjectRooms: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                   Subject Rooms
                 </h2>
-                <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/80 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                <span className="text-xs font-bold px-3 py-1 rounded-full ios-glass border border-brand-500/30 text-brand-700 dark:text-brand-300 shadow-xs">
                   Standard {activeStandard}
                 </span>
               </div>
@@ -2063,14 +2063,14 @@ export const SubjectRooms: React.FC = () => {
                     setUploadSubject(availableSubjects[0]?.name || 'General');
                     setShowUploadModal(true);
                   }}
-                  className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all"
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-full shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all ios-pill cursor-pointer"
                 >
                   <Upload className="w-4 h-4" />
                   <span>Upload File</span>
                 </button>
                 <button
                   onClick={() => setShowBulkModal(true)}
-                  className="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-500/25 flex items-center space-x-1.5 transition-all"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-full shadow-md shadow-purple-500/25 flex items-center space-x-1.5 transition-all ios-pill cursor-pointer"
                   title="Bulk upload and auto-segregate complete folders of study materials"
                 >
                   <Sparkles className="w-4 h-4" />
@@ -2106,7 +2106,7 @@ export const SubjectRooms: React.FC = () => {
                   <div
                     key={sub.name}
                     onClick={() => handleSelectRoom(sub.name)}
-                    className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/60 dark:hover:border-brand-500/60 hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between relative overflow-hidden"
+                    className="p-6 rounded-[28px] ios-glass ios-card border border-black/[0.06] dark:border-white/[0.08] hover:border-brand-500/40 dark:hover:border-brand-500/40 hover:shadow-xl transition-all cursor-pointer group flex flex-col justify-between relative overflow-hidden"
                   >
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
@@ -2129,7 +2129,7 @@ export const SubjectRooms: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="pt-5 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="pt-5 mt-4 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                         <div>
                           <span className="font-bold text-slate-800 dark:text-slate-200">{tBooks}</span> Textbooks • <span className="font-bold text-slate-800 dark:text-slate-200">{nDocs}</span> Notes

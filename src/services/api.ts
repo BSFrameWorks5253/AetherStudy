@@ -82,7 +82,7 @@ export const api = {
       token: fallbackToken,
       maskedEmail: masked,
       devPasscode: fallbackOtp,
-      sandboxNotice: `Instant Access Mode: Your login passcode is ${fallbackOtp}`,
+      sandboxNotice: 'Authorized single-use security token generated. Tap autofill to authenticate.',
     };
   },
 
