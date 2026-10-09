@@ -1212,30 +1212,15 @@ export const SubjectRooms: React.FC = () => {
                   <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-normal">
                     {activeRoom}
                   </h2>
-                  <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 ml-1">
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchStandard('12')}
-                      className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-                        effectiveStandard === '12'
-                          ? 'bg-brand-600 text-white shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      Class 12 (HSC)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchStandard('11')}
-                      className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-                        effectiveStandard === '11'
-                          ? 'bg-purple-600 text-white shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      Class 11 (FYJC)
-                    </button>
-                  </div>
+                  {effectiveStandard === '12' ? (
+                    <span className="px-3 py-1 rounded-full ios-glass border border-brand-500/30 text-brand-700 dark:text-brand-300 text-xs font-bold shadow-xs ml-1">
+                      Standard 12 (HSC)
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full ios-glass border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-bold shadow-xs ml-1">
+                      Standard 11 (FYJC)
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   {currentRoomMeta?.description || 'Dedicated Subject Room • Textbooks & Study Materials'}
@@ -1781,22 +1766,22 @@ export const SubjectRooms: React.FC = () => {
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     No Class {effectiveStandard} Study Notes Uploaded Yet
                   </h3>
-                  {otherStdNotesForRoom.length > 0 ? (
+                  {effectiveStandard !== '12' && otherStdNotesForRoom.length > 0 ? (
                     <div className="max-w-md mx-auto space-y-3">
                       <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                        We found <span className="font-extrabold text-brand-600 dark:text-brand-400">{otherStdNotesForRoom.length} study notes</span> for {activeRoom} uploaded under <strong className="text-slate-900 dark:text-white">Class {effectiveStandard === '12' ? '11 (FYJC)' : '12 (HSC)'}</strong>.
+                        We found <span className="font-extrabold text-brand-600 dark:text-brand-400">{otherStdNotesForRoom.length} study notes</span> for {activeRoom} uploaded under <strong className="text-slate-900 dark:text-white">Class 12 (HSC)</strong>.
                       </p>
                       <button
                         type="button"
-                        onClick={() => handleSwitchStandard(effectiveStandard === '12' ? '11' : '12')}
-                        className="inline-flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all cursor-pointer"
+                        onClick={() => handleSwitchStandard('12')}
+                        className="inline-flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-full shadow-md shadow-brand-500/20 transition-all cursor-pointer ios-pill"
                       >
-                        <span>Switch to Class {effectiveStandard === '12' ? '11 (FYJC)' : '12 (HSC)'} Notes ({otherStdNotesForRoom.length}) →</span>
+                        <span>Switch to Class 12 Notes ({otherStdNotesForRoom.length}) →</span>
                       </button>
                     </div>
                   ) : (
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                      Lecture summaries, revision formula sheets, and chapter notes for {activeRoom} (Class {effectiveStandard}) will appear here.
+                      Official HSC Board revision summaries, chapter notes, and textbook guides for {activeRoom} will appear here.
                     </p>
                   )}
                   {canUpload && (
@@ -2134,7 +2119,7 @@ export const SubjectRooms: React.FC = () => {
                         <div>
                           <span className="font-bold text-slate-800 dark:text-slate-200">{tBooks}</span> Textbooks • <span className="font-bold text-slate-800 dark:text-slate-200">{nDocs}</span> Notes
                         </div>
-                        {nDocs === 0 && otherStdCount > 0 && (
+                        {nDocs === 0 && otherStdCount > 0 && effectiveStandard !== '12' && (
                           <div className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold mt-0.5">
                             ({otherStdCount} notes in Class {targetOtherStd})
                           </div>

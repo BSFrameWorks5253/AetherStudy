@@ -3,12 +3,12 @@
     "id": "top-bk-1",
     "subject": "Accounts",
     "title": "Partnership Accounting & Foundations",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-bk-1",
         "title": "Chapter 1: Introduction to Partnership & Partnership Final Accounts",
-        "isCompleted": false
+        "isCompleted": true
       },
       {
         "id": "ch-bk-2",
@@ -18,12 +18,12 @@
       {
         "id": "ch-bk-3",
         "title": "Chapter 3: Reconstitution of Partnership (Admission of Partner)",
-        "isCompleted": false
+        "isCompleted": true
       },
       {
         "id": "ch-bk-4",
         "title": "Chapter 4: Reconstitution of Partnership (Retirement of Partner)",
-        "isCompleted": false
+        "isCompleted": true
       },
       {
         "id": "ch-bk-5",
@@ -41,7 +41,7 @@
     "id": "top-bk-2",
     "subject": "Accounts",
     "title": "Negotiable Instruments & Corporate Accounting",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-bk-7",
@@ -69,7 +69,7 @@
     "id": "top-math-1",
     "subject": "Mathematics",
     "title": "Mathematics Part 1 (Logic, Matrices & Calculus)",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-m1-1",
@@ -79,17 +79,17 @@
       {
         "id": "ch-m1-2",
         "title": "Chapter 2: Matrices",
-        "isCompleted": false
+        "isCompleted": true
       },
       {
         "id": "ch-m1-3",
         "title": "Chapter 3: Differentiation",
-        "isCompleted": false
+        "isCompleted": true
       },
       {
         "id": "ch-m1-4",
         "title": "Chapter 4: Applications of Derivatives",
-        "isCompleted": false
+        "isCompleted": true
       },
       {
         "id": "ch-m1-5",
@@ -117,7 +117,7 @@
     "id": "top-math-2",
     "subject": "Mathematics",
     "title": "Mathematics Part 2 (Commercial Math & Statistics)",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-m2-1",
@@ -165,7 +165,7 @@
     "id": "top-eco-1",
     "subject": "Economics",
     "title": "Micro-Economics & Market Structures",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-eco-1",
@@ -203,7 +203,7 @@
     "id": "top-eco-2",
     "subject": "Economics",
     "title": "Macro-Economics & Public Finance",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-eco-6",
@@ -236,7 +236,7 @@
     "id": "top-ocm-1",
     "subject": "OCM",
     "title": "Principles, Functions & Enterprise",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-ocm-1",
@@ -264,17 +264,17 @@
     "id": "top-ocm-2",
     "subject": "OCM",
     "title": "Modern Commerce, Consumer Rights & Marketing",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-ocm-5",
         "title": "Chapter 5: Emerging Modes of Business",
-        "isCompleted": false
+        "isCompleted": true
       },
       {
         "id": "ch-ocm-6",
         "title": "Chapter 6: Social Responsibilities of Business",
-        "isCompleted": false
+        "isCompleted": true
       },
       {
         "id": "ch-ocm-7",
@@ -292,7 +292,7 @@
     "id": "top-it-1",
     "subject": "IT",
     "title": "Advanced Web, E-Commerce & Database Systems",
-    "isExpanded": false,
+    "isExpanded": true,
     "chapters": [
       {
         "id": "ch-it-1",
