@@ -272,7 +272,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Mobile Apple Floating Spatial Dock (< 768px viewports) */}
       <nav
-        className="md:hidden fixed bottom-3 left-3 right-3 z-40 ios-glass rounded-[28px] border border-black/[0.08] dark:border-white/[0.1] px-2 py-1.5 flex justify-around items-center shadow-2xl transition-all"
+        className="md:hidden fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-40 ios-glass rounded-[28px] border border-black/[0.08] dark:border-white/[0.1] px-2 py-1.5 flex justify-around items-center shadow-2xl transition-all"
       >
         {navItems.map((item) => {
           const Icon = item.icon;

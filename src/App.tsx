@@ -90,7 +90,7 @@ export const App: React.FC = () => {
         <Header title={getTitle()} />
 
         {/* Dynamic Active Module Container */}
-        <PullToRefresh className="flex-1 relative min-h-0 pb-16 md:pb-0">
+        <PullToRefresh className="flex-1 relative min-h-0 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
           <main className="h-full w-full">
             {activeTab === 'workspace' && <SplitWorkspace />}
             {activeTab === 'tests' && (

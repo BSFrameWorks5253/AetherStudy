@@ -367,8 +367,14 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         .then(() => {
           renderTaskRef.current = null;
           setIsPageRendering(false);
+          try {
+            page.cleanup();
+          } catch {}
         })
         .catch((err: any) => {
+          try {
+            page.cleanup();
+          } catch {}
           if (err?.name === 'RenderingCancelledException') return;
           console.warn('Canvas render error, falling back to Native engine:', err);
           setIsPageRendering(false);

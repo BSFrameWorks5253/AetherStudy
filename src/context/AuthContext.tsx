@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UserRole, AuthContextType } from '../types/auth';
-import { api } from '../services/api';
+import { api, setAuthToken } from '../services/api';
 import { AuthModal } from '../components/auth/AuthModal';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setCurrentUser(null);
+    setAuthToken(null);
     localStorage.removeItem('aetherstudy_user');
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('aetherstudy_user_change', { detail: { user: null } }));

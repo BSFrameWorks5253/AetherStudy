@@ -15,6 +15,79 @@ const MAX_FILE_SIZE_MB = parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10);
 const SUPER_ADMIN_EMAIL = (process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
 const OTP_SECRET = process.env.OTP_SECRET || 'aether-antigravity-secure-session-key-2026';
 
+// Cryptographic Session Token Engine (Zero-Dependency HS256 HMAC-SHA256)
+function signSessionToken(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(
+    JSON.stringify({
+      ...payload,
+      iat: Date.now(),
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30-day persistent session
+    })
+  ).toString('base64url');
+  const signature = crypto.createHmac('sha256', OTP_SECRET).update(`${header}.${body}`).digest('base64url');
+  return `${header}.${body}.${signature}`;
+}
+
+function verifySessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [header, body, signature] = parts;
+  try {
+    const expected = crypto.createHmac('sha256', OTP_SECRET).update(`${header}.${body}`).digest('base64url');
+    if (signature.length !== expected.length) return null;
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+      return null;
+    }
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (payload.exp && Date.now() > payload.exp) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function extractBearerUser(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  const token = authHeader.slice(7).trim();
+  return verifySessionToken(token);
+}
+
+function requireAdmin(req, res, next) {
+  const user = extractBearerUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required. Valid cryptographic session token missing or expired.' });
+  }
+
+  const isSuper = (Boolean(SUPER_ADMIN_EMAIL) && user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) || user.role === 'SUPER_ADMIN';
+  const isAdmin = isSuper || user.role === 'ADMIN';
+
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Permission denied. Administrative access required.' });
+  }
+
+  req.user = user;
+  next();
+}
+
+function requireSuperAdmin(req, res, next) {
+  const user = extractBearerUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required. Valid cryptographic session token missing or expired.' });
+  }
+
+  const isSuper = (Boolean(SUPER_ADMIN_EMAIL) && user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) || user.role === 'SUPER_ADMIN';
+
+  if (!isSuper) {
+    return res.status(403).json({ error: `Permission denied. Only Super Administrator (${SUPER_ADMIN_EMAIL}) can perform this action.` });
+  }
+
+  req.user = user;
+  next();
+}
+
 // Storage Directory Setup (Compatible with local and Vercel Serverless /tmp)
 const DATA_DIR = process.env.VERCEL ? path.join('/tmp', 'data') : path.join(__dirname, 'data');
 const UPLOADS_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
@@ -49,12 +122,33 @@ app.use(
   })
 );
 
-// CORS
+// Whitelisted CORS Policy
+const ALLOWED_ORIGINS = new Set([
+  'https://aetherstudy-pearl.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+]);
+
 app.use(
   cors({
-    origin: (origin, callback) => callback(null, true),
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (
+        ALLOWED_ORIGINS.has(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:')
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error('Cross-Origin Request Blocked by AetherStudy Security Policy'));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   })
 );
 
@@ -550,8 +644,15 @@ app.post('/api/auth/verify', (req, res) => {
     }
     writeJsonFile('users.json', users);
 
+    const sessionToken = signSessionToken({
+      email: user.email,
+      role: user.role,
+      standard: user.standard,
+    });
+
     return res.status(200).json({
       success: true,
+      token: sessionToken,
       user,
     });
   } catch (error) {
@@ -586,26 +687,25 @@ app.post('/api/auth/login', (req, res) => {
   }
 
   writeJsonFile('users.json', users);
-  res.json(user);
+
+  const sessionToken = signSessionToken({
+    email: user.email,
+    role: user.role,
+    standard: user.standard,
+  });
+
+  res.json({ ...user, token: sessionToken });
 });
 
-// Get registered users (Only for SUPER_ADMIN)
-app.get('/api/auth/users', (req, res) => {
+// Get registered users (Only for SUPER_ADMIN with valid cryptographic token)
+app.get('/api/auth/users', requireSuperAdmin, (req, res) => {
   const users = readJsonFile('users.json', initialUsers);
   res.json(users);
 });
 
 // Add / Assign User Role directly by Super Admin
-app.post('/api/auth/users', (req, res) => {
-  const { requesterEmail, email, role } = req.body || {};
-  if (
-    !requesterEmail ||
-    requesterEmail.trim().toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()
-  ) {
-    return res.status(403).json({
-      error: `Permission Denied: Only primary administrator (${SUPER_ADMIN_EMAIL}) can add or assign roles.`,
-    });
-  }
+app.post('/api/auth/users', requireSuperAdmin, (req, res) => {
+  const { email, role } = req.body || {};
 
   if (!email || typeof email !== 'string' || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email address required.' });
@@ -634,17 +734,8 @@ app.post('/api/auth/users', (req, res) => {
 });
 
 // Update User Role (Only permitted by SUPER_ADMIN)
-app.put('/api/auth/users/role', (req, res) => {
-  const { requesterEmail, targetEmail, newRole } = req.body;
-
-  if (
-    !requesterEmail ||
-    requesterEmail.trim().toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase()
-  ) {
-    return res.status(403).json({
-      error: `Permission Denied: Only the owner (${SUPER_ADMIN_EMAIL}) can modify user roles.`,
-    });
-  }
+app.put('/api/auth/users/role', requireSuperAdmin, (req, res) => {
+  const { targetEmail, newRole } = req.body || {};
 
   if (!targetEmail || !['ADMIN', 'USER'].includes(newRole)) {
     return res.status(400).json({ error: 'Invalid target email or role specification.' });
@@ -684,30 +775,18 @@ app.get('/api/test-papers', (req, res) => {
   res.json(testPapers);
 });
 
-// Upload PYQ Test Paper with both Question and Answer PDFs
+// Upload PYQ Test Paper with both Question and Answer PDFs (Admin Only)
 app.post(
   '/api/test-papers/upload',
+  requireAdmin,
   upload.fields([
     { name: 'questionFile', maxCount: 1 },
     { name: 'answerKeyFile', maxCount: 1 },
   ]),
   (req, res) => {
     const files = req.files;
-    const { title, subject, year, examType, durationMinutes, totalMarks, uploadedBy } = req.body;
-
-    // Check authorization: only admin or super admin can upload
-    const normalizedUploader = (uploadedBy || '').trim().toLowerCase();
-    const users = readJsonFile('users.json', initialUsers);
-    const uploader = users.find((u) => u.email.toLowerCase() === normalizedUploader);
-
-    const isAuthorized =
-      uploader && (uploader.role === 'SUPER_ADMIN' || uploader.role === 'ADMIN' || normalizedUploader === SUPER_ADMIN_EMAIL.toLowerCase());
-
-    if (!isAuthorized) {
-      return res.status(403).json({
-        error: `Upload restricted. Only authorized admins or ${SUPER_ADMIN_EMAIL} can upload test papers.`,
-      });
-    }
+    const { title, subject, year, examType, durationMinutes, totalMarks } = req.body;
+    const user = req.user;
 
     if (!files || !files.questionFile || !files.answerKeyFile) {
       return res.status(400).json({
@@ -730,7 +809,7 @@ app.post(
       answerKeyPdfName: answerKeyFile.originalname,
       durationMinutes: durationMinutes ? parseInt(durationMinutes, 10) : 120,
       totalMarks: totalMarks ? parseInt(totalMarks, 10) : 100,
-      uploadedBy: normalizedUploader,
+      uploadedBy: user.email,
       uploadedAt: new Date().toISOString(),
     };
 
@@ -751,16 +830,7 @@ app.post(
   }
 );
 
-app.delete('/api/test-papers/:id', (req, res) => {
-  const { requesterEmail } = req.body;
-  const normalizedRequester = (requesterEmail || '').trim().toLowerCase();
-  const users = readJsonFile('users.json', initialUsers);
-  const uploader = users.find((u) => u.email.toLowerCase() === normalizedRequester);
-
-  if (!uploader || (uploader.role !== 'SUPER_ADMIN' && uploader.role !== 'ADMIN')) {
-    return res.status(403).json({ error: 'Only admins can delete test papers.' });
-  }
-
+app.delete('/api/test-papers/:id', requireAdmin, (req, res) => {
   const testPapers = readJsonFile('test-papers.json', initialTestPapers);
   const updated = testPapers.filter((tp) => tp.id !== req.params.id);
   writeJsonFile('test-papers.json', updated);
@@ -801,23 +871,13 @@ app.get('/api/notifications', (req, res) => {
   res.json(filtered);
 });
 
-app.post('/api/notifications', (req, res) => {
-  const { title, message, standard, priority, senderEmail, senderName } = req.body;
+app.post('/api/notifications', requireAdmin, (req, res) => {
+  const { title, message, standard, priority, senderName } = req.body;
   if (!title || !message) {
     return res.status(400).json({ error: 'Title and message are required.' });
   }
 
-  const normalizedSender = (senderEmail || '').trim().toLowerCase();
-  const users = readJsonFile('users.json', initialUsers);
-  const sender = users.find((u) => u.email.toLowerCase() === normalizedSender);
-  const isAuthorized =
-    (sender && (sender.role === 'SUPER_ADMIN' || sender.role === 'ADMIN')) ||
-    normalizedSender === SUPER_ADMIN_EMAIL.toLowerCase();
-
-  if (!isAuthorized) {
-    return res.status(403).json({ error: 'Only administrators can broadcast notifications.' });
-  }
-
+  const user = req.user;
   const newNotif = {
     id: 'notif-' + Date.now(),
     title: title.trim(),
@@ -825,8 +885,8 @@ app.post('/api/notifications', (req, res) => {
     standard: standard || '12',
     priority: priority || 'important',
     createdAt: new Date().toISOString(),
-    senderEmail: normalizedSender,
-    senderName: senderName || (sender ? sender.name : 'Administrator'),
+    senderEmail: user.email,
+    senderName: senderName || 'Administrator',
   };
 
   const notifs = readJsonFile('notifications.json', initialNotifications);
@@ -835,19 +895,7 @@ app.post('/api/notifications', (req, res) => {
   res.status(201).json(newNotif);
 });
 
-app.delete('/api/notifications/:id', (req, res) => {
-  const { requesterEmail } = req.body;
-  const normalizedRequester = (requesterEmail || '').trim().toLowerCase();
-  const users = readJsonFile('users.json', initialUsers);
-  const requester = users.find((u) => u.email.toLowerCase() === normalizedRequester);
-  const isAuthorized =
-    (requester && (requester.role === 'SUPER_ADMIN' || requester.role === 'ADMIN')) ||
-    normalizedRequester === SUPER_ADMIN_EMAIL.toLowerCase();
-
-  if (!isAuthorized) {
-    return res.status(403).json({ error: 'Permission denied.' });
-  }
-
+app.delete('/api/notifications/:id', requireAdmin, (req, res) => {
   const notifs = readJsonFile('notifications.json', initialNotifications);
   const updated = notifs.filter((n) => n.id !== req.params.id);
   writeJsonFile('notifications.json', updated);
@@ -1105,31 +1153,17 @@ app.get('/api/documents', (req, res) => {
   res.json(docs);
 });
 
-app.post('/api/documents/upload', upload.single('file'), (req, res) => {
+app.post('/api/documents/upload', requireAdmin, upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file received or rejected by security filter.' });
   }
 
-  const { subject, uploadedBy, standard, category } = req.body;
-  const normalizedUploader = (uploadedBy || '').trim().toLowerCase();
-  const users = readJsonFile('users.json', initialUsers);
-  const uploader = users.find((u) => u.email.toLowerCase() === normalizedUploader);
+  const { subject, standard, category } = req.body;
+  const user = req.user;
+  const isSuper = (Boolean(SUPER_ADMIN_EMAIL) && user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) || user.role === 'SUPER_ADMIN';
 
-  const isSuper =
-    normalizedUploader === SUPER_ADMIN_EMAIL.toLowerCase() ||
-    (uploader && uploader.role === 'SUPER_ADMIN') ||
-    normalizedUploader === 'admin' ||
-    !normalizedUploader;
-  const isAdmin = isSuper || (uploader && uploader.role === 'ADMIN');
-
-  if (!isAdmin) {
-    return res.status(403).json({
-      error: `Upload restricted. Only authorized admins or ${SUPER_ADMIN_EMAIL} can upload documents.`,
-    });
-  }
-
-  // Admins can only upload to their assigned standard; Super Admin can choose any standard or ALL
-  const targetStandard = isSuper ? (standard || '12') : (uploader?.standard || standard || '12');
+  // Admins can upload to their standard; Super Admin can choose any standard or ALL
+  const targetStandard = isSuper ? (standard || '12') : (user.standard || standard || '12');
 
   const cleanSubject = subject && subject.trim() ? subject.trim() : 'General';
   const subjects = readJsonFile('subjects.json', DEFAULT_SUBJECTS);
@@ -1152,7 +1186,7 @@ app.post('/api/documents/upload', upload.single('file'), (req, res) => {
     sizeBytes: req.file.size,
     size: `${(req.file.size / (1024 * 1024)).toFixed(2)} MB`,
     uploadedAt: new Date().toISOString(),
-    uploadedBy: normalizedUploader,
+    uploadedBy: user.email,
     subject: cleanSubject,
     standard: targetStandard,
     category: category === 'textbook' ? 'textbook' : 'notes',
@@ -1165,22 +1199,7 @@ app.post('/api/documents/upload', upload.single('file'), (req, res) => {
   res.status(201).json(newDoc);
 });
 
-app.delete('/api/documents/:id', (req, res) => {
-  const { requesterEmail } = req.body || {};
-  const normalizedRequester = (requesterEmail || '').trim().toLowerCase();
-  const users = readJsonFile('users.json', initialUsers);
-  const uploader = users.find((u) => u.email.toLowerCase() === normalizedRequester);
-
-  const isAuthorized =
-    normalizedRequester === SUPER_ADMIN_EMAIL.toLowerCase() ||
-    (uploader && (uploader.role === 'SUPER_ADMIN' || uploader.role === 'ADMIN'));
-
-  if (!isAuthorized) {
-    return res.status(403).json({
-      error: 'Deletion restricted. Only authorized administrators can delete study documents.',
-    });
-  }
-
+app.delete('/api/documents/:id', requireAdmin, (req, res) => {
   const docs = readJsonFile('documents.json', []);
   const updated = docs.filter((d) => d.id !== req.params.id);
   writeJsonFile('documents.json', updated);

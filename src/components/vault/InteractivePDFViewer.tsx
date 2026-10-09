@@ -246,8 +246,14 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
       task.promise
         .then(() => {
           renderTaskRef.current = null;
+          try {
+            page.cleanup();
+          } catch {}
         })
         .catch((err: any) => {
+          try {
+            page.cleanup();
+          } catch {}
           if (err?.name === 'RenderingCancelledException') return;
           console.warn('Canvas render error, falling back to Native Engine:', err);
           setEngineMode('native');

@@ -44,6 +44,39 @@ export interface ServerHealth {
 }
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
+const AUTH_TOKEN_KEY = 'aetherstudy_auth_token';
+
+export const getAuthToken = (): string | null => {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setAuthToken = (token: string | null) => {
+  try {
+    if (token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch {
+    // safe fallback
+  }
+};
+
+export const getAuthHeaders = (includeJson: boolean = true): HeadersInit => {
+  const headers: Record<string, string> = {};
+  if (includeJson) {
+    headers['Content-Type'] = 'application/json';
+  }
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
 
 export const api = {
   // 1. Passwordless Authentication & Server-Side OTP
@@ -52,103 +85,59 @@ export const api = {
       const res = await fetch(`${API_BASE}/auth/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
       if (res.ok) {
         return await res.json();
       }
-    } catch (netErr) {
-      console.warn('[API Auth Warning] Network request to backend endpoint failed, activating fallback access:', netErr);
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to dispatch verification code.');
+    } catch (netErr: any) {
+      if (netErr?.message && !netErr.message.includes('fetch')) {
+        throw netErr;
+      }
+      throw new Error('Authentication node unreachable. Please check your internet connection.');
     }
-
-    // Fail-Safe Fallback: Generate an instant 6-digit access passcode so user is NEVER blocked
-    const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const fallbackToken = 'local_session_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-    try {
-      sessionStorage.setItem('fallback_otp_' + fallbackToken, JSON.stringify({
-        email: email.trim().toLowerCase(),
-        otp: fallbackOtp,
-        expiresAt: Date.now() + 15 * 60 * 1000,
-      }));
-    } catch {
-      // sessionStorage safety
-    }
-
-    const masked = email.replace(/(.{2})(.*)(?=@)/, (_gp1, h, r) => h + '*'.repeat(Math.max(1, r.length)));
-
-    return {
-      success: true,
-      message: 'Instant access passcode dispatched',
-      token: fallbackToken,
-      maskedEmail: masked,
-      devPasscode: fallbackOtp,
-      sandboxNotice: 'Authorized single-use security token generated. Tap autofill to authenticate.',
-    };
   },
 
-  async verifyOtp(email: string, otp: string, token: string, standard?: string): Promise<{ success: boolean; user: UserProfile }> {
-    // If using client fallback token
-    if (token && token.startsWith('local_session_')) {
-      try {
-        const stored = sessionStorage.getItem('fallback_otp_' + token);
-        if (stored) {
-          const data = JSON.parse(stored);
-          if (data.email === email.trim().toLowerCase() && (data.otp === otp.trim() || otp.trim() === '123456')) {
-            sessionStorage.removeItem('fallback_otp_' + token);
-            const isSuper = email.trim().toLowerCase() === 'bs.framework5253@gmail.com';
-            const user: UserProfile = {
-              email: email.trim().toLowerCase(),
-              role: isSuper ? 'SUPER_ADMIN' : 'USER',
-              standard: isSuper ? 'ALL' : (standard || '12'),
-              lastLogin: new Date().toISOString(),
-            };
-            return { success: true, user };
-          }
-        }
-      } catch {
-        // sessionStorage safety
-      }
+  async verifyOtp(email: string, otp: string, token: string, standard?: string): Promise<{ success: boolean; user: UserProfile; token?: string }> {
+    const res = await fetch(`${API_BASE}/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim(), token, standard }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Invalid or expired passcode.');
     }
-
-    try {
-      const res = await fetch(`${API_BASE}/auth/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp, token, standard }),
-      });
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (err) {
-      console.warn('[API Auth Warning] Backend verification failed, checking client fallback:', err);
+    const data = await res.json();
+    if (data.token) {
+      setAuthToken(data.token);
     }
-
-    // Direct fallback verification for continuous uptime
-    const isSuper = email.trim().toLowerCase() === 'bs.framework5253@gmail.com';
-    const user: UserProfile = {
-      email: email.trim().toLowerCase(),
-      role: isSuper ? 'SUPER_ADMIN' : 'USER',
-      standard: isSuper ? 'ALL' : (standard || '12'),
-      lastLogin: new Date().toISOString(),
-    };
-    return { success: true, user };
+    return data;
   },
 
   async login(email: string): Promise<UserProfile> {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Login failed');
     }
-    return res.json();
+    const data = await res.json();
+    if (data.token) {
+      setAuthToken(data.token);
+    }
+    return data;
   },
 
   async getUsers(): Promise<UserProfile[]> {
-    const res = await fetch(`${API_BASE}/auth/users`);
+    const res = await fetch(`${API_BASE}/auth/users`, {
+      headers: getAuthHeaders(false),
+    });
     if (!res.ok) throw new Error('Failed to fetch user list');
     return res.json();
   },
@@ -160,7 +149,7 @@ export const api = {
   ): Promise<{ success: boolean; updatedUser: UserProfile }> {
     const res = await fetch(`${API_BASE}/auth/users/role`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(true),
       body: JSON.stringify({ requesterEmail, targetEmail, newRole }),
     });
     if (!res.ok) {
@@ -177,7 +166,7 @@ export const api = {
   ): Promise<{ success: boolean; users: UserProfile[] }> {
     const res = await fetch(`${API_BASE}/auth/users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(true),
       body: JSON.stringify({ requesterEmail, email, role }),
     });
     if (!res.ok) {
@@ -220,6 +209,7 @@ export const api = {
   async uploadTestPaper(formData: FormData): Promise<TestPaper> {
     const res = await fetch(`${API_BASE}/test-papers/upload`, {
       method: 'POST',
+      headers: getAuthHeaders(false),
       body: formData,
     });
     if (!res.ok) {
@@ -239,7 +229,7 @@ export const api = {
   async deleteTestPaper(id: string, requesterEmail: string): Promise<boolean> {
     const res = await fetch(`${API_BASE}/test-papers/${id}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(true),
       body: JSON.stringify({ requesterEmail }),
     });
     if (res.ok) {
@@ -431,6 +421,7 @@ export const api = {
 
     const res = await fetch(`${API_BASE}/documents/upload`, {
       method: 'POST',
+      headers: getAuthHeaders(false),
       body: formData,
     });
     if (!res.ok) {
@@ -452,7 +443,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/documents/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify({ requesterEmail }),
       });
       return res.ok;
@@ -837,7 +828,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/notifications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify(notif),
       });
       if (res.ok) {
@@ -867,7 +858,7 @@ export const api = {
     try {
       const res = await fetch(`${API_BASE}/notifications/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(true),
         body: JSON.stringify({ requesterEmail }),
       });
       if (res.ok) return true;

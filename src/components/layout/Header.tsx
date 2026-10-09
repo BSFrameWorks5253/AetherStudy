@@ -119,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
   return (
     <>
-      <header className="h-14 md:h-16 px-4 md:px-7 ios-glass border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between select-none z-30 sticky top-0 transition-all">
+      <header className="pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:h-16 px-4 md:px-7 ios-glass border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between select-none z-30 sticky top-0 transition-all">
         {/* Module Title with Apple SF Pro Hierarchy */}
         <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-3">
           <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(124,58,237,0.6)] shrink-0 hidden sm:block" />
@@ -169,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
                   {currentUser?.email.split('@')[0]}
                 </span>
                 <span
-                  className={`text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                     isSuperAdmin
                       ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
                       : currentUser?.role === 'ADMIN'
