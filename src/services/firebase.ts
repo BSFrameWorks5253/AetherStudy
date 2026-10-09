@@ -642,37 +642,51 @@ export const firebaseDocuments = {
   },
 
   async fetch(): Promise<any[]> {
-    try {
-      await ensureFirebaseAuth();
-      const snap = await get(ref(rtdb, 'academic_documents'));
-      if (snap.exists()) {
-        const val = snap.val();
-        if (val && typeof val === 'object') {
-          const list: any[] = Array.isArray(val)
-            ? val.filter(Boolean)
-            : Object.keys(val).map((k) => ({ id: k, ...val[k] }));
-          list.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
-          return list;
+    const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 2000));
+    const workPromise = (async () => {
+      try {
+        await Promise.race([
+          ensureFirebaseAuth(),
+          new Promise((r) => setTimeout(r, 1000))
+        ]);
+        const snap = await Promise.race([
+          get(ref(rtdb, 'academic_documents')),
+          new Promise<null>((r) => setTimeout(() => r(null), 1500))
+        ]);
+        if (snap && snap.exists()) {
+          const val = snap.val();
+          if (val && typeof val === 'object') {
+            const list: any[] = Array.isArray(val)
+              ? val.filter(Boolean)
+              : Object.keys(val).map((k) => ({ id: k, ...val[k] }));
+            list.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
+            return list;
+          }
         }
+      } catch (err) {
+        console.warn('[Firebase Fetch Documents RTDB]:', err);
       }
-    } catch (err) {
-      console.warn('[Firebase Fetch Documents RTDB]:', err);
-    }
 
-    // Firestore fallback
-    try {
-      const snap = await getDoc(doc(db, 'academic_documents', 'catalog'));
-      if (snap.exists()) {
-        const data = snap.data();
-        if (Array.isArray(data?.documents) && data.documents.length > 0) {
-          return data.documents;
+      // Firestore fallback with 1.2s timeout
+      try {
+        const snap = await Promise.race([
+          getDoc(doc(db, 'academic_documents', 'catalog')),
+          new Promise<null>((r) => setTimeout(() => r(null), 1200))
+        ]);
+        if (snap && snap.exists()) {
+          const data = snap.data();
+          if (Array.isArray(data?.documents) && data.documents.length > 0) {
+            return data.documents;
+          }
         }
+      } catch (fErr) {
+        console.warn('[Firebase Fetch Documents Firestore]:', fErr);
       }
-    } catch (fErr) {
-      console.warn('[Firebase Fetch Documents Firestore]:', fErr);
-    }
 
-    return [];
+      return [];
+    })();
+
+    return Promise.race([workPromise, timeoutPromise]);
   },
 
   async saveDocument(docData: any): Promise<boolean> {

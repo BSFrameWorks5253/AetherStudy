@@ -686,11 +686,18 @@ export const SubjectRooms: React.FC = () => {
     setCompletedChapters(getUserStorageItem<Record<string, boolean>>('aether_chapter_progress', {}));
   }, [currentUser?.email]);
 
-  // Document & Subject & PYQ Data
-  const [documents, setDocuments] = useState<ServerDocument[]>([]);
-  const [testPapers, setTestPapers] = useState<TestPaper[]>([]);
+  // Document & Subject & PYQ Data - Hydrate immediately from local storage so screen never stalls
+  const [documents, setDocuments] = useState<ServerDocument[]>(() => api.getLocalDocuments());
+  const [testPapers, setTestPapers] = useState<TestPaper[]>(() => {
+    try {
+      const cached = localStorage.getItem('aether_cached_test_papers');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [serverSubjects, setServerSubjects] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isPdfLoading, setIsPdfLoading] = useState<boolean>(false);
 
   // Auto-dismiss PDF loader overlay after 2.5s to prevent freezing on mobile
@@ -745,21 +752,28 @@ export const SubjectRooms: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch documents and subjects
+  // Fetch documents and subjects (non-blocking stale-while-revalidate with failsafe safety timer)
   const loadContent = async () => {
-    setIsLoading(true);
+    const safetyTimer = setTimeout(() => setIsLoading(false), 1200);
     try {
-      const [docs, subjs, papers] = await Promise.all([
+      const [docsRes, subjsRes, papersRes] = await Promise.allSettled([
         api.getDocuments(),
         api.getSubjects(),
         api.getTestPapers(),
       ]);
-      setDocuments(docs);
-      setServerSubjects(subjs);
-      setTestPapers(papers);
+      if (docsRes.status === 'fulfilled' && Array.isArray(docsRes.value) && docsRes.value.length > 0) {
+        setDocuments(docsRes.value);
+      }
+      if (subjsRes.status === 'fulfilled' && Array.isArray(subjsRes.value) && subjsRes.value.length > 0) {
+        setServerSubjects(subjsRes.value);
+      }
+      if (papersRes.status === 'fulfilled' && Array.isArray(papersRes.value) && papersRes.value.length > 0) {
+        setTestPapers(papersRes.value);
+      }
     } catch (err) {
       console.warn('Could not load subjects and documents:', err);
     } finally {
+      clearTimeout(safetyTimer);
       setIsLoading(false);
     }
   };

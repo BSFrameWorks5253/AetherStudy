@@ -51,6 +51,19 @@ export interface ServerHealth {
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
 const AUTH_TOKEN_KEY = 'aetherstudy_auth_token';
 
+export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 2000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+
 export const getAuthToken = (): string | null => {
   try {
     return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -193,7 +206,7 @@ export const api = {
   // 2. Test Papers & PYQ Vault API
   async getTestPapers(): Promise<TestPaper[]> {
     try {
-      const res = await fetch(`${API_BASE}/test-papers`);
+      const res = await fetchWithTimeout(`${API_BASE}/test-papers`, {}, 2000);
       if (res.ok) {
         const papers = await res.json();
         if (Array.isArray(papers)) {
@@ -297,7 +310,7 @@ export const api = {
 
     let serverSubjs: string[] = [];
     try {
-      const res = await fetch(`${API_BASE}/subjects`);
+      const res = await fetchWithTimeout(`${API_BASE}/subjects`, {}, 2000);
       if (res.ok) {
         const fetched = await res.json();
         if (Array.isArray(fetched)) {
@@ -401,7 +414,7 @@ export const api = {
       const url = standard && standard !== 'ALL'
         ? `${API_BASE}/documents?standard=${encodeURIComponent(standard)}`
         : `${API_BASE}/documents`;
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url, {}, 2000);
       if (res.ok) {
         serverDocs = await res.json();
         if (Array.isArray(serverDocs)) {
