@@ -194,6 +194,49 @@ function doGet(e) {
       return jsonResponse({ success: false, error: "File not found yet." });
     }
 
+    // Action 3: List all study materials across AetherStudy Google Drive folders
+    if (action === "list" || action === "list_all") {
+      var allFiles = [];
+      var rootIter = DriveApp.getFoldersByName(ROOT_FOLDER_NAME);
+      if (rootIter.hasNext()) {
+        var rFolder = rootIter.next();
+        function scanFolder(folder, pathSoFar) {
+          var fIter = folder.getFiles();
+          while (fIter.hasNext()) {
+            var fl = fIter.next();
+            var id = fl.getId();
+            var name = fl.getName();
+            var sUrl = "https://drive.google.com/file/d/" + id + "/preview";
+            allFiles.push({
+              id: id,
+              name: name,
+              originalName: name,
+              streamUrl: sUrl,
+              serverUrl: sUrl,
+              url: sUrl,
+              mimeType: fl.getMimeType(),
+              sizeBytes: fl.getSize(),
+              size: (fl.getSize() / (1024 * 1024)).toFixed(2) + " MB",
+              uploadedAt: fl.getDateCreated().toISOString(),
+              folderPath: pathSoFar
+            });
+          }
+          var subIter = folder.getFolders();
+          while (subIter.hasNext()) {
+            var subF = subIter.next();
+            var nextPath = pathSoFar ? (pathSoFar + "/" + subF.getName()) : subF.getName();
+            scanFolder(subF, nextPath);
+          }
+        }
+        scanFolder(rFolder, ROOT_FOLDER_NAME);
+      }
+      return jsonResponse({
+        success: true,
+        count: allFiles.length,
+        files: allFiles
+      });
+    }
+
     // Default status ping
     return jsonResponse({
       success: true,
