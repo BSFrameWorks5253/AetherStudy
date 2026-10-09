@@ -22,7 +22,9 @@ export interface DriveUploadResult {
 }
 
 const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
-const GOOGLE_APPS_SCRIPT_URL = (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL as string) || '';
+const GOOGLE_APPS_SCRIPT_URL =
+  (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL as string) ||
+  'https://script.google.com/macros/s/AKfycbyP7ulx0qKE5dL57j_In3D8MWXjMAdK6lYd2a0WTDo50f1Y6YscA6qCp2SEv9F_-b5Wmg/exec';
 
 let accessToken: string | null = null;
 let tokenClient: any = null;

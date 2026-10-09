@@ -703,8 +703,8 @@ export const SubjectRooms: React.FC = () => {
     }
   }, [readingDoc, isPdfLoading]);
 
-  // Upload Modal State
-  const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
+  // Dedicated Upload Studio Page & Bulk Uploader States
+  const [isUploadPage, setIsUploadPage] = useState<boolean>(false);
   const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
   const [uploadSubject, setUploadSubject] = useState<string>('');
   const [uploadChapterTitle, setUploadChapterTitle] = useState<string>('');
@@ -726,6 +726,7 @@ export const SubjectRooms: React.FC = () => {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadSuccess, setUploadSuccess] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
 
   // Notes Tab View & Custom Filters
   const [notesViewMode, setNotesViewMode] = useState<'chapter' | 'grid'>('chapter');
@@ -872,6 +873,74 @@ export const SubjectRooms: React.FC = () => {
   };
 
   const effectiveStandard = (activeStandard === '11' || activeStandard === '12') ? activeStandard : roomStandardView;
+
+  // Open the dedicated full-view Document Upload Studio
+  const openUploadStudio = (options?: {
+    subject?: string;
+    category?: 'textbook' | 'notes';
+    chapterNumber?: string;
+    chapterTitle?: string;
+  }) => {
+    const targetSub = options?.subject || activeRoom || availableSubjects[0]?.name || 'General';
+    setUploadSubject(targetSub);
+    setUploadCategory(options?.category || 'notes');
+    if (options?.chapterNumber) {
+      setUploadChapterNumber(options.chapterNumber);
+      setUploadChapterTitle(options.chapterTitle || '');
+    } else {
+      setUploadChapterNumber('All');
+      setUploadChapterTitle('');
+    }
+    setUploadStandard(effectiveStandard || (activeStandard !== 'ALL' ? activeStandard : '12'));
+    setUploadError(null);
+    setUploadSuccess(false);
+    setIsUploadPage(true);
+  };
+
+  // Batch Staging Helper: processes new files with smart chapter detection
+  const addFilesToStaging = (newFileList: File[]) => {
+    if (!newFileList || newFileList.length === 0) return;
+    const targetSub = uploadSubject || activeRoom || availableSubjects[0]?.name || 'General';
+    const targetSlug = getSubjectSlug(targetSub);
+    const targetChapters = ALL_SYLLABUS_CHAPTERS[uploadStandard]?.[targetSlug] || ALL_SYLLABUS_CHAPTERS['12']?.[targetSlug] || [];
+
+    const newConfigs = newFileList.map((file) => {
+      const detected = detectChapterForFile(file.name, targetChapters, uploadChapterNumber);
+      return {
+        id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        file,
+        chapterNumber: detected.chapterNumber,
+        customChapter: detected.customChapter,
+        category: uploadCategory,
+        customFilter: uploadCustomFilter,
+      };
+    });
+
+    setFileConfigs((prev) => [...prev, ...newConfigs]);
+    setSelectedFiles((prev) => [...prev, ...newFileList]);
+    setSelectedFile(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addFilesToStaging(Array.from(e.dataTransfer.files));
+    }
+  };
 
   // Filter documents strictly by effective standard (never mix Std 11 and Std 12!)
   const standardFilteredDocuments = useMemo(() => {
@@ -1458,7 +1527,7 @@ export const SubjectRooms: React.FC = () => {
       setUploadCustomChapter('');
       setTimeout(() => {
         setUploadSuccess(false);
-        setShowUploadModal(false);
+        setIsUploadPage(false);
       }, 1500);
     } catch (err: any) {
       setUploadError(err.message || 'Upload operation failed. Please check network.');
@@ -1483,9 +1552,604 @@ export const SubjectRooms: React.FC = () => {
             className="w-full h-full"
           />
         </div>
+      ) : isUploadPage ? (
+        /* ========================================================
+            VIEW 2: DEDICATED FULL-VIEW ACADEMIC UPLOAD STUDIO PAGE
+        ======================================================== */
+        (() => {
+          const studioSubject = uploadSubject || activeRoom || availableSubjects[0]?.name || 'General';
+          const studioSubSlug = getSubjectSlug(studioSubject);
+          const studioChapters = ALL_SYLLABUS_CHAPTERS[uploadStandard]?.[studioSubSlug] || ALL_SYLLABUS_CHAPTERS['12']?.[studioSubSlug] || [];
+          const filesCount = fileConfigs.length > 0 ? fileConfigs.length : (selectedFiles.length > 0 ? selectedFiles.length : (selectedFile ? 1 : 0));
+
+          return (
+            <div className="flex flex-col h-full w-full overflow-y-auto animate-fade-in p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+              {/* Studio Header Navigation Banner */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative shrink-0">
+                <div className="flex items-center space-x-3.5 sm:space-x-4 min-w-0 flex-1">
+                  <button
+                    onClick={() => {
+                      setIsUploadPage(false);
+                      setUploadError(null);
+                    }}
+                    className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0 cursor-pointer"
+                    title={`Back to ${activeRoom || 'Subject Overview'}`}
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
+                    <Upload className="w-6 h-6" />
+                  </div>
+
+                  <div className="min-w-0 flex-1 py-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-normal">
+                        Academic Upload Studio
+                      </h2>
+                      <span className="px-2.5 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-extrabold text-xs border border-brand-500/20">
+                        Class {toRomanStandard(uploadStandard)}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs">
+                        {studioSubject}
+                      </span>
+                      {filesCount > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs border border-emerald-500/20">
+                          {filesCount} {filesCount === 1 ? 'PDF' : 'PDFs'} Staged
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
+                      Upload single or multiple PDFs — customize which chapter each PDF belongs to with instant Google Drive sync.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkModal(true)}
+                    className="px-3.5 py-2 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    title="Bulk upload and auto-segregate complete folders"
+                  >
+                    <FolderUp className="w-4 h-4" />
+                    <span>Bulk Folder Ingest</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUploadPage(false);
+                      setUploadError(null);
+                    }}
+                    className="px-3.5 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Close Studio
+                  </button>
+                </div>
+              </div>
+
+              {/* Upload Error Banner */}
+              {uploadError && (
+                <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs sm:text-sm flex items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-2.5">
+                    <AlertCircle className="w-5 h-5 shrink-0 text-rose-500" />
+                    <span>{uploadError}</span>
+                  </div>
+                  <button
+                    onClick={() => setUploadError(null)}
+                    className="text-rose-400 hover:text-rose-600 font-bold px-2 py-1 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {/* Upload Success Banner */}
+              {uploadSuccess && (
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs sm:text-sm flex items-center gap-2.5 shadow-xs animate-fade-in">
+                  <CheckCircle className="w-5 h-5 shrink-0 text-emerald-500" />
+                  <span className="font-bold">
+                    Upload completed successfully! All documents are synced to Cloud & Google Drive.
+                  </span>
+                </div>
+              )}
+
+              {/* Studio Main Workspace Grid */}
+              <form onSubmit={handleUploadSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Column 1: Left Destination & Settings (5 cols) */}
+                <div className="lg:col-span-5 space-y-5">
+                  {/* Target Room & Academic Level Card */}
+                  <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="flex items-center space-x-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <Layers className="w-4 h-4 text-brand-500" />
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                        Destination & Academic Level
+                      </h3>
+                    </div>
+
+                    <div className="space-y-3.5">
+                      {/* Academic Standard */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Academic Standard
+                        </label>
+                        {isSuperAdmin ? (
+                          <select
+                            value={uploadStandard}
+                            onChange={(e) => setUploadStandard(e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                          >
+                            <option value="12">Standard 12 (HSC)</option>
+                            <option value="11">Standard 11 (FYJC)</option>
+                            <option value="10">Standard 10 (SSC)</option>
+                            <option value="9">Standard 9 (Foundation)</option>
+                            <option value="ALL">ALL Standards</option>
+                          </select>
+                        ) : (
+                          <div className="w-full bg-slate-100 dark:bg-slate-800/80 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                            Class {currentUser?.standard || activeStandard}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Subject Room */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Subject Room
+                        </label>
+                        <select
+                          value={uploadSubject || (activeRoom || availableSubjects[0]?.name || 'General')}
+                          onChange={(e) => setUploadSubject(e.target.value)}
+                          className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                        >
+                          {availableSubjects.map((sub) => (
+                            <option key={sub.name} value={sub.name}>
+                              {sub.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Document Type Category */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Material Type
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setUploadCategory('notes')}
+                            className={`py-2.5 px-3 rounded-xl border text-left font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                              uploadCategory === 'notes'
+                                ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <FileText className="w-4 h-4 shrink-0" />
+                            <span className="text-xs">📝 Study Notes</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setUploadCategory('textbook')}
+                            className={`py-2.5 px-3 rounded-xl border text-left font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                              uploadCategory === 'textbook'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <BookOpen className="w-4 h-4 shrink-0" />
+                            <span className="text-xs">📚 Textbook PDF</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Default Chapter & Filter Customization Card */}
+                  <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="flex items-center space-x-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                        Default Chapter & Tag
+                      </h3>
+                    </div>
+
+                    <div className="space-y-3.5">
+                      {/* Default Chapter */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Default Chapter
+                          </label>
+                          {fileConfigs.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFileConfigs((prev) =>
+                                  prev.map((item) => ({
+                                    ...item,
+                                    chapterNumber: uploadChapterNumber,
+                                    customChapter: uploadCustomChapter,
+                                  }))
+                                );
+                              }}
+                              className="text-[11px] font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer flex items-center gap-1"
+                              title="Apply this chapter to all staged files"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>Apply to all {fileConfigs.length} files</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <select
+                          value={uploadChapterNumber}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setUploadChapterNumber(val);
+                            if (val !== 'custom') {
+                              setUploadCustomChapter('');
+                              const found = studioChapters.find((ch) => ch.number === val);
+                              setUploadChapterTitle(found?.title || '');
+                            }
+                          }}
+                          className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                        >
+                          <option value="All">General / All Chapters (Full Syllabus)</option>
+                          {studioChapters.map((ch) => (
+                            <option key={ch.number} value={ch.number}>
+                              {ch.number}: {ch.title}
+                            </option>
+                          ))}
+                          <option value="custom">✏️ Enter Custom Chapter Name...</option>
+                        </select>
+
+                        {uploadChapterNumber === 'custom' && (
+                          <input
+                            type="text"
+                            value={uploadCustomChapter}
+                            onChange={(e) => setUploadCustomChapter(e.target.value)}
+                            placeholder="e.g. Chapter 7: Advanced Revision"
+                            className="mt-2 w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                            autoFocus
+                          />
+                        )}
+                      </div>
+
+                      {/* Custom Filter / Tag */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Custom Filter Tag
+                        </label>
+                        {/* Quick Tag Pills */}
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {availableCustomFilters.slice(0, 6).map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setUploadCustomFilter(tag)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                uploadCustomFilter === tag
+                                  ? 'bg-amber-600 text-white shadow-xs'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+
+                        <input
+                          type="text"
+                          value={uploadCustomFilter}
+                          onChange={(e) => setUploadCustomFilter(e.target.value)}
+                          placeholder="e.g. Theory Notes, Question Bank, Formula Sheet"
+                          className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Interactive Drag & Drop Box */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`p-6 rounded-3xl border-2 border-dashed transition-all cursor-pointer text-center relative ${
+                      isDragOver
+                        ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/30 scale-[1.01]'
+                        : 'border-slate-300 dark:border-slate-700 hover:border-brand-500 bg-slate-50 dark:bg-slate-900/60 hover:bg-brand-50/20 dark:hover:bg-brand-950/20'
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.rtf,.epub,.html,.htm,.png,.jpg,.jpeg,.webp,.svg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          addFilesToStaging(Array.from(e.target.files));
+                        }
+                      }}
+                    />
+                    <div className="flex flex-col items-center justify-center space-y-2 py-2">
+                      <div className="w-12 h-12 rounded-2xl bg-brand-500/10 text-brand-500 flex items-center justify-center">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-sm text-slate-800 dark:text-slate-100">
+                          Drop PDFs here, or click to browse
+                        </span>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          Select single or multiple files at once. All PDFs will be staged for individual chapter tagging.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 pt-1 text-[11px] font-bold text-brand-600 dark:text-brand-400">
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Browse from Computer</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Column 2: Right Staging Queue & Per-File Customizer (7 cols) */}
+                <div className="lg:col-span-7 space-y-5">
+                  <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    {/* Queue Header */}
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="flex items-center space-x-2">
+                        <FileText className="w-4 h-4 text-brand-500" />
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          Staged Files for Ingestion
+                        </h3>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-extrabold border border-brand-500/20">
+                          {filesCount} {filesCount === 1 ? 'file' : 'files'}
+                        </span>
+                      </div>
+
+                      {fileConfigs.length > 0 && (
+                        <div className="flex items-center gap-3">
+                          {fileConfigs.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFileConfigs((prev) =>
+                                  prev.map((c) => ({
+                                    ...c,
+                                    chapterNumber: uploadChapterNumber,
+                                    customChapter: uploadCustomChapter,
+                                    category: uploadCategory,
+                                    customFilter: uploadCustomFilter,
+                                  }))
+                                );
+                              }}
+                              className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer"
+                              title="Set all selected PDFs to the default chapter"
+                            >
+                              Sync all
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedFiles([]);
+                              setFileConfigs([]);
+                              setSelectedFile(null);
+                            }}
+                            className="text-xs font-bold text-rose-500 hover:underline cursor-pointer"
+                          >
+                            Clear queue
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Empty State */}
+                    {fileConfigs.length === 0 && (
+                      <div className="py-12 px-4 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                          <FolderUp className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                            No files staged yet
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                            Drag and drop your PDF study materials into the dropzone on the left or click browse to start staging.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Upload className="w-4 h-4" />
+                          <span>Select PDF Files</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Staged Cards List */}
+                    {fileConfigs.length > 0 && (
+                      <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+                        {fileConfigs.map((item, idx) => (
+                          <div
+                            key={item.id}
+                            className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-brand-500/40 transition-all space-y-2.5 shadow-xs"
+                          >
+                            {/* File title & remove row */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center space-x-2.5 truncate min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0">
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                                <span className="truncate font-bold text-xs text-slate-800 dark:text-slate-100" title={item.file.name}>
+                                  {item.file.name}
+                                </span>
+                                <span className="text-[10px] text-slate-400 shrink-0 font-mono">
+                                  ({(item.file.size / (1024 * 1024)).toFixed(2)} MB)
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFileConfigs((prev) => prev.filter((_, i) => i !== idx));
+                                  setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors shrink-0 cursor-pointer"
+                                title="Remove this PDF from batch"
+                              >
+                                ✕
+                              </button>
+                            </div>
+
+                            {/* Individual chapter selection for this PDF */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-between">
+                                  <span>Assigned Chapter:</span>
+                                  {item.chapterNumber !== 'All' && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold">
+                                      Customized
+                                    </span>
+                                  )}
+                                </label>
+                                <select
+                                  value={item.chapterNumber}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFileConfigs((prev) =>
+                                      prev.map((c, i) => (i === idx ? { ...c, chapterNumber: val } : c))
+                                    );
+                                  }}
+                                  className="w-full bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                                >
+                                  <option value="All">General / All Chapters</option>
+                                  {studioChapters.map((ch) => (
+                                    <option key={ch.number} value={ch.number}>
+                                      {ch.number}: {ch.title}
+                                    </option>
+                                  ))}
+                                  <option value="custom">✏️ Enter Custom Chapter...</option>
+                                </select>
+                                {item.chapterNumber === 'custom' && (
+                                  <input
+                                    type="text"
+                                    value={item.customChapter}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setFileConfigs((prev) =>
+                                        prev.map((c, i) => (i === idx ? { ...c, customChapter: val } : c))
+                                      );
+                                    }}
+                                    placeholder="Type custom chapter name..."
+                                    className="mt-1.5 w-full bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                                  />
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                                  Section & Tag:
+                                </label>
+                                <div className="flex items-center gap-1.5">
+                                  <select
+                                    value={item.category}
+                                    onChange={(e) => {
+                                      const val = e.target.value as 'textbook' | 'notes';
+                                      setFileConfigs((prev) =>
+                                        prev.map((c, i) => (i === idx ? { ...c, category: val } : c))
+                                      );
+                                    }}
+                                    className="bg-white dark:bg-slate-900 rounded-xl px-2 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer shrink-0"
+                                  >
+                                    <option value="notes">Notes</option>
+                                    <option value="textbook">Textbook</option>
+                                  </select>
+
+                                  <input
+                                    type="text"
+                                    value={item.customFilter}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setFileConfigs((prev) =>
+                                        prev.map((c, i) => (i === idx ? { ...c, customFilter: val } : c))
+                                      );
+                                    }}
+                                    placeholder="Tag (e.g. Theory)"
+                                    className="flex-1 min-w-0 bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Bottom Action / Submit Bar */}
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span>
+                          Target: <strong className="text-slate-800 dark:text-slate-200">{studioSubject}</strong> (Class {toRomanStandard(uploadStandard)})
+                        </span>
+                        <span>
+                          {filesCount > 0 ? `${filesCount} PDF(s) configured` : 'No files selected'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUploadPage(false);
+                            setUploadError(null);
+                          }}
+                          className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={isUploading || filesCount === 0}
+                          className="flex-1 py-3 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-bold rounded-2xl shadow-md shadow-brand-500/25 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+                        >
+                          {isUploading ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              <span>Uploading & Syncing to Cloud...</span>
+                            </>
+                          ) : uploadSuccess ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-emerald-300" />
+                              <span>Upload Completed Successfully!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              <span>
+                                Upload {filesCount > 0 ? `${filesCount} ${filesCount === 1 ? 'PDF' : 'PDFs'}` : 'Study Material'}
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          );
+        })()
       ) : activeRoom ? (
         /* ========================================================
-            VIEW 2: INSIDE A SPECIFIC SUBJECT ROOM
+            VIEW 3: INSIDE A SPECIFIC SUBJECT ROOM
         ======================================================== */
         <div className="flex flex-col h-full w-full overflow-y-auto animate-fade-in p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
           {/* Room Header Banner */}
@@ -1533,12 +2197,8 @@ export const SubjectRooms: React.FC = () => {
               {canUpload && (
                 <>
                   <button
-                    onClick={() => {
-                      setUploadSubject(activeRoom);
-                      setUploadStandard(effectiveStandard || (activeStandard !== 'ALL' ? activeStandard : '12'));
-                      setShowUploadModal(true);
-                    }}
-                    className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all"
+                    onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
+                    className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Upload PDF</span>
@@ -1878,13 +2538,8 @@ export const SubjectRooms: React.FC = () => {
                                   {canUpload && (
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setUploadSubject(activeRoom);
-                                        setUploadChapterNumber(ch.number);
-                                        setUploadChapterTitle(ch.title);
-                                        setShowUploadModal(true);
-                                      }}
-                                      className="text-brand-600 dark:text-brand-400 font-bold hover:underline"
+                                      onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
+                                      className="text-brand-600 dark:text-brand-400 font-bold hover:underline cursor-pointer"
                                     >
                                       + Upload
                                     </button>
@@ -1927,12 +2582,8 @@ export const SubjectRooms: React.FC = () => {
                   )}
                   {canUpload && (
                     <button
-                      onClick={() => {
-                        setUploadSubject(activeRoom);
-                        setUploadCategory('textbook');
-                        setShowUploadModal(true);
-                      }}
-                      className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+                      onClick={() => openUploadStudio({ subject: activeRoom, category: 'textbook' })}
+                      className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
                     >
                       Upload Textbook PDF
                     </button>
@@ -2089,11 +2740,7 @@ export const SubjectRooms: React.FC = () => {
                   {canUpload && (
                     <div className="pt-2 flex items-center justify-center gap-2">
                       <button
-                        onClick={() => {
-                          setUploadSubject(activeRoom);
-                          setUploadCategory('notes');
-                          setShowUploadModal(true);
-                        }}
+                        onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
                         className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
@@ -2171,11 +2818,7 @@ export const SubjectRooms: React.FC = () => {
                       {canUpload && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setUploadSubject(activeRoom);
-                            setUploadCategory('notes');
-                            setShowUploadModal(true);
-                          }}
+                          onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
                           className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer shrink-0"
                         >
                           <Plus className="w-3.5 h-3.5" />
@@ -2367,13 +3010,7 @@ export const SubjectRooms: React.FC = () => {
                                 {canUpload && (
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      setUploadSubject(activeRoom);
-                                      setUploadChapterNumber(ch.number);
-                                      setUploadChapterTitle(ch.title);
-                                      setUploadCategory('notes');
-                                      setShowUploadModal(true);
-                                    }}
+                                    onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
                                     className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                                     title={`Upload notes directly to ${ch.number}`}
                                   >
@@ -2477,14 +3114,8 @@ export const SubjectRooms: React.FC = () => {
                                   {canUpload && (
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setUploadSubject(activeRoom);
-                                        setUploadChapterNumber(ch.number);
-                                        setUploadChapterTitle(ch.title);
-                                        setUploadCategory('notes');
-                                        setShowUploadModal(true);
-                                      }}
-                                      className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1"
+                                      onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
+                                      className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
                                     >
                                       <Plus className="w-3.5 h-3.5" />
                                       <span>Upload PDF for {ch.number}</span>
@@ -2795,10 +3426,10 @@ export const SubjectRooms: React.FC = () => {
               <div className="flex items-center space-x-2 self-start sm:self-auto">
                 <button
                   onClick={() => {
-                    setUploadSubject(availableSubjects[0]?.name || 'General');
-                    setUploadStandard(effectiveStandard || (activeStandard !== 'ALL' ? activeStandard : '12'));
-                    setUploadCategory('notes');
-                    setShowUploadModal(true);
+                    openUploadStudio({
+                      subject: availableSubjects[0]?.name || 'General',
+                      category: 'notes',
+                    });
                   }}
                   className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-full shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all ios-pill cursor-pointer"
                 >
@@ -2889,483 +3520,6 @@ export const SubjectRooms: React.FC = () => {
         )}
         </div>
       )}
-
-      {/* ========================================================
-          UPLOAD MODAL (Super Admin & Admin Only)
-      ======================================================== */}
-      {/* ========================================================
-          UPLOAD MODAL (Super Admin & Admin Only - Batch & Chapter Aware)
-      ======================================================== */}
-      {showUploadModal && (() => {
-        const modalSubject = uploadSubject || activeRoom || availableSubjects[0]?.name || 'General';
-        const modalSubSlug = getSubjectSlug(modalSubject);
-        const modalChapters = ALL_SYLLABUS_CHAPTERS[uploadStandard]?.[modalSubSlug] || ALL_SYLLABUS_CHAPTERS['12']?.[modalSubSlug] || [];
-        const filesCount = fileConfigs.length > 0 ? fileConfigs.length : (selectedFiles.length > 0 ? selectedFiles.length : (selectedFile ? 1 : 0));
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-            <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 relative my-8">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-9 h-9 rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold shadow-xs">
-                    <Upload className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <span>Upload Study Materials</span>
-                      {filesCount > 1 && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-extrabold border border-brand-500/20">
-                          {filesCount} PDFs Selected
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Upload single or multiple PDFs — customize which chapter each PDF belongs to
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowUploadModal(false);
-                    setUploadError(null);
-                    setSelectedFiles([]);
-                    setSelectedFile(null);
-                    setFileConfigs([]);
-                  }}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold p-1 rounded-lg cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {uploadError && (
-                <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{uploadError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs">
-                {/* Multi-File Selection Box */}
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Select PDF Files (Select Multiple Files at Once)
-                  </label>
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-5 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-brand-500 cursor-pointer text-center bg-slate-50 dark:bg-slate-800/50 transition-all hover:bg-brand-50/20 dark:hover:bg-brand-950/20"
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.md,.rtf,.epub,.html,.htm,.png,.jpg,.jpeg,.webp,.svg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files.length > 0) {
-                          const newFileList = Array.from(e.target.files);
-                          const modalSubject = uploadSubject || activeRoom || availableSubjects[0]?.name || 'General';
-                          const modalSubSlug = getSubjectSlug(modalSubject);
-                          const modalChapters = ALL_SYLLABUS_CHAPTERS[uploadStandard]?.[modalSubSlug] || ALL_SYLLABUS_CHAPTERS['12']?.[modalSubSlug] || [];
-
-                          const newConfigs = newFileList.map((file) => {
-                            const detected = detectChapterForFile(file.name, modalChapters, uploadChapterNumber);
-                            return {
-                              id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                              file,
-                              chapterNumber: detected.chapterNumber,
-                              customChapter: detected.customChapter,
-                              category: uploadCategory,
-                              customFilter: uploadCustomFilter,
-                            };
-                          });
-
-                          setFileConfigs((prev) => [...prev, ...newConfigs]);
-                          setSelectedFiles((prev) => [...prev, ...newFileList]);
-                          setSelectedFile(null);
-                        }
-                      }}
-                    />
-                    <div className="text-slate-500 dark:text-slate-400">
-                      <Upload className="w-6 h-6 mx-auto mb-1 text-brand-500" />
-                      <span className="font-bold text-slate-700 dark:text-slate-300">
-                        Click or drag multiple PDFs here
-                      </span>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        Batch selection supported — you can assign each PDF to a different chapter below
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Interactive Per-File Customization Cards */}
-                  {fileConfigs.length > 0 && (
-                    <div className="mt-3.5 space-y-2.5">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 px-1">
-                        <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                          <Sparkles className="w-3.5 h-3.5 text-brand-500" />
-                          <span>Customize Each PDF ({fileConfigs.length} files):</span>
-                        </span>
-                        <div className="flex items-center gap-3">
-                          {fileConfigs.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFileConfigs((prev) =>
-                                  prev.map((c) => ({
-                                    ...c,
-                                    chapterNumber: uploadChapterNumber,
-                                    customChapter: uploadCustomChapter,
-                                    category: uploadCategory,
-                                    customFilter: uploadCustomFilter,
-                                  }))
-                                );
-                              }}
-                              className="text-brand-600 dark:text-brand-400 hover:underline cursor-pointer"
-                              title="Set all selected PDFs to the default chapter selected below"
-                            >
-                              Sync all to default chapter
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedFiles([]);
-                              setFileConfigs([]);
-                            }}
-                            className="text-rose-500 hover:underline cursor-pointer"
-                          >
-                            Clear all
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Scrollable list of individual file settings */}
-                      <div className="space-y-2 max-h-60 sm:max-h-72 overflow-y-auto pr-1">
-                        {fileConfigs.map((item, idx) => (
-                          <div
-                            key={item.id}
-                            className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-brand-500/40 transition-all space-y-2 shadow-xs"
-                          >
-                            {/* File title & remove row */}
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center space-x-2 truncate min-w-0">
-                                <div className="w-6 h-6 rounded-lg bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0">
-                                  <FileText className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="truncate font-bold text-xs text-slate-800 dark:text-slate-100" title={item.file.name}>
-                                  {item.file.name}
-                                </span>
-                                <span className="text-[10px] text-slate-400 shrink-0 font-mono">
-                                  ({(item.file.size / (1024 * 1024)).toFixed(2)} MB)
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setFileConfigs((prev) => prev.filter((_, i) => i !== idx));
-                                  setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
-                                }}
-                                className="p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors shrink-0 cursor-pointer"
-                                title="Remove this PDF from batch"
-                              >
-                                ✕
-                              </button>
-                            </div>
-
-                            {/* Individual chapter selection for this PDF */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-between">
-                                  <span>Assigned Chapter:</span>
-                                  {item.chapterNumber !== 'All' && (
-                                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold">
-                                      Customized
-                                    </span>
-                                  )}
-                                </label>
-                                <select
-                                  value={item.chapterNumber}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setFileConfigs((prev) =>
-                                      prev.map((c, i) => (i === idx ? { ...c, chapterNumber: val } : c))
-                                    );
-                                  }}
-                                  className="w-full bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
-                                >
-                                  <option value="All">General / All Chapters</option>
-                                  {modalChapters.map((ch) => (
-                                    <option key={ch.number} value={ch.number}>
-                                      {ch.number}: {ch.title}
-                                    </option>
-                                  ))}
-                                  <option value="custom">✏️ Enter Custom Chapter...</option>
-                                </select>
-                                {item.chapterNumber === 'custom' && (
-                                  <input
-                                    type="text"
-                                    value={item.customChapter}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setFileConfigs((prev) =>
-                                        prev.map((c, i) => (i === idx ? { ...c, customChapter: val } : c))
-                                      );
-                                    }}
-                                    placeholder="Type custom chapter name..."
-                                    className="mt-1.5 w-full bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-                                  />
-                                )}
-                              </div>
-
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-                                  Section & Tag:
-                                </label>
-                                <div className="flex items-center gap-1.5">
-                                  <select
-                                    value={item.category}
-                                    onChange={(e) => {
-                                      const val = e.target.value as 'textbook' | 'notes';
-                                      setFileConfigs((prev) =>
-                                        prev.map((c, i) => (i === idx ? { ...c, category: val } : c))
-                                      );
-                                    }}
-                                    className="bg-white dark:bg-slate-900 rounded-xl px-2 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer shrink-0"
-                                  >
-                                    <option value="notes">Notes</option>
-                                    <option value="textbook">Textbook</option>
-                                  </select>
-
-                                  <input
-                                    type="text"
-                                    value={item.customFilter}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setFileConfigs((prev) =>
-                                        prev.map((c, i) => (i === idx ? { ...c, customFilter: val } : c))
-                                      );
-                                    }}
-                                    placeholder="Tag (e.g. Theory)"
-                                    className="flex-1 min-w-0 bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowUploadModal(false);
-                        setShowBulkModal(true);
-                      }}
-                      className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline inline-flex items-center gap-1.5 cursor-pointer py-0.5"
-                    >
-                      <FolderUp className="w-3.5 h-3.5" />
-                      <span>Want to upload a complete folder instead? Click here</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Document Section: Textbook vs Notes (Default for new files) */}
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Default Document Section
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setUploadCategory('notes')}
-                      className={`py-2 px-3 rounded-xl border text-left font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                        uploadCategory === 'notes'
-                          ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <FileText className="w-4 h-4 shrink-0" />
-                      <span>📝 Study Notes</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setUploadCategory('textbook')}
-                      className={`py-2 px-3 rounded-xl border text-left font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                        uploadCategory === 'textbook'
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <BookOpen className="w-4 h-4 shrink-0" />
-                      <span>📚 Textbook PDF</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Target Standard and Subject Room */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Target Standard
-                    </label>
-                    {isSuperAdmin ? (
-                      <select
-                        value={uploadStandard}
-                        onChange={(e) => setUploadStandard(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-                      >
-                        <option value="12">Standard 12 (HSC)</option>
-                        <option value="11">Standard 11 (FYJC)</option>
-                        <option value="10">Standard 10 (SSC)</option>
-                        <option value="9">Standard 9 (Foundation)</option>
-                        <option value="ALL">ALL Standards</option>
-                      </select>
-                    ) : (
-                      <div className="w-full bg-slate-100 dark:bg-slate-800/80 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                        Class {currentUser?.standard || activeStandard}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Subject Room
-                    </label>
-                    <select
-                      value={uploadSubject || (activeRoom || availableSubjects[0]?.name || 'General')}
-                      onChange={(e) => setUploadSubject(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-                    >
-                      {availableSubjects.map((sub) => (
-                        <option key={sub.name} value={sub.name}>
-                          {sub.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Default Chapter Association Dropdown */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">
-                      Default Chapter (Applied if not customized per file)
-                    </label>
-                    {fileConfigs.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFileConfigs((prev) =>
-                            prev.map((item) => ({
-                              ...item,
-                              chapterNumber: uploadChapterNumber,
-                              customChapter: uploadCustomChapter,
-                            }))
-                          );
-                        }}
-                        className="text-[11px] font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer flex items-center gap-1"
-                        title="Apply this chapter to all files above"
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        <span>Apply to all {fileConfigs.length} files</span>
-                      </button>
-                    )}
-                  </div>
-                  <select
-                    value={uploadChapterNumber}
-                    onChange={(e) => setUploadChapterNumber(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
-                  >
-                    <option value="All">General / All Chapters (Full Syllabus)</option>
-                    {modalChapters.map((ch) => (
-                      <option key={ch.number} value={ch.number}>
-                        {ch.number}: {ch.title}
-                      </option>
-                    ))}
-                    <option value="custom">✏️ Enter Custom Chapter Name...</option>
-                  </select>
-
-                  {uploadChapterNumber === 'custom' && (
-                    <input
-                      type="text"
-                      value={uploadCustomChapter}
-                      onChange={(e) => setUploadCustomChapter(e.target.value)}
-                      placeholder="e.g. Chapter 7: Advanced Revision"
-                      className="mt-2 w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-                      autoFocus
-                    />
-                  )}
-                </div>
-
-                {/* Custom Filter / Tag Input */}
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Custom Filter / Tag
-                  </label>
-                  {/* Quick Tag Pills */}
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {availableCustomFilters.slice(0, 6).map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => setUploadCustomFilter(tag)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          uploadCustomFilter === tag
-                            ? 'bg-amber-600 text-white shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                        }`}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-
-                  <input
-                    type="text"
-                    value={uploadCustomFilter}
-                    onChange={(e) => setUploadCustomFilter(e.target.value)}
-                    placeholder="Enter custom filter (e.g. Theory Notes, Question Bank, Formula Sheet)"
-                    className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isUploading || filesCount === 0}
-                  className="w-full py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center justify-center space-x-1.5 transition-all mt-2 cursor-pointer"
-                >
-                  {isUploading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Uploading {filesCount} {filesCount === 1 ? 'PDF' : 'PDFs'}...</span>
-                    </>
-                  ) : uploadSuccess ? (
-                    <>
-                      <CheckCircle className="w-4 h-4 text-emerald-300" />
-                      <span>Upload Completed Successfully!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      <span>
-                        Upload {filesCount > 0 ? `${filesCount} ${filesCount === 1 ? 'PDF' : 'PDFs'}` : 'PDF Material'}
-                      </span>
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Intelligent Bulk Uploader Modal */}
       {showBulkModal && (

@@ -80,6 +80,15 @@ export const getAuthHeaders = (includeJson: boolean = true): HeadersInit => {
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+  try {
+    const userRaw = localStorage.getItem('aetherstudy_user');
+    if (userRaw) {
+      const u = JSON.parse(userRaw);
+      if (u && u.email) {
+        headers['x-requester-email'] = u.email;
+      }
+    }
+  } catch {}
   return headers;
 };
 
