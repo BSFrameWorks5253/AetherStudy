@@ -7,18 +7,17 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  GraduationCap,
   LogOut,
   LogIn,
   Lock,
-  Clock,
   Sparkles,
   Printer,
 } from 'lucide-react';
+import { AetherLogo } from '../common/AetherLogo';
 import { useAuth } from '../../context/AuthContext';
 import { RevisionExporterModal } from '../common/RevisionExporterModal';
 
-export type ActiveTab = 'workspace' | 'tests' | 'simulator' | 'flashcards' | 'timetable' | 'syllabus';
+export type ActiveTab = 'workspace' | 'tests' | 'timetable' | 'syllabus';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -54,20 +53,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             description: 'Question Papers & Keys',
             icon: FileCheck2,
           },
-          {
-            id: 'simulator' as ActiveTab,
-            label: 'Exam Arena',
-            mobileLabel: 'Arena',
-            description: '3-Hour Exam Simulation',
-            icon: Clock,
-          },
-          {
-            id: 'flashcards' as ActiveTab,
-            label: 'Formula Deck',
-            mobileLabel: 'Deck',
-            description: 'Spaced Recall & Rules',
-            icon: Sparkles,
-          },
         ]
       : []),
     {
@@ -98,9 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Header Brand */}
           <div className="flex items-center justify-between p-4 border-b border-black/[0.06] dark:border-white/[0.08]">
             <div className="flex items-center space-x-3 overflow-hidden">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/25 shrink-0">
-                <GraduationCap className="w-5 h-5" />
-              </div>
+              <AetherLogo size={isCollapsed ? 'sm' : 'md'} animated />
               {!isCollapsed && (
                 <div className="truncate">
                   <h1 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white leading-tight flex items-center gap-1.5">

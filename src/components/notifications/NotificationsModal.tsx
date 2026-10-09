@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api, AdminNotification } from '../../services/api';
 import { firebaseNotifications } from '../../services/firebase';
+import { nativeNotifications, NotificationPermissionState } from '../../services/nativeNotifications';
 import {
   Bell,
   X,
@@ -11,6 +12,9 @@ import {
   Shield,
   Calendar,
   Megaphone,
+  Smartphone,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 
 interface NotificationsModalProps {
@@ -28,6 +32,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isComposing, setIsComposing] = useState<boolean>(false);
+  const [permState, setPermState] = useState<NotificationPermissionState>(() => nativeNotifications.getPermission());
+  const [testSent, setTestSent] = useState<boolean>(false);
 
   // Compose form state
   const [title, setTitle] = useState<string>('');
@@ -42,8 +48,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       setIsLoading(true);
       const data = await api.getNotifications(isSuperAdmin ? undefined : activeStandard);
       setNotifications(data);
+
+      // Once opened, mark all present announcements as read
+      if (Array.isArray(data) && data.length > 0) {
+        nativeNotifications.markAllRead(data.map((n) => n.id));
+      }
       if (onNotificationsCountChange) {
-        onNotificationsCountChange(data.length);
+        onNotificationsCountChange(0);
       }
     } catch (e) {
       console.warn('Could not load notifications:', e);
@@ -54,18 +65,55 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      setPermState(nativeNotifications.getPermission());
       fetchNotifications();
+
       const unsubscribe = firebaseNotifications.subscribe((cloudNotifs) => {
         if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
           setNotifications(cloudNotifs);
+          nativeNotifications.markAllRead(cloudNotifs.map((n) => n.id));
           if (onNotificationsCountChange) {
-            onNotificationsCountChange(cloudNotifs.length);
+            onNotificationsCountChange(0);
           }
         }
       });
       return () => unsubscribe();
     }
   }, [isOpen, activeStandard, isSuperAdmin]);
+
+  const handleCloseModal = () => {
+    if (notifications.length > 0) {
+      nativeNotifications.markAllRead(notifications.map((n) => n.id));
+    }
+    if (onNotificationsCountChange) {
+      onNotificationsCountChange(0);
+    }
+    onClose();
+  };
+
+  const handleRequestPermission = async () => {
+    const res = await nativeNotifications.requestPermission();
+    setPermState(res);
+    if (res === 'granted') {
+      await nativeNotifications.sendNativeAlert(
+        '🔔 Notifications Enabled',
+        'You will now receive official exam notices in your phone notification bar!',
+        { tag: 'aether-welcome' }
+      );
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    const success = await nativeNotifications.sendNativeAlert(
+      '📱 AetherStudy Test Alert',
+      'System tray notifications are working perfectly on your device!',
+      { tag: 'aether-test-' + Date.now() }
+    );
+    if (success) {
+      setTestSent(true);
+      setTimeout(() => setTestSent(false), 4000);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,7 +166,12 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in select-text">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleCloseModal();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in select-text"
+    >
       <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
@@ -152,7 +205,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               </button>
             )}
             <button
-              onClick={onClose}
+              onClick={handleCloseModal}
               className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="Close"
             >
@@ -163,6 +216,56 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
         {/* Modal Content Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* PWA Phone Notification Bar Sync Card */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-brand-500/10 border border-indigo-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20">
+                <Smartphone className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                    Phone Notification Bar Alerts
+                  </h4>
+                  {permState === 'granted' ? (
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Active in Status Bar
+                    </span>
+                  ) : (
+                    <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      PWA Push Ready
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Delivers exam schedules and board announcements directly into your phone’s native lock screen and notification tray.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              {permState === 'granted' ? (
+                <button
+                  type="button"
+                  onClick={handleSendTestNotification}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{testSent ? '✓ Sent to Status Bar' : 'Test Phone Alert'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRequestPermission}
+                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>Enable in Phone Tray</span>
+                </button>
+              )}
+            </div>
+          </div>
           {/* Admin Composer Drawer */}
           {isComposing && (
             <form

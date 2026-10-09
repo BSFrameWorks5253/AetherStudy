@@ -192,8 +192,8 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
       })
       .catch((err: any) => {
         if (isCancelled) return;
-        console.warn('PDF.js canvas load notice, falling back to Google Docs Engine:', err);
-        setEngineMode('gdocs');
+        console.warn('PDF.js canvas load notice, falling back to Native Engine:', err);
+        setEngineMode('native');
         setLoadingDoc(false);
       });
 
@@ -249,8 +249,8 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
         })
         .catch((err: any) => {
           if (err?.name === 'RenderingCancelledException') return;
-          console.warn('Canvas render error, falling back to Google Docs Engine:', err);
-          setEngineMode('gdocs');
+          console.warn('Canvas render error, falling back to Native Engine:', err);
+          setEngineMode('native');
         });
     });
 

@@ -8,14 +8,19 @@ import {
   RotateCw,
   ExternalLink,
   RefreshCw,
-  FileText,
   Bookmark,
-  BookmarkCheck,
   List,
   X,
   History,
   Trash2,
   ArrowLeft,
+  LayoutGrid,
+  Sun,
+  Moon,
+  Coffee,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey, DocBookmark } from '../../services/readingMemory';
 import { transformDocumentUrl } from '../../utils/urlTransformer';
@@ -30,6 +35,8 @@ if (typeof window !== 'undefined') {
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 }
+
+export type ReadingTheme = 'light' | 'sepia' | 'dark';
 
 interface UniversalPdfViewerProps {
   url: string;
@@ -58,6 +65,21 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   const urlBundle = useMemo(() => transformDocumentUrl(url), [url]);
   const isGoogleDrive = urlBundle.isDrive;
 
+  // Reading Theme: 'light' | 'sepia' | 'dark'
+  const [theme, setTheme] = useState<ReadingTheme>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('aether_pdf_theme') as ReadingTheme;
+      if (saved) return saved;
+      return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
+  // Engine Mode: 'canvas' | 'native' | 'drive'
+  const [engineMode, setEngineMode] = useState<'canvas' | 'native' | 'drive'>(() => {
+    return isGoogleDrive ? 'drive' : 'canvas';
+  });
+
   // View state
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState<number>(() => {
@@ -68,19 +90,17 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      if (window.innerWidth < 640) return 0.95;
-      if (window.innerWidth < 1024) return 1.2;
-      return 1.4;
+      if (window.innerWidth < 640) return 1.0;
+      if (window.innerWidth < 1024) return 1.25;
+      return 1.45;
     }
-    return 1.4;
+    return 1.45;
   });
   const [rotation, setRotation] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isPageRendering, setIsPageRendering] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [engineMode, setEngineMode] = useState<'canvas' | 'drive' | 'gdocs' | 'native'>(() => {
-    return isGoogleDrive ? 'drive' : 'canvas';
-  });
+  const [zenMode, setZenMode] = useState<boolean>(false);
 
   // Resume notification state
   const [resumeNotification, setResumeNotification] = useState<{
@@ -88,22 +108,28 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     total: number;
   } | null>(null);
 
-  // Bookmarks state
+  // Bookmarks state & Drawer
   const [showBookmarksDrawer, setShowBookmarksDrawer] = useState<boolean>(false);
+  const [showPageGridModal, setShowPageGridModal] = useState<boolean>(false);
   const [bookmarks, setBookmarks] = useState<DocBookmark[]>(() => readingMemory.getBookmarks(docKey));
   const isCurrentPageBookmarked = readingMemory.isBookmarked(docKey, currentPage);
 
-  // Quick page jump state
-  const [isEditingPage, setIsEditingPage] = useState<boolean>(false);
-  const [pageInputVal, setPageInputVal] = useState<string>('');
-
-  // Swipe hint state
-  const [showSwipeHint, setShowSwipeHint] = useState<boolean>(true);
+  // Scrubber drag state
+  const [scrubberValue, setScrubberValue] = useState<number>(currentPage);
+  const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
 
   // Gesture tracking refs
   const touchStartY = useRef<number>(0);
   const touchStartX = useRef<number>(0);
   const lastWheelTime = useRef<number>(0);
+
+  // Save selected reading theme
+  const handleSelectTheme = (t: ReadingTheme) => {
+    setTheme(t);
+    try {
+      localStorage.setItem('aether_pdf_theme', t);
+    } catch {}
+  };
 
   // Convert relative paths to absolute URLs so Web Workers can resolve them
   const safePdfUrl = useMemo(() => {
@@ -128,26 +154,47 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     }
   }, [url, urlBundle]);
 
-  // Page advancement helpers
+  // Page navigation helpers
   const goToNextPage = useCallback(() => {
     setCurrentPage((prev) => {
-      if (numPages > 0 && prev < numPages) return prev + 1;
+      if (numPages > 0 && prev < numPages) {
+        const next = prev + 1;
+        setScrubberValue(next);
+        return next;
+      }
       return prev;
     });
-    setShowSwipeHint(false);
   }, [numPages]);
 
   const goToPrevPage = useCallback(() => {
     setCurrentPage((prev) => {
-      if (prev > 1) return prev - 1;
+      if (prev > 1) {
+        const p = prev - 1;
+        setScrubberValue(p);
+        return p;
+      }
       return prev;
     });
-    setShowSwipeHint(false);
   }, []);
 
-  // ==============================================================
-  // SWIPE DOWN / UP & WHEEL NAVIGATION HANDLERS (NO BUTTON NAV)
-  // ==============================================================
+  const jumpToPage = useCallback(
+    (target: number) => {
+      if (target >= 1 && (numPages === 0 || target <= numPages)) {
+        setCurrentPage(target);
+        setScrubberValue(target);
+      }
+    },
+    [numPages]
+  );
+
+  // Keep scrubber synced with current page when not actively dragging
+  useEffect(() => {
+    if (!isScrubbing) {
+      setScrubberValue(currentPage);
+    }
+  }, [currentPage, isScrubbing]);
+
+  // Vertical Swipe Gesture Detection
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
@@ -159,13 +206,11 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     const diffY = touchStartY.current - endY;
     const diffX = touchStartX.current - endX;
 
-    // Verify vertical swipe gesture (must exceed 45px and be more vertical than horizontal)
-    if (Math.abs(diffY) > 45 && Math.abs(diffY) > Math.abs(diffX)) {
+    // Minimum 40px vertical delta with vertical dominance
+    if (Math.abs(diffY) > 40 && Math.abs(diffY) > Math.abs(diffX)) {
       if (diffY > 0) {
-        // Swiped UP -> Advance to Next Page
         goToNextPage();
       } else {
-        // Swiped DOWN -> Go to Previous Page
         goToPrevPage();
       }
     }
@@ -173,8 +218,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
   const handleWheel = (e: React.WheelEvent) => {
     const now = Date.now();
-    // 300ms debounce to prevent skipping multiple pages on single wheel roll
-    if (now - lastWheelTime.current < 300) return;
+    if (now - lastWheelTime.current < 260) return;
 
     if (Math.abs(e.deltaY) > 35) {
       lastWheelTime.current = now;
@@ -186,22 +230,24 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     }
   };
 
-  // Keyboard ArrowUp / ArrowDown Navigation
+  // Keyboard Navigation (Arrow Keys & Page Up/Down)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'ArrowRight') {
         e.preventDefault();
         goToNextPage();
-      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'ArrowLeft') {
         e.preventDefault();
         goToPrevPage();
+      } else if (e.key === 'z' || e.key === 'Z') {
+        setZenMode((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNextPage, goToPrevPage]);
 
-  // Load PDF Document via PDF.js for canvas mode
+  // Load PDF Document via PDF.js for Canvas engine
   useEffect(() => {
     if (!safePdfUrl || isGoogleDrive) {
       setLoading(false);
@@ -210,7 +256,6 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
     let isCancelled = false;
     setLoading(true);
-    setError(null);
 
     const localCmap = `${window.location.origin}/cmaps/`;
     const loadingTask = pdfjsLib.getDocument({
@@ -227,7 +272,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         setNumPages(total);
         setLoading(false);
 
-        // Check for last read memory
+        // Resume reading progress
         const saved = readingMemory.getProgress(docKey);
         const targetPage =
           initialPage && initialPage > 0
@@ -237,6 +282,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
             : 1;
 
         setCurrentPage(targetPage);
+        setScrubberValue(targetPage);
 
         if (saved && saved.currentPage > 1 && (!initialPage || initialPage === saved.currentPage)) {
           setResumeNotification({
@@ -245,15 +291,14 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           });
           const t = setTimeout(() => {
             setResumeNotification(null);
-          }, 6000);
+          }, 5000);
           return () => clearTimeout(t);
         }
       })
       .catch((err: any) => {
         if (isCancelled) return;
-        console.warn('PDF.js canvas load error, activating fallback engine:', err);
-        setError('Canvas notice');
-        setEngineMode('gdocs');
+        console.warn('PDF.js canvas load error, activating high-speed native browser embed:', err);
+        setEngineMode('native');
         setLoading(false);
       });
 
@@ -265,16 +310,16 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     };
   }, [safePdfUrl, isGoogleDrive, docKey, initialPage]);
 
-  // Save reading progress whenever page changes
+  // Save progress persistently
   useEffect(() => {
     if (numPages > 0 && currentPage > 0) {
       readingMemory.saveProgress(docKey, title, currentPage, numPages);
     }
   }, [docKey, title, currentPage, numPages]);
 
-  // Render Page to Canvas
+  // High-DPI Page Canvas Rendering
   useEffect(() => {
-    if (!pdfDoc || isGoogleDrive || error || engineMode !== 'canvas') return;
+    if (!pdfDoc || isGoogleDrive || engineMode !== 'canvas') return;
 
     let isCancelled = false;
 
@@ -285,12 +330,20 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       renderTaskRef.current = null;
     }
 
+    setIsPageRendering(true);
+
     pdfDoc.getPage(currentPage).then((page: any) => {
       if (isCancelled) return;
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) {
+        setIsPageRendering(false);
+        return;
+      }
       const context = canvas.getContext('2d');
-      if (!context) return;
+      if (!context) {
+        setIsPageRendering(false);
+        return;
+      }
 
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const viewport = page.getViewport({ scale: scale, rotation: rotation });
@@ -313,11 +366,13 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       task.promise
         .then(() => {
           renderTaskRef.current = null;
+          setIsPageRendering(false);
         })
         .catch((err: any) => {
           if (err?.name === 'RenderingCancelledException') return;
-          console.warn('Canvas render error, falling back to Google Docs Engine:', err);
-          setEngineMode('gdocs');
+          console.warn('Canvas render error, falling back to Native engine:', err);
+          setIsPageRendering(false);
+          setEngineMode('native');
         });
     });
 
@@ -330,11 +385,18 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         renderTaskRef.current = null;
       }
     };
-  }, [pdfDoc, currentPage, scale, rotation, isGoogleDrive, error, engineMode]);
+  }, [pdfDoc, currentPage, scale, rotation, isGoogleDrive, engineMode]);
 
-  const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.25, 3.0));
-  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.6));
+  const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.2, 2.8));
+  const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.2, 0.7));
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
+  const handleFitWidth = () => {
+    if (typeof window !== 'undefined') {
+      const containerWidth = containerRef.current?.clientWidth || window.innerWidth;
+      const targetScale = Math.min(Math.max((containerWidth - 48) / 600, 0.8), 2.2);
+      setScale(targetScale);
+    }
+  };
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -356,22 +418,37 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     setBookmarks(readingMemory.getBookmarks(docKey));
   };
 
-  const handleJumpSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const p = parseInt(pageInputVal, 10);
-    if (!isNaN(p) && p >= 1 && p <= (numPages || 100)) {
-      setCurrentPage(p);
-    }
-    setIsEditingPage(false);
-    setPageInputVal('');
-  };
-
-  const readPercent = numPages > 0 ? Math.round((currentPage / numPages) * 100) : 0;
-
-  // Resolved URL for external tab/app
   const directOpenUrl = urlBundle.isDrive
     ? urlBundle.downloadUrl || urlBundle.previewUrl
     : safePdfUrl;
+
+  // Reading Theme Styling
+  const themeStyles = useMemo(() => {
+    switch (theme) {
+      case 'sepia':
+        return {
+          wrapper: 'bg-[#f4ebd9] text-[#433422]',
+          canvasFilter: 'sepia(35%) brightness(96%) contrast(98%)',
+          paperBg: 'bg-[#faf3e7]',
+          toolbar: 'bg-[#ebe0cb]/90 border-[#d8cbb2] text-[#433422]',
+        };
+      case 'dark':
+        return {
+          wrapper: 'bg-[#080d1a] text-slate-100',
+          canvasFilter: 'invert(92%) hue-rotate(180deg) brightness(96%) contrast(92%)',
+          paperBg: 'bg-[#0c1324]',
+          toolbar: 'bg-[#0e1629]/90 border-white/10 text-slate-100',
+        };
+      case 'light':
+      default:
+        return {
+          wrapper: 'bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white',
+          canvasFilter: 'none',
+          paperBg: 'bg-white',
+          toolbar: 'bg-white/90 dark:bg-slate-900/90 border-black/10 dark:border-white/10 text-slate-900 dark:text-white',
+        };
+    }
+  }, [theme]);
 
   return (
     <div
@@ -379,275 +456,207 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onWheel={handleWheel}
-      className={`relative w-full h-full flex flex-col bg-slate-950 overflow-hidden select-none ${className}`}
+      className={`relative flex flex-col w-full h-full select-none overflow-hidden transition-colors duration-300 ${themeStyles.wrapper} ${className}`}
     >
-      {/* Visual Reading Progress Bar at the Top Edge */}
-      <div className="w-full h-1 bg-slate-800 shrink-0 overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-brand-500 transition-all duration-300 ease-out"
-          style={{ width: `${readPercent}%` }}
-        />
-      </div>
-
       {/* ============================================================== */}
-      {/* TOP READER CONTROLS HEADER (BUTTON NAV REMOVED)                */}
+      {/* 1. APPLE BOOKS TOP FROSTED CONTROL BAR                        */}
       {/* ============================================================== */}
-      <div className="flex flex-wrap items-center justify-between px-3 py-2.5 bg-slate-900/95 backdrop-blur-md border-b border-white/10 text-white z-20 gap-2 shrink-0">
-        {/* Left: Close/Back & Document Title */}
-        <div className="flex items-center space-x-2 truncate max-w-[260px] sm:max-w-md">
+      <header
+        className={`h-14 px-3 sm:px-5 border-b backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 ${
+          zenMode ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        } ${themeStyles.toolbar}`}
+      >
+        {/* Left: Back / Title */}
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 mr-2">
           {onClose && (
             <button
               onClick={onClose}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-slate-800 hover:bg-brand-600 text-white text-xs font-bold transition-all border border-slate-700/80 cursor-pointer shrink-0 mr-1 ios-pill"
-              title="Return to previous screen"
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0 cursor-pointer flex items-center gap-1.5"
+              title="Close PDF Reader"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{backLabel || 'Back'}</span>
+              <ArrowLeft className="w-4 h-4" />
+              {backLabel && (
+                <span className="text-xs font-semibold hidden md:inline truncate max-w-[140px]">
+                  {backLabel}
+                </span>
+              )}
             </button>
           )}
-          <FileText className="w-4 h-4 text-brand-400 shrink-0" />
-          <div className="truncate flex flex-col">
-            <span className="text-xs font-bold text-slate-100 truncate leading-tight">{title}</span>
-            <span className="text-[10px] text-slate-400 truncate font-medium">
-              {subtitle ? `${subtitle} • ` : ''}Page {currentPage} of {numPages || 'Doc'}
-            </span>
+
+          <div className="min-w-0">
+            <h2 className="text-xs sm:text-sm font-bold truncate leading-tight">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-[10.5px] opacity-70 truncate font-medium mt-0.5">
+                {subtitle}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Center: Clean Page Status Pill (BUTTON NAV REMOVED -> SWIPE ONLY) */}
-        <div className="flex items-center space-x-1">
-          {isEditingPage ? (
-            <form onSubmit={handleJumpSubmit} className="flex items-center">
-              <input
-                type="number"
-                min={1}
-                max={numPages || 100}
-                value={pageInputVal}
-                onChange={(e) => setPageInputVal(e.target.value)}
-                autoFocus
-                onBlur={() => setIsEditingPage(false)}
-                className="w-14 px-2 py-0.5 text-xs text-center font-mono font-bold bg-slate-800 text-white border border-brand-500 rounded-full focus:outline-none"
-              />
-              <span className="text-xs text-slate-400 ml-1">/ {numPages || '...'}</span>
-            </form>
-          ) : (
-            <div
-              onClick={() => {
-                setPageInputVal(currentPage.toString());
-                setIsEditingPage(true);
-              }}
-              className="px-3.5 py-1.5 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-white/10 text-xs font-mono font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-              title="Swipe up/down to navigate pages. Click to jump to specific page."
-            >
-              <span className="text-brand-400 text-sm">{currentPage}</span>
-              <span className="text-slate-500">/</span>
-              <span>{numPages || 'Doc'}</span>
-              <span className="hidden sm:inline text-[9px] text-slate-400 font-sans ml-1">
-                (Swipe ↑↓)
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Bookmarks, Fullscreen & Open External */}
-        <div className="flex items-center space-x-1.5">
-          {/* Engine Switcher */}
-          <div className="hidden lg:flex items-center bg-slate-800 rounded-full p-0.5 border border-white/10 text-[10px] font-bold mr-1">
+        {/* Center: Reading Theme & Engine Pills */}
+        <div className="flex items-center space-x-1.5 shrink-0">
+          {/* Theme Selector (Paper / Sepia / Night) */}
+          <div className="flex items-center bg-black/5 dark:bg-white/10 rounded-full p-0.5 border border-black/5 dark:border-white/5">
             <button
-              onClick={() => setEngineMode('canvas')}
-              className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
-                engineMode === 'canvas' ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-white'
+              onClick={() => handleSelectTheme('light')}
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                theme === 'light' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="Render with direct high-definition canvas"
+              title="Paper White Theme"
             >
-              Canvas
+              <Sun className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => setEngineMode('gdocs')}
-              className={`px-2 py-0.5 rounded-full transition-all cursor-pointer ${
-                engineMode === 'gdocs' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+              onClick={() => handleSelectTheme('sepia')}
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                theme === 'sepia' ? 'bg-[#d8cbb2] text-[#433422] shadow-xs' : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="Render with Google Docs Viewer"
+              title="Eye-Comfort Sepia Theme"
             >
-              Google
+              <Coffee className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => handleSelectTheme('dark')}
+              className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                theme === 'dark' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="OLED Midnight Dark Theme"
+            >
+              <Moon className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Engine Mode Toggle (Canvas vs Native GPU) */}
+          {!isGoogleDrive && (
+            <button
+              onClick={() => setEngineMode(engineMode === 'canvas' ? 'native' : 'canvas')}
+              className="hidden lg:flex items-center space-x-1 px-2.5 py-1 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 text-[11px] font-bold border border-black/5 dark:border-white/5 transition-all cursor-pointer"
+              title="Switch PDF Rendering Engine"
+            >
+              <Sparkles className="w-3 h-3 text-brand-500" />
+              <span>{engineMode === 'canvas' ? 'Canvas' : 'Native GPU'}</span>
+            </button>
+          )}
 
           {/* Bookmark Button */}
           <button
             onClick={handleToggleBookmark}
-            disabled={loading}
-            className={`p-2 rounded-full transition-all cursor-pointer ios-pill ${
+            className={`p-2 rounded-full transition-all cursor-pointer ${
               isCurrentPageBookmarked
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/30'
+                : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100'
             }`}
-            title={isCurrentPageBookmarked ? 'Remove Bookmark' : 'Bookmark this Page'}
+            title={isCurrentPageBookmarked ? 'Page Bookmarked' : 'Bookmark this page'}
           >
-            {isCurrentPageBookmarked ? (
-              <BookmarkCheck className="w-4 h-4 text-amber-400 fill-amber-400" />
-            ) : (
-              <Bookmark className="w-4 h-4" />
-            )}
+            <Bookmark className="w-4 h-4 fill-current" />
           </button>
 
-          {/* Bookmarks Drawer Toggle */}
+          {/* Page Grid Overview Sheet */}
+          {numPages > 1 && (
+            <button
+              onClick={() => setShowPageGridModal(true)}
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
+              title="Page Overview Grid"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Bookmarks Drawer */}
           <button
             onClick={() => setShowBookmarksDrawer(!showBookmarksDrawer)}
-            className={`p-2 rounded-full relative transition-all cursor-pointer ios-pill ${
-              showBookmarksDrawer ? 'bg-brand-600 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-            }`}
-            title="View Saved Bookmarks"
+            className="relative p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
+            title="Saved Bookmarks"
           >
             <List className="w-4 h-4" />
             {bookmarks.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 text-[9px] font-bold text-slate-900 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 text-[9px] font-extrabold text-slate-950 flex items-center justify-center">
                 {bookmarks.length}
               </span>
             )}
           </button>
 
-          {/* Zoom In/Out (Canvas Mode) */}
+          {/* Zoom Controls */}
           {engineMode === 'canvas' && (
-            <>
+            <div className="hidden sm:flex items-center space-x-0.5">
               <button
                 onClick={handleZoomOut}
-                className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer hidden sm:flex"
+                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
               <button
+                onClick={handleFitWidth}
+                className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
+                title="Fit Page Width"
+              >
+                Fit
+              </button>
+              <button
                 onClick={handleZoomIn}
-                className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer hidden sm:flex"
+                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
                 title="Zoom In"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
               <button
                 onClick={handleRotate}
-                className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer hidden sm:flex"
-                title="Rotate 90°"
+                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
+                title="Rotate Page"
               >
                 <RotateCw className="w-4 h-4" />
               </button>
-            </>
+            </div>
           )}
 
           {/* Fullscreen */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
-          {/* Open in Drive / Native App */}
+          {/* Direct Open in System App */}
           <a
             href={directOpenUrl}
             target="_blank"
             rel="noreferrer"
             className="px-3 py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all shrink-0 ml-1 ios-pill"
-            title="Open Document in Drive or PDF Viewer"
+            title="Open Document in External App"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Open App ↗</span>
+            <span className="hidden sm:inline">Open ↗</span>
           </a>
         </div>
-      </div>
-
-      {/* Floating Swipe Navigation Hint Badge */}
-      {showSwipeHint && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-slate-900/90 border border-white/15 text-xs text-slate-300 font-semibold shadow-2xl backdrop-blur-md flex items-center gap-2 pointer-events-none animate-in fade-in duration-300">
-          <span>↕️ Swipe up/down or scroll wheel to navigate pages</span>
-        </div>
-      )}
-
-      {/* Floating Resume Notification */}
-      {resumeNotification && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-slate-900/95 border border-emerald-500/50 shadow-xl backdrop-blur-md flex items-center space-x-3 text-xs text-white animate-fade-in">
-          <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-            <History className="w-3 h-3" />
-          </div>
-          <span>
-            Resumed at <strong className="text-emerald-400 font-bold">Page {resumeNotification.page}</strong> of{' '}
-            {resumeNotification.total}
-          </span>
-          <button
-            onClick={() => setResumeNotification(null)}
-            className="p-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
-
-      {/* Bookmarks Drawer */}
-      {showBookmarksDrawer && (
-        <div className="absolute top-14 right-4 z-40 w-72 max-h-96 rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-md flex flex-col overflow-hidden text-slate-200 animate-fade-in">
-          <div className="p-3 bg-slate-800/80 border-b border-white/10 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Bookmark className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-bold text-white">Document Bookmarks</span>
-            </div>
-            <button
-              onClick={() => setShowBookmarksDrawer(false)}
-              className="p-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="p-2 overflow-y-auto divide-y divide-white/5 max-h-72">
-            {bookmarks.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400">
-                <Bookmark className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-50" />
-                <p className="font-semibold text-slate-300">No bookmarks yet</p>
-                <p className="text-[11px] mt-1 text-slate-500">
-                  Tap the bookmark icon to save key pages.
-                </p>
-              </div>
-            ) : (
-              bookmarks.map((bm) => (
-                <div
-                  key={bm.id}
-                  className="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-colors"
-                >
-                  <button
-                    onClick={() => {
-                      setCurrentPage(bm.page);
-                      setShowBookmarksDrawer(false);
-                    }}
-                    className="flex-1 text-left flex items-center space-x-2.5 truncate cursor-pointer"
-                  >
-                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 font-mono font-bold text-xs shrink-0">
-                      p. {bm.page}
-                    </span>
-                    <span className="text-xs text-slate-200 truncate font-medium">
-                      {bm.title || `Page ${bm.page}`}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      readingMemory.removeBookmark(docKey, bm.page);
-                      setBookmarks(readingMemory.getBookmarks(docKey));
-                    }}
-                    className="p-1 text-slate-400 hover:text-rose-400 transition-colors ml-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      </header>
 
       {/* ============================================================== */}
-      {/* MAIN DOCUMENT VIEWPORT (MULTI-ENGINE FAIL-SAFE)                 */}
+      {/* 2. MAIN DOCUMENT VIEWPORT                                      */}
       {/* ============================================================== */}
-      <div className="flex-1 w-full h-full relative overflow-hidden bg-slate-950 flex items-center justify-center">
+      <main
+        onClick={(e) => {
+          // Tap background to toggle Zen distraction-free mode
+          if (e.target === e.currentTarget) {
+            setZenMode((prev) => !prev);
+          }
+        }}
+        className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center"
+      >
+        {/* Loading Spinner with subtle backdrop */}
+        {loading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-xs z-20">
+            <RefreshCw className="w-8 h-8 text-brand-500 animate-spin mb-2" />
+            <p className="text-xs font-bold text-white tracking-wide">
+              Preparing Smooth High-Res Document...
+            </p>
+          </div>
+        )}
+
         {/* ENGINE 1: GOOGLE DRIVE PREVIEW EMBED */}
         {engineMode === 'drive' && (
           <div className="w-full h-full relative flex flex-col">
@@ -660,55 +669,246 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           </div>
         )}
 
-        {/* ENGINE 2: GOOGLE DOCS VIEWER EMBED */}
-        {engineMode === 'gdocs' && (
-          <div className="w-full h-full relative flex flex-col">
-            <iframe
-              src={`https://docs.google.com/viewer?url=${encodeURIComponent(
-                safePdfUrl
-              )}&embedded=true`}
-              title={title}
-              allow="autoplay; fullscreen"
-              className="w-full h-full border-0 bg-slate-900"
-            />
-          </div>
-        )}
-
-        {/* ENGINE 3: NATIVE EMBED */}
+        {/* ENGINE 2: NATIVE BROWSER EMBED (Zero Lag GPU Render) */}
         {engineMode === 'native' && (
-          <div className="w-full h-full relative flex flex-col">
+          <div className="w-full h-full relative flex flex-col bg-slate-900">
             <object
               data={safePdfUrl}
               type="application/pdf"
-              className="w-full h-full flex-1 bg-white"
+              className="w-full h-full flex-1"
             >
               <iframe
                 src={safePdfUrl}
                 title={title}
-                className="w-full h-full bg-white border-0"
+                className="w-full h-full border-0"
               />
             </object>
           </div>
         )}
 
-        {/* ENGINE 4: HIGH-DPI CANVAS WITH VERTICAL SWIPE / SCROLL */}
+        {/* ENGINE 3: HIGH-DPI CANVAS WITH SMOOTH SWIPE / SCROLL */}
         {engineMode === 'canvas' && (
-          <div className="w-full h-full flex items-center justify-center overflow-auto p-4 relative bg-slate-950/90">
-            {loading && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-xs z-20">
-                <RefreshCw className="w-8 h-8 text-brand-500 animate-spin mb-2" />
-                <p className="text-xs font-bold text-slate-200">
-                  Loading Document...
-                </p>
-              </div>
-            )}
-
-            <div className="max-w-full max-h-full flex items-center justify-center shadow-2xl rounded-2xl overflow-hidden bg-white">
-              <canvas ref={canvasRef} className="block max-w-full h-auto" />
+          <div className="w-full h-full flex items-center justify-center overflow-auto p-2 sm:p-5 relative">
+            <div
+              className={`max-w-full max-h-full flex items-center justify-center shadow-2xl rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-200 ${
+                themeStyles.paperBg
+              }`}
+              style={{
+                filter: themeStyles.canvasFilter,
+              }}
+            >
+              <canvas
+                ref={canvasRef}
+                className="block max-w-full h-auto cursor-default transition-opacity duration-150"
+                style={{
+                  opacity: isPageRendering ? 0.75 : 1,
+                }}
+              />
             </div>
           </div>
         )}
-      </div>
+
+        {/* Floating Resume Notification */}
+        {resumeNotification && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-slate-900/95 border border-emerald-500/50 shadow-2xl backdrop-blur-md flex items-center space-x-3 text-xs text-white animate-fade-in">
+            <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <History className="w-3 h-3" />
+            </div>
+            <span>
+              Resumed at <strong className="text-emerald-400 font-bold">Page {resumeNotification.page}</strong> of{' '}
+              {resumeNotification.total}
+            </span>
+            <button
+              onClick={() => setResumeNotification(null)}
+              className="p-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+      </main>
+
+      {/* ============================================================== */}
+      {/* 3. APPLE BOOKS BOTTOM SCRUBBER & PAGE CONTROLLER               */}
+      {/* ============================================================== */}
+      {numPages > 1 && engineMode === 'canvas' && (
+        <footer
+          className={`h-16 px-4 sm:px-8 border-t backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 ${
+            zenMode ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+          } ${themeStyles.toolbar}`}
+        >
+          {/* Quick Prev Page */}
+          <button
+            onClick={goToPrevPage}
+            disabled={currentPage <= 1}
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
+            title="Previous Page (Swipe Down)"
+          >
+            <ChevronUp className="w-4 h-4" />
+          </button>
+
+          {/* Smooth Scrubber Track */}
+          <div className="flex-1 max-w-md mx-4 sm:mx-8 flex flex-col items-center">
+            {/* Scrubber Tooltip */}
+            <div className="text-[11px] font-bold tracking-tight mb-1 flex items-center gap-2">
+              <span>
+                Page <strong className="font-extrabold text-brand-600 dark:text-brand-400">{scrubberValue}</strong> of {numPages}
+              </span>
+              <span className="opacity-40">•</span>
+              <span className="opacity-70 font-mono text-[10px]">{Math.round((scrubberValue / numPages) * 100)}% read</span>
+            </div>
+
+            {/* Range Input Slider */}
+            <input
+              type="range"
+              min={1}
+              max={numPages}
+              value={scrubberValue}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                setScrubberValue(val);
+                setIsScrubbing(true);
+              }}
+              onMouseUp={() => {
+                setIsScrubbing(false);
+                jumpToPage(scrubberValue);
+              }}
+              onTouchEnd={() => {
+                setIsScrubbing(false);
+                jumpToPage(scrubberValue);
+              }}
+              className="w-full h-1.5 bg-black/10 dark:bg-white/20 rounded-lg appearance-none cursor-pointer accent-brand-600 focus:outline-none"
+            />
+          </div>
+
+          {/* Quick Next Page */}
+          <button
+            onClick={goToNextPage}
+            disabled={currentPage >= numPages}
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
+            title="Next Page (Swipe Up)"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </footer>
+      )}
+
+      {/* ============================================================== */}
+      {/* 4. PAGE GRID MODAL (Instant Chapter & Page Thumbnails)          */}
+      {/* ============================================================== */}
+      {showPageGridModal && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowPageGridModal(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in"
+        >
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-black/10 dark:border-white/10 flex flex-col max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <LayoutGrid className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Quick Page Navigator ({numPages} Total Pages)
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowPageGridModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2.5">
+              {Array.from({ length: numPages }, (_, i) => i + 1).map((p) => {
+                const isCurrent = p === currentPage;
+                const isBookmarked = readingMemory.isBookmarked(docKey, p);
+
+                return (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      jumpToPage(p);
+                      setShowPageGridModal(false);
+                    }}
+                    className={`h-16 rounded-xl border flex flex-col items-center justify-center relative transition-all cursor-pointer ${
+                      isCurrent
+                        ? 'bg-brand-600 text-white font-black border-brand-500 shadow-md shadow-brand-500/25 scale-105'
+                        : 'bg-black/5 dark:bg-white/5 border-black/5 dark:border-white/5 hover:border-brand-500/50 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <span className="text-xs font-bold">{p}</span>
+                    {isBookmarked && (
+                      <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 5. BOOKMARKS DRAWER                                            */}
+      {/* ============================================================== */}
+      {showBookmarksDrawer && (
+        <div className="absolute top-16 right-4 z-40 w-72 max-h-96 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-black/10 dark:border-white/10 shadow-2xl backdrop-blur-xl flex flex-col overflow-hidden animate-fade-in">
+          <div className="p-3 bg-black/5 dark:bg-white/5 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Bookmark className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span className="text-xs font-bold">Document Bookmarks</span>
+            </div>
+            <button
+              onClick={() => setShowBookmarksDrawer(false)}
+              className="p-1 opacity-70 hover:opacity-100 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="p-2 overflow-y-auto divide-y divide-black/5 dark:divide-white/5 max-h-72">
+            {bookmarks.length === 0 ? (
+              <div className="p-6 text-center text-xs opacity-60">
+                <Bookmark className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="font-semibold">No bookmarks yet</p>
+                <p className="text-[11px] mt-1">Tap the bookmark icon to pin important pages.</p>
+              </div>
+            ) : (
+              bookmarks.map((bm) => (
+                <div
+                  key={bm.id}
+                  className="flex items-center justify-between p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                >
+                  <button
+                    onClick={() => {
+                      jumpToPage(bm.page);
+                      setShowBookmarksDrawer(false);
+                    }}
+                    className="flex-1 text-left flex items-center space-x-2.5 truncate cursor-pointer"
+                  >
+                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-300 font-mono font-bold text-xs shrink-0">
+                      p. {bm.page}
+                    </span>
+                    <span className="text-xs truncate font-medium">
+                      {bm.title || `Page ${bm.page}`}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      readingMemory.removeBookmark(docKey, bm.page);
+                      setBookmarks(readingMemory.getBookmarks(docKey));
+                    }}
+                    className="p-1 opacity-50 hover:opacity-100 hover:text-rose-500 transition-colors ml-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

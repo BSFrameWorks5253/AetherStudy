@@ -1,6 +1,5 @@
 import React from 'react';
 import { useStudyStore } from '../../store/useStudyStore';
-import { Flashcard } from '../flashcards/FlashcardDeck';
 import { getUserStorageItem } from '../../utils/userStorage';
 import { Printer, X, Sparkles } from 'lucide-react';
 
@@ -20,15 +19,6 @@ export const RevisionExporterModal: React.FC<RevisionExporterModalProps> = ({
   // Retrieve user-isolated syllabus completed map
   const rawMap = getUserStorageItem<Record<string, boolean>>('aether_syllabus_completed_map', {});
   const syllabusCompletedCount = Object.values(rawMap).filter(Boolean).length;
-
-  // Retrieve flashcards deck
-  let flashcards: Flashcard[] = [];
-  try {
-    const rawDeck = localStorage.getItem('aether_flashcards_deck');
-    if (rawDeck) flashcards = JSON.parse(rawDeck);
-  } catch {}
-
-  const masteredFlashcards = flashcards.filter((f) => f.box === 3);
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -59,40 +49,30 @@ export const RevisionExporterModal: React.FC<RevisionExporterModalProps> = ({
               <strong>Generated:</strong> ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} |
               <strong>Papers Solved:</strong> ${completedPapers.length} |
               <strong>Chapters Mastered:</strong> ${syllabusCompletedCount} |
-              <strong>Bookmarked Notes:</strong> ${bookmarks.length} |
-              <strong>Formulas Mastered:</strong> ${masteredFlashcards.length}
+              <strong>Bookmarked Notes:</strong> ${bookmarks.length}
             </div>
           </div>
 
           <h2>1. My High-Priority Document Bookmarks & Notes (${bookmarks.length})</h2>
           ${
             bookmarks.length === 0
-              ? '<p style="font-size:12px; color:#64748b;">No notes bookmarked yet. Use the PDF viewer to annotate tricky pages.</p>'
+              ? '<p style="font-size:12px; color:#64748b;">No notes bookmarked yet. Use the PDF viewer to bookmark key textbook or paper pages.</p>'
               : bookmarks
                   .map(
                     (b) => `
               <div class="note-card">
-                <div><span class="badge">Page ${b.page}</span> <strong>Paper Ref:</strong> ${b.pdfId}</div>
+                <div><span class="badge">Page ${b.page}</span> <strong>Document Ref:</strong> ${b.pdfId}</div>
                 <div style="margin-top: 4px;">${b.note}</div>
               </div>`
                   )
                   .join('')
           }
 
-          <h2>2. High-Yield Formulas & Adjustments (${masteredFlashcards.length})</h2>
-          ${
-            masteredFlashcards.length === 0
-              ? '<p style="font-size:12px; color:#64748b;">Visit the Formula Deck to mark formulas as mastered.</p>'
-              : masteredFlashcards
-                  .map(
-                    (f) => `
-              <div class="formula-card">
-                <div><span class="badge" style="background:#dcfce7; color:#166534;">${f.subject}</span> <strong>${f.topic}:</strong> ${f.front}</div>
-                <div style="margin-top: 4px; white-space: pre-line; color: #065f46;">${f.back}</div>
-              </div>`
-                  )
-                  .join('')
-          }
+          <h2>2. Curriculum Revision Status (${syllabusCompletedCount} Chapters Completed)</h2>
+          <div class="note-card" style="border-left-color: #16a34a; background: #f0fdf4;">
+            <div><strong>Active Syllabus Progress:</strong> ${syllabusCompletedCount} Topics & Chapters marked as completed in your study profile.</div>
+            <div style="margin-top: 4px; font-size: 12px; color: #15803d;">Keep revising weak areas and solving past question papers.</div>
+          </div>
         </body>
       </html>
     `);
@@ -133,8 +113,8 @@ export const RevisionExporterModal: React.FC<RevisionExporterModalProps> = ({
             <div className="text-base font-black text-brand-600 dark:text-brand-400 mt-0.5">{bookmarks.length}</div>
           </div>
           <div className="p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] text-center">
-            <div className="text-[10px] font-bold text-slate-500 uppercase">Formulas</div>
-            <div className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{masteredFlashcards.length}</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase">Chapters Mastered</div>
+            <div className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{syllabusCompletedCount}</div>
           </div>
           <div className="p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] text-center">
             <div className="text-[10px] font-bold text-slate-500 uppercase">Papers Done</div>

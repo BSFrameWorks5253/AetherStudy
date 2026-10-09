@@ -6,8 +6,6 @@ import { SplitWorkspace } from './components/workspace/SplitWorkspace';
 import { TestPapers } from './components/tests/TestPapers';
 import { TimetableGrid } from './components/timetable/TimetableGrid';
 import { TrackerTree } from './components/syllabus/TrackerTree';
-import { ExamSimulator } from './components/simulator/ExamSimulator';
-import { FlashcardDeck } from './components/flashcards/FlashcardDeck';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { PWAInstallBanner } from './components/common/PWAInstallBanner';
 import { PullToRefresh } from './components/common/PullToRefresh';
@@ -28,10 +26,6 @@ export const App: React.FC = () => {
       const path = window.location.pathname;
       if (path.startsWith('/tests')) {
         setActiveTab('tests');
-      } else if (path.startsWith('/simulator') || path.startsWith('/arena')) {
-        setActiveTab('simulator');
-      } else if (path.startsWith('/flashcards') || path.startsWith('/formulas')) {
-        setActiveTab('flashcards');
       } else if (path.startsWith('/timetable')) {
         setActiveTab('timetable');
       } else if (path.startsWith('/syllabus')) {
@@ -57,10 +51,6 @@ export const App: React.FC = () => {
       }
     } else if (tab === 'tests') {
       window.history.pushState(null, '', '/tests');
-    } else if (tab === 'simulator') {
-      window.history.pushState(null, '', '/simulator');
-    } else if (tab === 'flashcards') {
-      window.history.pushState(null, '', '/flashcards');
     } else if (tab === 'timetable') {
       window.history.pushState(null, '', '/timetable');
     } else if (tab === 'syllabus') {
@@ -74,10 +64,6 @@ export const App: React.FC = () => {
         return `Subject Rooms Desk • Standard ${activeStandard}`;
       case 'tests':
         return 'Board PYQs & Solutions • Maharashtra State Board HSC Commerce';
-      case 'simulator':
-        return 'Exam Hall Simulator • 3-Hour Timed Board Arena & Ruled Answer Sheet';
-      case 'flashcards':
-        return 'Formula & Adjustment Deck • Spaced Repetition (Leitner System)';
       case 'timetable':
         return 'Study Planner • Daily Timetable & Focus Blocks';
       case 'syllabus':
@@ -139,8 +125,6 @@ export const App: React.FC = () => {
                 </div>
               )
             )}
-            {activeTab === 'simulator' && <ExamSimulator />}
-            {activeTab === 'flashcards' && <FlashcardDeck />}
             {activeTab === 'timetable' && (
               isAuthenticated ? (
                 <TimetableGrid />

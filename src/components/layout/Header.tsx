@@ -22,7 +22,8 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { triggerPWAInstall } from '../common/PWAInstallBanner';
-import { AmbientSoundPopover } from '../common/AmbientSoundPopover';
+import { nativeNotifications } from '../../services/nativeNotifications';
+import { firebaseNotifications } from '../../services/firebase';
 
 interface HeaderProps {
   title: string;
@@ -71,14 +72,38 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
     const checkNotifs = async () => {
       try {
         const notifs = await api.getNotifications(isSuperAdmin ? undefined : activeStandard);
-        setUnreadNotifsCount(notifs.length);
+        const unread = nativeNotifications.getUnreadCount(notifs);
+        setUnreadNotifsCount(unread);
       } catch {
         // silent
       }
     };
+
     checkNotifs();
-    const interval = setInterval(checkNotifs, 15000);
-    return () => clearInterval(interval);
+    const interval = setInterval(checkNotifs, 20000);
+
+    const handleReadChange = () => {
+      checkNotifs();
+    };
+    window.addEventListener('aetherstudy_announcements_read_change', handleReadChange);
+
+    // Realtime notification sync & native phone notification tray alerts
+    const unsubscribe = firebaseNotifications.subscribe((cloudNotifs) => {
+      if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
+        const unread = nativeNotifications.getUnreadCount(cloudNotifs);
+        setUnreadNotifsCount(unread);
+        const latest = cloudNotifs[0];
+        if (latest) {
+          nativeNotifications.notifyIfNew(latest);
+        }
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('aetherstudy_announcements_read_change', handleReadChange);
+      unsubscribe();
+    };
   }, [activeStandard, isSuperAdmin]);
 
   const toggleFullscreen = () => {
@@ -277,9 +302,6 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
               </div>
             )}
           </div>
-
-          {/* Offline Binaural & Ambient Audio Synthesizer */}
-          <AmbientSoundPopover />
 
           {/* Install App Capsule */}
           {canInstall && (
