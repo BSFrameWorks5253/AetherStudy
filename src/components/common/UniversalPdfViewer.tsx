@@ -527,28 +527,26 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         } ${themeStyles.toolbar}`}
       >
         {/* Left: Back / Title */}
-        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 mr-2">
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1 mr-3">
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0 cursor-pointer flex items-center gap-1.5"
-              title="Close PDF Reader"
+              className="px-2.5 py-1.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 border border-black/5 dark:border-white/10 text-xs font-bold"
+              title={backLabel || 'Close Reader (Esc)'}
             >
-              <ArrowLeft className="w-4 h-4" />
-              {backLabel && (
-                <span className="text-xs font-semibold hidden md:inline truncate max-w-[140px]">
-                  {backLabel}
-                </span>
-              )}
+              <ArrowLeft className="w-4 h-4 shrink-0" />
+              <span className="font-semibold tracking-tight">Back</span>
             </button>
           )}
 
-          <div className="min-w-0">
-            <h2 className="text-xs sm:text-sm font-bold truncate leading-tight">
+          <div className="h-4 w-px bg-black/10 dark:bg-white/10 shrink-0 hidden sm:block" />
+
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xs sm:text-sm font-bold truncate leading-tight tracking-tight">
               {title}
             </h2>
             {subtitle && (
-              <p className="text-[10.5px] opacity-70 truncate font-medium mt-0.5">
+              <p className="text-[11px] opacity-70 truncate font-medium mt-0.5">
                 {subtitle}
               </p>
             )}

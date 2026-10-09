@@ -106,6 +106,7 @@ export interface ChapterItem {
   number: string;
   title: string;
   part?: string;
+  section?: string;
   keyTopics?: string;
 }
 
@@ -174,13 +175,39 @@ export const COMMERCE_STD12_CHAPTERS: Record<string, ChapterItem[]> = {
     { number: 'Chapter 6', title: 'Enterprise Resource Planning (ERP)', keyTopics: 'ERP Modules (Supply Chain, Finance, HR), Integrated Database, Cloud ERP' },
   ],
   english: [
-    { number: '1.1', title: 'An Astrologer’s Day', keyTopics: 'R. K. Narayan prose, Irony & Human nature, Vocabulary, Grammar' },
-    { number: '1.2', title: 'On Saying “Please”', keyTopics: 'A. G. Gardiner prose, Social etiquette, Civility & Politeness' },
-    { number: '1.3', title: 'The Cop and the Anthem', keyTopics: 'O. Henry story, Humour & Irony, Soapy’s resolution' },
-    { number: '1.4', title: 'Big Data - Big Insights', keyTopics: 'Data revolution, Industry applications, Machine learning basics' },
-    { number: '1.5', title: 'The New Dress', keyTopics: 'Virginia Woolf stream of consciousness, Self-consciousness' },
-    { number: '2.1-2.6', title: 'Poetry & Appreciation (Section II)', keyTopics: 'Cherry Tree, Indian Weavers, The Inchcape Rock, Have You Earned Your Tomorrow' },
-    { number: '3.1-3.6', title: 'Writing Skills & Novel (Section III & IV)', keyTopics: 'Summary, Mind Mapping, Note Making, SOP, History of English Novel' },
+    // SECTION ONE (Prose)
+    { number: '1.1', title: 'An Astrologer’s Day — R. K. Narayan', section: 'Section 1 (Prose)', keyTopics: 'R. K. Narayan prose, Irony & Human nature, Character study, Guru Nayak encounter' },
+    { number: '1.2', title: 'On Saying “Please” — Alfred George Gardiner', section: 'Section 1 (Prose)', keyTopics: 'Social etiquette, Civility & Politeness, Moral vs legal laws, Courtesy in public life' },
+    { number: '1.3', title: 'The Cop and the Anthem — O’Henry', section: 'Section 1 (Prose)', keyTopics: 'O’Henry story, Irony & Humour, Soapy’s resolution and Blackwell Island' },
+    { number: '1.4', title: 'Big Data - Big Insights', section: 'Section 1 (Prose)', keyTopics: 'Data revolution, Big data analytics, Industry applications, Health & Geo-tracking' },
+    { number: '1.5', title: 'The New Dress — Virginia Woolf', section: 'Section 1 (Prose)', keyTopics: 'Stream of consciousness, Mabel Waring, Social insecurity, Self-consciousness' },
+    { number: '1.6', title: 'Into the Wild — Kiran Purandare', section: 'Section 1 (Prose)', keyTopics: 'Wildlife safari, Umbarzara, Tracking leopards & birds, Nature conservation & Shaaz Jung' },
+    { number: '1.7', title: 'Why we Travel — Siddarth Pico Raghavan Iyer', section: 'Section 1 (Prose)', keyTopics: 'Philosophy of travel, Experiencing cultures, Wonder, Self-discovery & perspective' },
+    { number: '1.8', title: 'Voyaging Towards Excellence — Achyut Godbole', section: 'Section 1 (Prose)', keyTopics: 'Journey from IIT to management, Passion for learning, Humility, Teamwork & excellence' },
+
+    // SECTION TWO (Poetry)
+    { number: '2.1', title: 'Song of the Open Road — Walt Whitman', section: 'Section 2 (Poetry)', keyTopics: 'Freedom of the road, Optimism, Self-reliance, Democratic spirit, Free verse' },
+    { number: '2.2', title: 'Indian Weavers — Sarojini Naidu', section: 'Section 2 (Poetry)', keyTopics: 'Stages of human life (Birth, Youth, Death), Symbolic colors & textiles, Rhyme scheme' },
+    { number: '2.3', title: 'The Inchcape Rock — Robert Southey', section: 'Section 2 (Poetry)', keyTopics: 'Ballad, Abbot of Aberbrothok, Sir Ralph the Rover, Poetic justice & retribution' },
+    { number: '2.4', title: 'Have you Earned your Tomorrow — Edgar Guest', section: 'Section 2 (Poetry)', keyTopics: 'Kindness, Daily deeds, Moral reflection, Selfless service, Making a difference' },
+    { number: '2.5', title: 'Father Returning Home — Dilip Chitre', section: 'Section 2 (Poetry)', keyTopics: 'Alienation, Loneliness of modern urban life, Sub-urban commute, Generation gap' },
+    { number: '2.6', title: 'Money — William H. Davies', section: 'Section 2 (Poetry)', keyTopics: 'True wealth, False friends vs genuine poverty, Philosophy of contentment and peace' },
+    { number: '2.7', title: 'She Walks in Beauty — George Gordon Byron', section: 'Section 2 (Poetry)', keyTopics: 'Romantic ode, Harmony of light and dark, Physical grace & pure innocent mind' },
+    { number: '2.8', title: 'Small Towns and Rivers — Mamang Dai', section: 'Section 2 (Poetry)', keyTopics: 'Arunachal Pradesh, Native lore, Immortality of river vs mortal life, Ecology' },
+
+    // SECTION THREE (Writing Skills)
+    { number: '3.1', title: 'Summary Writing', section: 'Section 3 (Writing Skills)', keyTopics: 'Condensing texts, Identifying main ideas, Brevity, Eliminating repetition & examples' },
+    { number: '3.2', title: 'Do Schools Really Kill Creativity? (Mind-Mapping)', section: 'Section 3 (Writing Skills)', keyTopics: 'Mind-mapping techniques, Visual brain notes, Central concept & branches' },
+    { number: '3.3', title: 'Note–Making', section: 'Section 3 (Writing Skills)', keyTopics: 'Tabular & Tree diagram formats, Headings, Sub-points, Abbreviations' },
+    { number: '3.4', title: 'Statement of Purpose (SOP)', section: 'Section 3 (Writing Skills)', keyTopics: 'University & job applications, Personal motivation, Academic background, Future aspirations' },
+    { number: '3.5', title: 'Drafting a Virtual Message', section: 'Section 3 (Writing Skills)', keyTopics: 'Converting telephone conversations to written notes, Date/Time/Sender/Receiver format' },
+    { number: '3.6', title: 'Group Discussion', section: 'Section 3 (Writing Skills)', keyTopics: 'Verbal communication, Listening, Moderating, Expressing opinions diplomatically' },
+
+    // SECTION FOUR (Genre-Novel)
+    { number: '4.1', title: 'History of Novel', section: 'Section 4 (Genre-Novel)', keyTopics: 'Evolution of novel, 6 Elements (Plot, Character, Theme, Setting, Conflict, Language/Style)' },
+    { number: '4.2', title: 'To Sir, with Love — E. R. Braithwaite', section: 'Section 4 (Genre-Novel)', keyTopics: 'Teacher-student relationship, Greenslade School, Racial prejudice, Student Council report' },
+    { number: '4.3', title: 'Around the World in Eighty Days — Jules Gabriel Verne', section: 'Section 4 (Genre-Novel)', keyTopics: 'Phileas Fogg, Passepartout, Detective Fix, Time zones, Reform Club bet' },
+    { number: '4.4', title: 'The Sign of Four — Sir Arthur Ignatius Conan Doyle', section: 'Section 4 (Genre-Novel)', keyTopics: 'Sherlock Holmes, Dr. Watson, Mary Morstan, Agra treasure, Jonathan Small' },
   ],
   sp: [
     { number: 'Chapter 1', title: 'Introduction to Corporate Finance', keyTopics: 'Fixed & Working capital, Capital structure determinants' },
@@ -385,9 +412,13 @@ export const getDocsForChapter = (
       if (p.includes('2') && (dName.includes('part 1') || dName.includes('pt 1') || dName.includes('part-1') || dName.includes('maths 1') || dName.includes('maths-1'))) return false;
     }
 
-    // 1. Exact "Chapter X" / "Chp X" / "Ch X" matching
-    if (numDigits) {
-      const chRegex = new RegExp(`(?:chapter|chpt|chp|ch|unit)\\s*[-_.]?\\s*0?${numDigits}(?:[^0-9]|$)`, 'i');
+    // Decimal chapter matching for English e.g. "1.1", "2.3", "4.2"
+    if (ch.number.includes('.')) {
+      const escaped = ch.number.replace('.', '\\.');
+      const decRegex = new RegExp(`(?:lesson|unit|prose|poem|chapter|ch)?\\s*${escaped}(?:[^0-9.]|$)`, 'i');
+      if (decRegex.test(dName)) return true;
+    } else if (numDigits) {
+      const chRegex = new RegExp(`(?:chapter|chpt|chp|ch|unit)\\s*[-_.]?\\s*0?${numDigits}(?:[^0-9.]|$)`, 'i');
       if (chRegex.test(dName)) return true;
 
       // Leading number e.g. "1- B.K Chapter 1..." or "01 - ..."
@@ -397,6 +428,29 @@ export const getDocsForChapter = (
 
     // 2. Direct topic keyword matching
     const titleLower = ch.title.toLowerCase();
+    if (titleLower.includes('astrologer') && dName.includes('astrologer')) return true;
+    if (titleLower.includes('cop and the anthem') && (dName.includes('cop') || dName.includes('anthem'))) return true;
+    if (titleLower.includes('big data') && dName.includes('big data')) return true;
+    if (titleLower.includes('new dress') && dName.includes('new dress')) return true;
+    if (titleLower.includes('into the wild') && dName.includes('wild')) return true;
+    if (titleLower.includes('why we travel') && dName.includes('travel')) return true;
+    if (titleLower.includes('voyaging') && dName.includes('voyaging')) return true;
+    if (titleLower.includes('open road') && dName.includes('open road')) return true;
+    if (titleLower.includes('indian weavers') && dName.includes('weaver')) return true;
+    if (titleLower.includes('inchcape rock') && dName.includes('inchcape')) return true;
+    if (titleLower.includes('earned your tomorrow') && dName.includes('tomorrow')) return true;
+    if (titleLower.includes('father returning') && dName.includes('father')) return true;
+    if (titleLower.includes('she walks in beauty') && (dName.includes('walks in beauty') || dName.includes('beauty'))) return true;
+    if (titleLower.includes('small towns') && dName.includes('small town')) return true;
+    if (titleLower.includes('mind-mapping') && (dName.includes('mind mapping') || dName.includes('mind-mapping'))) return true;
+    if (titleLower.includes('note–making') && (dName.includes('note making') || dName.includes('note-making'))) return true;
+    if (titleLower.includes('statement of purpose') && (dName.includes('sop') || dName.includes('statement of purpose'))) return true;
+    if (titleLower.includes('virtual message') && dName.includes('virtual message')) return true;
+    if (titleLower.includes('group discussion') && dName.includes('group discussion')) return true;
+    if (titleLower.includes('to sir, with love') && (dName.includes('sir, with love') || dName.includes('sir with love') || dName.includes('braithwaite'))) return true;
+    if (titleLower.includes('eighty days') && (dName.includes('eighty days') || dName.includes('80 days') || dName.includes('phileas fogg'))) return true;
+    if (titleLower.includes('sign of four') && (dName.includes('sign of four') || dName.includes('sign of 4') || dName.includes('sherlock'))) return true;
+
     if (titleLower.includes('partition') && dName.includes('partition')) return true;
     if (titleLower.includes('dispersion') && dName.includes('dispersion')) return true;
     if (titleLower.includes('skewness') && dName.includes('skewness')) return true;
