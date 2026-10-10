@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api, ServerDocument } from '../../services/api';
-import { uploadDirectToGoogleDrive, deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
+import { deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
+import { pdfVault } from '../../services/pdfVault';
 import { firebaseDeletedDocs } from '../../services/firebase';
 import {
   Upload,
@@ -101,28 +102,34 @@ export const DocumentViewer: React.FC = () => {
       try {
         newDoc = await api.uploadDocument(selectedFile, chosenSubject, currentUser?.email || 'admin', targetStandard);
       } catch (uploadErr) {
-        // Fallback to Google Drive direct upload
-        const driveResult = await uploadDirectToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || 'admin', targetStandard);
-        if (driveResult && driveResult.id) {
-          newDoc = {
-            id: driveResult.id,
-            name: driveResult.name || selectedFile.name,
-            originalName: selectedFile.name,
-            streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-            serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-            mimeType: selectedFile.type || 'application/pdf',
-            sizeBytes: selectedFile.size,
-            size: driveResult.size || `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
-            uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
-            uploadedBy: currentUser?.email || 'admin',
-            subject: chosenSubject,
-            standard: targetStandard,
-            category: 'notes',
-            uploadCount: 1,
-          };
-        } else {
-          throw uploadErr;
+        // Fallback to local IndexedDB Vault for instant storage (<30ms)
+        const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+        let streamUrl = '';
+        try {
+          streamUrl = await pdfVault.store(docId, selectedFile, selectedFile.name);
+        } catch {
+          streamUrl = URL.createObjectURL(selectedFile);
         }
+
+        newDoc = {
+          id: docId,
+          name: selectedFile.name,
+          originalName: selectedFile.name,
+          streamUrl,
+          serverUrl: streamUrl,
+          mimeType: selectedFile.type || 'application/pdf',
+          sizeBytes: selectedFile.size,
+          size: `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: currentUser?.email || 'admin',
+          subject: chosenSubject,
+          standard: targetStandard,
+          category: 'notes',
+          uploadCount: 1,
+        };
+
+        const local = api.getLocalDocuments();
+        api.saveLocalDocuments([newDoc, ...local]);
       }
 
       setDocuments((prev) => [newDoc, ...prev]);

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey, DocBookmark } from '../../services/readingMemory';
 import { transformDocumentUrl } from '../../utils/urlTransformer';
+import { pdfVault } from '../../services/pdfVault';
 
 // Configure offline local PDF.js worker with cdnjs fallback
 if (typeof window !== 'undefined') {
@@ -278,6 +279,32 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     }
   }, [url, urlBundle]);
 
+  // High-performance active URL resolution from IndexedDB pdfVault
+  const [resolvedPdfUrl, setResolvedPdfUrl] = useState<string>(safePdfUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const vaultUrl =
+          (await pdfVault.getUrl(url).catch(() => null)) ||
+          (title ? await pdfVault.getUrl(title).catch(() => null) : null) ||
+          (await pdfVault.getUrl(docKey).catch(() => null));
+        if (vaultUrl && !cancelled) {
+          setResolvedPdfUrl(vaultUrl);
+          return;
+        }
+      } catch {}
+
+      if (!cancelled) {
+        setResolvedPdfUrl(safePdfUrl);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [safePdfUrl, url, title, docKey]);
+
   // Page navigation helpers
   const goToNextPage = useCallback(() => {
     if (numPages > 0 && currentPage < numPages) {
@@ -373,7 +400,8 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
   // Load PDF Document via PDF.js
   useEffect(() => {
-    if (!safePdfUrl || isGoogleDrive) {
+    const targetUrl = resolvedPdfUrl || safePdfUrl;
+    if (!targetUrl || isGoogleDrive) {
       setLoading(false);
       return;
     }
@@ -383,7 +411,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
     const localCmap = `${window.location.origin}/cmaps/`;
     const loadingTask = pdfjsLib.getDocument({
-      url: safePdfUrl,
+      url: targetUrl,
       cMapUrl: localCmap,
       cMapPacked: true,
     });
@@ -430,8 +458,19 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           return () => clearTimeout(t);
         }
       })
-      .catch((err: any) => {
+      .catch(async (err: any) => {
         if (isCancelled) return;
+        // Check if IndexedDB pdfVault has the active blob
+        try {
+          const freshVaultUrl =
+            (await pdfVault.getUrl(url).catch(() => null)) ||
+            (title ? await pdfVault.getUrl(title).catch(() => null) : null);
+          if (freshVaultUrl && freshVaultUrl !== targetUrl) {
+            setResolvedPdfUrl(freshVaultUrl);
+            return;
+          }
+        } catch {}
+
         console.warn('PDF.js canvas load error, activating high-speed native browser embed:', err);
         setEngineMode('native');
         setLoading(false);
@@ -443,7 +482,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         loadingTask.destroy();
       } catch {}
     };
-  }, [safePdfUrl, isGoogleDrive, docKey, initialPage]);
+  }, [resolvedPdfUrl, safePdfUrl, isGoogleDrive, docKey, initialPage, url, title]);
 
   // Save progress persistently
   useEffect(() => {
@@ -574,7 +613,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
   const directOpenUrl = urlBundle.isDrive
     ? urlBundle.downloadUrl || urlBundle.previewUrl
-    : safePdfUrl;
+    : (resolvedPdfUrl || safePdfUrl);
 
   // Reading Theme Styling
   const themeStyles = useMemo(() => {
@@ -846,12 +885,12 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         {engineMode === 'native' && (
           <div className="w-full h-full relative flex flex-col bg-slate-900">
             <object
-              data={safePdfUrl}
+              data={resolvedPdfUrl || safePdfUrl}
               type="application/pdf"
               className="w-full h-full flex-1"
             >
               <iframe
-                src={safePdfUrl}
+                src={resolvedPdfUrl || safePdfUrl}
                 title={title}
                 className="w-full h-full border-0"
               />

@@ -11,6 +11,8 @@ declare global {
   }
 }
 
+import { pdfVault } from './pdfVault';
+
 export interface DriveUploadResult {
   id: string;
   name: string;
@@ -90,6 +92,26 @@ export async function uploadDirectToGoogleDrive(
   isAnswerKey?: boolean,
   folderPath?: string
 ): Promise<DriveUploadResult> {
+  // Option 0: When Google Drive credentials are empty, store in local IndexedDB vault instantly (<20ms)
+  if (!GOOGLE_APPS_SCRIPT_URL && !GOOGLE_CLIENT_ID) {
+    const docId = `gdrive-local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    let streamUrl = '';
+    try {
+      streamUrl = await pdfVault.store(docId, file, file.name);
+    } catch {
+      streamUrl = URL.createObjectURL(file);
+    }
+    return {
+      id: docId,
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      streamUrl,
+      subject,
+      uploadedBy: uploaderEmail,
+      uploadedAt: new Date().toISOString(),
+    };
+  }
+
   // Option 1: 100% Free Google Apps Script Web App (Zero GCP, Zero Service Accounts)
   if (GOOGLE_APPS_SCRIPT_URL) {
     const base64 = await new Promise<string>((resolve, reject) => {

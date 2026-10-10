@@ -6,8 +6,8 @@ import {
   PairedPYQ,
 } from '../../utils/fileSegregator';
 import { useAuth } from '../../context/AuthContext';
-import { uploadDirectToGoogleDrive } from '../../services/clientGoogleDrive';
-import { api } from '../../services/api';
+import { api, ServerDocument } from '../../services/api';
+import { pdfVault } from '../../services/pdfVault';
 import {
   UploadCloud,
   FileText,
@@ -324,58 +324,43 @@ const SUPPORTED_STUDY_EXTENSIONS = new Set([
         if (item.originalFile) {
           const docCategory = item.category === 'textbook' ? 'textbook' : 'notes';
           try {
-            // Upload to Google Drive
-            const driveRes = await uploadDirectToGoogleDrive(
+            await api.uploadDocument(
               item.originalFile,
               item.subject,
-              currentUser?.email || 'admin@aetherstudy.com'
+              currentUser?.email || 'admin@aetherstudy.com',
+              item.standard,
+              docCategory
             );
+            if (docCategory === 'textbook') textbooksUploaded++;
+            else notesUploaded++;
+          } catch (err) {
+            console.warn('Fallback vault upload for:', item.fileName, err);
+            const docId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+            let streamUrl = '';
+            try {
+              streamUrl = await pdfVault.store(docId, item.originalFile, item.fileName);
+            } catch {
+              streamUrl = URL.createObjectURL(item.originalFile);
+            }
 
-            // Attach to local & server documents registry
-            await api.attachDriveDoc(item.subject, {
-              id: driveRes.id,
+            const fallbackDoc: ServerDocument = {
+              id: docId,
               name: item.cleanTitle || item.fileName,
               originalName: item.fileName,
-              streamUrl: driveRes.streamUrl,
-              serverUrl: driveRes.streamUrl,
+              streamUrl,
+              serverUrl: streamUrl,
+              url: streamUrl,
               subject: item.subject,
               standard: item.standard,
               category: docCategory,
               size: (item.originalFile.size / (1024 * 1024)).toFixed(2) + ' MB',
               uploadedBy: currentUser?.email || 'admin@aetherstudy.com',
-            });
+              uploadedAt: new Date().toISOString(),
+            };
+            const local = api.getLocalDocuments();
+            api.saveLocalDocuments([fallbackDoc, ...local]);
             if (docCategory === 'textbook') textbooksUploaded++;
             else notesUploaded++;
-          } catch (err) {
-            console.warn('Fallback server document upload:', err);
-            try {
-              await api.uploadDocument(
-                item.originalFile,
-                item.subject,
-                currentUser?.email || 'admin',
-                item.standard,
-                docCategory
-              );
-              if (docCategory === 'textbook') textbooksUploaded++;
-              else notesUploaded++;
-            } catch (fallbackErr) {
-              console.warn('Direct local attachment fallback for:', item.fileName, fallbackErr);
-              const streamUrl = URL.createObjectURL(item.originalFile);
-              await api.attachDriveDoc(item.subject, {
-                id: `local-doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                name: item.cleanTitle || item.fileName,
-                originalName: item.fileName,
-                streamUrl,
-                serverUrl: streamUrl,
-                subject: item.subject,
-                standard: item.standard,
-                category: docCategory,
-                size: (item.originalFile.size / (1024 * 1024)).toFixed(2) + ' MB',
-                uploadedBy: currentUser?.email || 'admin',
-              });
-              if (docCategory === 'textbook') textbooksUploaded++;
-              else notesUploaded++;
-            }
           }
         }
         setUploadProgress(Math.round(((i + 1) / total) * 100));
@@ -395,31 +380,23 @@ const SUPPORTED_STUDY_EXTENSIONS = new Set([
         let aName = pyq.solutionFile?.fileName || 'Model Solution.pdf';
 
         if (pyq.questionFile?.originalFile) {
+          const qId = `pyq-q-${Date.now()}-${j}`;
           try {
-            const driveRes = await uploadDirectToGoogleDrive(
-              pyq.questionFile.originalFile,
-              pyq.subject,
-              currentUser?.email || 'admin@aetherstudy.com'
-            );
-            qUrl = driveRes.streamUrl;
+            qUrl = await pdfVault.store(qId, pyq.questionFile.originalFile, qName);
           } catch {
-            qUrl = `/uploads/${pyq.questionFile.fileName}`;
+            qUrl = URL.createObjectURL(pyq.questionFile.originalFile);
           }
         }
 
         if (pyq.solutionFile?.originalFile) {
+          const aId = `pyq-a-${Date.now()}-${j}`;
           try {
-            const driveRes = await uploadDirectToGoogleDrive(
-              pyq.solutionFile.originalFile,
-              pyq.subject,
-              currentUser?.email || 'admin@aetherstudy.com'
-            );
-            aUrl = driveRes.streamUrl;
+            aUrl = await pdfVault.store(aId, pyq.solutionFile.originalFile, aName);
           } catch {
-            aUrl = `/uploads/${pyq.solutionFile.fileName}`;
+            aUrl = URL.createObjectURL(pyq.solutionFile.originalFile);
           }
         } else {
-          aUrl = qUrl; // fallback to QP
+          aUrl = qUrl;
           aName = `${qName} (Self-Study / Solutions in paper)`;
         }
 

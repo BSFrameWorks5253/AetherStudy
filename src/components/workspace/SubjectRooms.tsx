@@ -3,8 +3,9 @@ import { useAuth } from '../../context/AuthContext';
 import { api, ServerDocument } from '../../services/api';
 import { getUserStorageItem, setUserStorageItem } from '../../utils/userStorage';
 import { TestPaper } from '../../types/testPaper';
-import { uploadDirectToGoogleDrive, deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
+import { deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
 import { firebaseDocuments, firebaseDeletedDocs } from '../../services/firebase';
+import { pdfVault } from '../../services/pdfVault';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import { CardSkeleton } from '../common/LoadingSkeleton';
 import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
@@ -1431,7 +1432,7 @@ export const SubjectRooms: React.FC = () => {
 
         let uploadedRecord: ServerDocument | null = null;
 
-        // 1. Primary: Upload to Firebase Cloud Storage / Server Pipeline
+        // Upload via high-speed vault & cloud sync pipeline
         try {
           uploadedRecord = await api.uploadDocument(
             file,
@@ -1444,52 +1445,40 @@ export const SubjectRooms: React.FC = () => {
             filt,
             tags
           );
-        } catch (fbErr: any) {
-          console.warn(`[Primary Cloud Storage Upload Notice for ${file.name}]:`, fbErr);
-
-          // 2. Secondary Fallback: Google Drive Direct Upload via Apps Script
+        } catch (err: any) {
+          console.warn(`[Vault Direct Upload Fallback for ${file.name}]:`, err);
+          const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+          let vaultUrl = '';
           try {
-            const driveResult = await uploadDirectToGoogleDrive(
-              file,
-              targetSub,
-              currentUser?.email || 'admin',
-              targetStd,
-              cat
-            );
-
-            if (driveResult && driveResult.id) {
-              const driveDoc: ServerDocument = {
-                id: driveResult.id,
-                name: driveResult.name || file.name,
-                originalName: file.name,
-                streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-                serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-                mimeType: file.type || 'application/pdf',
-                sizeBytes: file.size,
-                size: driveResult.size || `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-                uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
-                uploadedBy: currentUser?.email || 'admin',
-                subject: targetSub,
-                standard: targetStd,
-                category: cat,
-                chapterNumber: chNum,
-                chapterTitle: chTitle,
-                customFilter: filt,
-                tags: tags,
-                uploadCount: 1,
-              };
-
-              try {
-                const attachRes = await api.attachDriveDoc(targetSub, driveDoc);
-                uploadedRecord = attachRes.document || driveDoc;
-              } catch {
-                uploadedRecord = driveDoc;
-              }
-            }
-          } catch (driveErr: any) {
-            console.error(`[Upload Failed for ${file.name}]:`, driveErr);
-            throw new Error(`Upload failed for "${file.name}": ${(driveErr && driveErr.message) || (fbErr && fbErr.message) || 'Network error'}. Please try again.`);
+            vaultUrl = await pdfVault.store(docId, file, file.name);
+          } catch {
+            vaultUrl = URL.createObjectURL(file);
           }
+
+          uploadedRecord = {
+            id: docId,
+            name: file.name,
+            originalName: file.name,
+            streamUrl: vaultUrl,
+            serverUrl: vaultUrl,
+            url: vaultUrl,
+            mimeType: file.type || 'application/pdf',
+            sizeBytes: file.size,
+            size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: currentUser?.email || 'Faculty',
+            subject: targetSub,
+            standard: targetStd,
+            category: cat,
+            chapterNumber: chNum,
+            chapterTitle: chTitle,
+            customFilter: filt,
+            tags: tags,
+            uploadCount: 1,
+          };
+
+          const local = api.getLocalDocuments();
+          api.saveLocalDocuments([uploadedRecord, ...local]);
         }
 
         if (uploadedRecord) {

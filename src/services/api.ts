@@ -2,6 +2,7 @@ import { UserProfile, UserRole } from '../types/auth';
 import { TestPaper } from '../types/testPaper';
 import { firebaseTimetable, firebasePaperRequests, firebaseDocuments, firebaseStorageService, firebaseDeletedDocs } from './firebase';
 import { deleteFromGoogleDrive } from './clientGoogleDrive';
+import { pdfVault } from './pdfVault';
 
 export interface ServerDocument {
   id: string;
@@ -306,22 +307,58 @@ export const api = {
   },
 
   async uploadTestPaper(formData: FormData): Promise<TestPaper> {
-    const res = await fetch(`${API_BASE}/test-papers/upload`, {
-      method: 'POST',
-      headers: getAuthHeaders(false),
-      body: formData,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to upload test paper');
-    }
-    const created: TestPaper = await res.json();
+    const id = 'paper-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const title = (formData.get('title') as string) || 'Test Paper';
+    const subject = (formData.get('subject') as string) || 'General';
+    const year = Number(formData.get('year')) || new Date().getFullYear();
+    const examType = (formData.get('examType') as any) || 'PYQ';
+    const durationMinutes = Number(formData.get('durationMinutes')) || 180;
+    const totalMarks = Number(formData.get('totalMarks')) || 80;
+    const uploadedBy = (formData.get('uploadedBy') as string) || 'Faculty';
+    const questionPdfUrl = (formData.get('questionPdfUrl') as string) || '';
+    const answerKeyPdfUrl = (formData.get('answerKeyPdfUrl') as string) || '';
+    const questionPdfName = (formData.get('questionPdfName') as string) || 'Question Paper.pdf';
+    const answerKeyPdfName = (formData.get('answerKeyPdfName') as string) || 'Answer Key.pdf';
+
+    const created: TestPaper = {
+      id,
+      title,
+      subject,
+      year,
+      examType,
+      durationMinutes,
+      totalMarks,
+      uploadedBy,
+      uploadedAt: new Date().toISOString(),
+      questionPdfUrl,
+      answerKeyPdfUrl,
+      questionPdfName,
+      answerKeyPdfName,
+    };
+
+    // Cache locally immediately so UI never hangs
     try {
       const cached = localStorage.getItem('aether_cached_test_papers');
       const list: TestPaper[] = cached ? JSON.parse(cached) : [];
       const updated = [created, ...list.filter((p) => p.id !== created.id)];
       localStorage.setItem('aether_cached_test_papers', JSON.stringify(updated));
     } catch {}
+
+    // Non-blocking background server sync with timeout
+    (async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        await fetch(`${API_BASE}/test-papers/upload`, {
+          method: 'POST',
+          headers: getAuthHeaders(false),
+          body: formData,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch {}
+    })();
+
     return created;
   },
 
@@ -593,78 +630,88 @@ export const api = {
     tags?: string[]
   ): Promise<ServerDocument> {
     const targetStandard = standard || '12';
+    const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
 
-    // 1. Cloud-First: Upload directly to Firebase Cloud Storage (global CDN, 100% phone & desktop reliable)
-    let fbUploadResult: any = null;
+    // 1. Instantly store binary blob into local IndexedDB Vault (< 50ms)
+    let streamUrl = '';
     try {
-      fbUploadResult = await firebaseStorageService.uploadPdf(file, subject, targetStandard);
-    } catch (fbErr) {
-      console.warn('[Firebase Cloud Storage Direct Upload Warning]:', fbErr);
+      streamUrl = await pdfVault.store(docId, file, file.name);
+    } catch {
+      streamUrl = URL.createObjectURL(file);
     }
 
-    if (fbUploadResult && fbUploadResult.url) {
-      const cloudDoc: ServerDocument = {
-        id: 'fb-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-        name: file.name,
-        originalName: file.name,
-        streamUrl: fbUploadResult.url,
-        serverUrl: fbUploadResult.url,
-        url: fbUploadResult.url,
-        mimeType: file.type || 'application/pdf',
-        sizeBytes: file.size,
-        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: uploadedBy || 'Faculty',
-        subject,
-        standard: targetStandard,
-        category: category || 'notes',
-        chapterNumber: chapterNumber || '',
-        chapterTitle: chapterTitle || '',
-        customFilter: customFilter || '',
-        tags: tags || [],
-        uploadCount: 1,
-      };
+    const newDoc: ServerDocument = {
+      id: docId,
+      name: file.name,
+      originalName: file.name,
+      streamUrl,
+      serverUrl: streamUrl,
+      url: streamUrl,
+      mimeType: file.type || 'application/pdf',
+      sizeBytes: file.size,
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: uploadedBy || 'Faculty',
+      subject,
+      standard: targetStandard,
+      category: category || 'notes',
+      chapterNumber: chapterNumber || '',
+      chapterTitle: chapterTitle || '',
+      customFilter: customFilter || '',
+      tags: tags || [],
+      uploadCount: 1,
+    };
 
-      const local = api.getLocalDocuments();
-      api.saveLocalDocuments([cloudDoc, ...local.filter((d) => d.id !== cloudDoc.id)]);
-      firebaseDocuments.saveDocument(cloudDoc).catch(() => {});
-
-      // Forward metadata to server so server DB reflects it too
-      fetch(`${API_BASE}/documents/sync`, {
-        method: 'POST',
-        headers: getAuthHeaders(true),
-        body: JSON.stringify({ documents: [cloudDoc] }),
-      }).catch(() => {});
-
-      return cloudDoc;
-    }
-
-    // 2. Fallback to Server Express Upload
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('subject', subject);
-    formData.append('uploadedBy', uploadedBy);
-    if (standard) formData.append('standard', standard);
-    if (category) formData.append('category', category);
-    if (chapterNumber) formData.append('chapterNumber', chapterNumber);
-    if (chapterTitle) formData.append('chapterTitle', chapterTitle);
-    if (customFilter) formData.append('customFilter', customFilter);
-    if (tags && tags.length > 0) formData.append('tags', tags.join(','));
-
-    const res = await fetch(`${API_BASE}/documents/upload`, {
-      method: 'POST',
-      headers: getAuthHeaders(false),
-      body: formData,
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Server file upload failed');
-    }
-    const uploaded: ServerDocument = await res.json();
+    // Save locally immediately
     const local = api.getLocalDocuments();
-    api.saveLocalDocuments([uploaded, ...local.filter((d) => d.id !== uploaded.id)]);
-    firebaseDocuments.saveDocument(uploaded).catch(() => {});
-    return uploaded;
+    api.saveLocalDocuments([newDoc, ...local.filter((d) => d.id !== newDoc.id)]);
+
+    // Synchronize metadata non-blockingly to Firebase & Cloudflare D1 (<1KB payload)
+    firebaseDocuments.saveDocument(newDoc).catch(() => {});
+    fetch(`${API_BASE}/documents/sync`, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body: JSON.stringify({ documents: [newDoc] }),
+    }).catch(() => {});
+
+    // Fast background cloud forward: only attempt for small files (< 4MB) to strictly respect Vercel 4.5MB serverless limit
+    if (file.size < 4 * 1024 * 1024) {
+      (async () => {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('subject', subject);
+          formData.append('uploadedBy', uploadedBy || 'Faculty');
+          if (standard) formData.append('standard', targetStandard);
+          if (category) formData.append('category', category);
+          if (chapterNumber) formData.append('chapterNumber', chapterNumber);
+          if (chapterTitle) formData.append('chapterTitle', chapterTitle);
+          if (customFilter) formData.append('customFilter', customFilter);
+          if (tags && tags.length > 0) formData.append('tags', tags.join(','));
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+          const res = await fetch(`${API_BASE}/documents/upload`, {
+            method: 'POST',
+            headers: getAuthHeaders(false),
+            body: formData,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const uploaded = await res.json();
+            if (uploaded && (uploaded.serverUrl || uploaded.streamUrl)) {
+              newDoc.serverUrl = uploaded.serverUrl || uploaded.streamUrl;
+              firebaseDocuments.saveDocument(newDoc).catch(() => {});
+            }
+          }
+        } catch {}
+      })();
+    }
+
+    return newDoc;
   },
 
   async uploadMultipleDocuments(
@@ -719,8 +766,9 @@ export const api = {
     // 1. Immediately register in persistent tombstone blacklist synchronously
     firebaseDeletedDocs.markDeletedSync(docMeta || id);
 
-    // 2. Synchronously purge from local cache
+    // 2. Synchronously purge from local cache & IndexedDB vault
     try {
+      pdfVault.delete(id).catch(() => {});
       const local = api.getLocalDocuments();
       api.saveLocalDocuments(
         local.filter((d) => {
@@ -771,6 +819,7 @@ export const api = {
 
   async purgeAllDocuments(): Promise<boolean> {
     try {
+      pdfVault.clearAll().catch(() => {});
       const local = api.getLocalDocuments();
       const allIds = local.map((d) => d.id);
 
@@ -800,8 +849,9 @@ export const api = {
   },
 
   async resetFullData(): Promise<boolean> {
-    // 1. Wipe all local client caches and tombstones
+    // 1. Wipe all local client caches, IndexedDB vault, and tombstones
     try {
+      pdfVault.clearAll().catch(() => {});
       localStorage.removeItem('aether_cached_documents');
       localStorage.removeItem('aether_deleted_document_ids');
       localStorage.removeItem('aether_documents');
