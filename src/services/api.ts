@@ -24,6 +24,7 @@ export interface ServerDocument {
   customFilter?: string;
   tags?: string[];
   uploadCount?: number;
+  updatedAt?: string;
 }
 
 export interface AdminNotification {
@@ -818,6 +819,57 @@ export const api = {
     } catch {
       return true;
     }
+  },
+
+  async updateDocument(id: string, updates: Partial<ServerDocument>): Promise<ServerDocument | null> {
+    if (!id) return null;
+    const local = api.getLocalDocuments();
+    let updatedDoc: ServerDocument | null = null;
+    const nextDocs: ServerDocument[] = local.map((d) => {
+      if (d.id === id) {
+        const next: ServerDocument = { ...d, ...updates, updatedAt: new Date().toISOString() };
+        updatedDoc = next;
+        return next;
+      }
+      return d;
+    });
+
+    if (updatedDoc) {
+      api.saveLocalDocuments(nextDocs);
+      firebaseDocuments.saveDocument(updatedDoc).catch(() => {});
+      fetch(`${API_BASE}/documents/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify(updates),
+      }).catch(() => {});
+    }
+
+    return updatedDoc;
+  },
+
+  async batchUpdateDocuments(updates: Array<{ id: string; changes: Partial<ServerDocument> }>): Promise<ServerDocument[]> {
+    if (!Array.isArray(updates) || updates.length === 0) return [];
+    const local = api.getLocalDocuments();
+    const updateMap = new Map(updates.map((u) => [u.id, u.changes]));
+    const changedDocs: ServerDocument[] = [];
+    const nextDocs = local.map((d) => {
+      const changes = updateMap.get(d.id);
+      if (changes) {
+        const next = { ...d, ...changes, updatedAt: new Date().toISOString() };
+        changedDocs.push(next);
+        return next;
+      }
+      return d;
+    });
+
+    if (changedDocs.length > 0) {
+      api.saveLocalDocuments(nextDocs);
+      changedDocs.forEach((d) => {
+        firebaseDocuments.saveDocument(d).catch(() => {});
+      });
+    }
+
+    return changedDocs;
   },
 
   async purgeAllDocuments(): Promise<boolean> {

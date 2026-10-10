@@ -36,6 +36,9 @@ import {
   Tag,
   Grid,
   List,
+  Check,
+  X,
+  Edit3,
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey } from '../../services/readingMemory';
 
@@ -671,9 +674,19 @@ export const SubjectRooms: React.FC = () => {
     } catch {}
     return ['Theory Notes', 'Question Bank', 'Formula Sheet', 'Summary & Revision', 'Solved Examples'];
   });
-  const [newTagInput, setNewTagInput] = useState<string>('');
-  const [showAddTagModal, setShowAddTagModal] = useState<boolean>(false);
   const [isPurgingNotes, setIsPurgingNotes] = useState<boolean>(false);
+
+  // Rich Tag Creation & PDF/Chapter Assignment Modal State
+  const [showTagAssignModal, setShowTagAssignModal] = useState<boolean>(false);
+  const [assignTagName, setAssignTagName] = useState<string>('');
+  const [assignSelectedChapters, setAssignSelectedChapters] = useState<string[]>([]);
+  const [assignSelectedDocIds, setAssignSelectedDocIds] = useState<string[]>([]);
+  const [assignSearchFilter, setAssignSearchFilter] = useState<string>('');
+
+  // Quick Single Document Tag/Chapter Editor State
+  const [editingDoc, setEditingDoc] = useState<ServerDocument | null>(null);
+  const [editDocChapter, setEditDocChapter] = useState<string>('');
+  const [editDocTag, setEditDocTag] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1357,6 +1370,149 @@ export const SubjectRooms: React.FC = () => {
     } finally {
       setIsPurgingNotes(false);
     }
+  };
+
+  // Open Tag Creation & Assignment Modal
+  const handleOpenCreateTagModal = (presetTag?: string) => {
+    setAssignTagName(presetTag || '');
+    setAssignSelectedChapters([]);
+    if (selectedChapterFilter !== 'All') {
+      const targetChapter = activeRoomChapters.find((c) => c.number === selectedChapterFilter);
+      if (targetChapter) {
+        const docIds = roomDocuments
+          .filter((d) => getDocsForChapter(targetChapter, [d], effectiveStandard).length > 0)
+          .map((d) => d.id);
+        setAssignSelectedDocIds(docIds);
+        setAssignSelectedChapters([selectedChapterFilter]);
+      } else {
+        setAssignSelectedDocIds([]);
+      }
+    } else {
+      setAssignSelectedDocIds([]);
+    }
+    setAssignSearchFilter('');
+    setShowTagAssignModal(true);
+  };
+
+  // Toggle chapter in Tag Assignment Modal (and sync its documents)
+  const handleToggleAssignChapter = (chNumber: string) => {
+    setAssignSelectedChapters((prev) => {
+      const isAlreadySelected = prev.includes(chNumber);
+      const nextChapters = isAlreadySelected
+        ? prev.filter((c) => c !== chNumber)
+        : [...prev, chNumber];
+
+      const targetChapter = activeRoomChapters.find((c) => c.number === chNumber);
+      if (targetChapter) {
+        const chapterDocIds = roomDocuments
+          .filter((d) => getDocsForChapter(targetChapter, [d], effectiveStandard).length > 0)
+          .map((d) => d.id);
+
+        setAssignSelectedDocIds((prevDocIds) => {
+          if (isAlreadySelected) {
+            return prevDocIds.filter((id) => !chapterDocIds.includes(id));
+          } else {
+            return Array.from(new Set([...prevDocIds, ...chapterDocIds]));
+          }
+        });
+      }
+
+      return nextChapters;
+    });
+  };
+
+  // Toggle individual PDF document in Tag Assignment Modal
+  const handleToggleAssignDoc = (docId: string) => {
+    setAssignSelectedDocIds((prev) =>
+      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
+    );
+  };
+
+  // Select all / Deselect all documents in Tag Assignment Modal
+  const handleToggleSelectAllDocs = () => {
+    if (assignSelectedDocIds.length === roomDocuments.length && roomDocuments.length > 0) {
+      setAssignSelectedDocIds([]);
+      setAssignSelectedChapters([]);
+    } else {
+      setAssignSelectedDocIds(roomDocuments.map((d) => d.id));
+      setAssignSelectedChapters(activeRoomChapters.map((c) => c.number));
+    }
+  };
+
+  // Save Tag & Document Assignment
+  const handleSaveTagAssignment = async () => {
+    const trimmedTag = assignTagName.trim();
+    if (!trimmedTag) return;
+
+    // 1. Add to custom filters list if not present
+    if (!customFiltersList.includes(trimmedTag)) {
+      const updatedList = [...customFiltersList, trimmedTag];
+      setCustomFiltersList(updatedList);
+      localStorage.setItem('aether_custom_filters', JSON.stringify(updatedList));
+    }
+
+    // 2. Batch update documents if any are selected
+    if (assignSelectedDocIds.length > 0) {
+      const updates = assignSelectedDocIds.map((id) => {
+        const existingDoc = documents.find((d) => d.id === id);
+        const existingTags = existingDoc?.tags || [];
+        const nextTags = existingTags.includes(trimmedTag) ? existingTags : [...existingTags, trimmedTag];
+        return {
+          id,
+          changes: {
+            customFilter: trimmedTag,
+            tags: nextTags,
+          },
+        };
+      });
+
+      const updatedDocs = await api.batchUpdateDocuments(updates);
+      if (updatedDocs.length > 0) {
+        setDocuments((prev) => {
+          const map = new Map(updatedDocs.map((u) => [u.id, u]));
+          return prev.map((d) => map.get(d.id) || d);
+        });
+      }
+    }
+
+    // 3. Select this tag so the user immediately sees the documents under it
+    setSelectedCustomFilter(trimmedTag);
+    setActiveCategoryTab('notes');
+    setShowTagAssignModal(false);
+  };
+
+  // Save Single Document Edit (Chapter & Tag)
+  const handleSaveSingleDocEdit = async () => {
+    if (!editingDoc) return;
+    const trimmedTag = editDocTag.trim();
+    const existingTags = editingDoc.tags || [];
+    const nextTags = trimmedTag && !existingTags.includes(trimmedTag)
+      ? [...existingTags, trimmedTag]
+      : existingTags;
+
+    let chTitle = editingDoc.chapterTitle;
+    if (editDocChapter && editDocChapter !== 'All') {
+      const foundCh = activeRoomChapters.find((c) => c.number === editDocChapter);
+      if (foundCh) chTitle = foundCh.title;
+    }
+
+    const updated = await api.updateDocument(editingDoc.id, {
+      chapterNumber: editDocChapter,
+      chapterTitle: chTitle,
+      customFilter: trimmedTag,
+      tags: nextTags,
+    });
+
+    if (updated) {
+      setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+      if (trimmedTag && !customFiltersList.includes(trimmedTag)) {
+        const nextList = [...customFiltersList, trimmedTag];
+        setCustomFiltersList(nextList);
+        localStorage.setItem('aether_custom_filters', JSON.stringify(nextList));
+      }
+    }
+
+    setEditingDoc(null);
   };
 
   // Handle Upload (supports single or multiple files in batch with per-file chapter customisation)
@@ -2666,6 +2822,20 @@ export const SubjectRooms: React.FC = () => {
                             )}
 
                             <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                              {canUpload && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingDoc(doc);
+                                    setEditDocChapter(doc.chapterNumber || matchedCh?.number || 'All');
+                                    setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                                  title="Edit Chapter & Tag"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               <a
                                 href={getDownloadUrl(doc)}
                                 target="_blank"
@@ -2852,71 +3022,16 @@ export const SubjectRooms: React.FC = () => {
                       );
                     })}
 
-                    {/* Add Custom Filter Tag Button */}
-                    {showAddTagModal ? (
-                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-full border border-brand-500 shrink-0">
-                        <input
-                          type="text"
-                          value={newTagInput}
-                          onChange={(e) => setNewTagInput(e.target.value)}
-                          placeholder="New tag..."
-                          className="bg-transparent text-xs px-2 py-0.5 text-slate-800 dark:text-white outline-none w-24"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newTagInput.trim()) {
-                              const tag = newTagInput.trim();
-                              if (!customFiltersList.includes(tag)) {
-                                const updated = [...customFiltersList, tag];
-                                setCustomFiltersList(updated);
-                                localStorage.setItem('aether_custom_filters', JSON.stringify(updated));
-                              }
-                              setSelectedCustomFilter(tag);
-                              setNewTagInput('');
-                              setShowAddTagModal(false);
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (newTagInput.trim()) {
-                              const tag = newTagInput.trim();
-                              if (!customFiltersList.includes(tag)) {
-                                const updated = [...customFiltersList, tag];
-                                setCustomFiltersList(updated);
-                                localStorage.setItem('aether_custom_filters', JSON.stringify(updated));
-                              }
-                              setSelectedCustomFilter(tag);
-                              setNewTagInput('');
-                            }
-                            setShowAddTagModal(false);
-                          }}
-                          className="p-1 text-emerald-600 hover:text-emerald-700 font-bold text-xs"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNewTagInput('');
-                            setShowAddTagModal(false);
-                          }}
-                          className="p-1 text-slate-400 hover:text-slate-600 text-xs"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setShowAddTagModal(true)}
-                        className="px-2.5 py-1 rounded-full text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/50 border border-dashed border-brand-300 dark:border-brand-800 hover:bg-brand-100 dark:hover:bg-brand-900/50 transition-all shrink-0 cursor-pointer flex items-center gap-1"
-                        title="Add custom filter tag"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Add Tag</span>
-                      </button>
-                    )}
+                    {/* Create & Assign Tag Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCreateTagModal()}
+                      className="px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-brand-600 hover:from-amber-500 hover:to-brand-500 shadow-xs transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      title="Create a new tag and select which chapters & PDFs belong to it"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Create & Assign Tag</span>
+                    </button>
                   </div>
 
                   {/* ========================================================
@@ -3050,6 +3165,20 @@ export const SubjectRooms: React.FC = () => {
                                           )}
 
                                           <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                                            {canUpload && (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setEditingDoc(doc);
+                                                  setEditDocChapter(doc.chapterNumber || ch.number || 'All');
+                                                  setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                                }}
+                                                className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                                                title="Edit Chapter & Tag"
+                                              >
+                                                <Edit3 className="w-3.5 h-3.5" />
+                                              </button>
+                                            )}
                                             <a
                                               href={getDownloadUrl(doc)}
                                               target="_blank"
@@ -3152,6 +3281,20 @@ export const SubjectRooms: React.FC = () => {
                                       <Eye className="w-3 h-3" /> Read PDF
                                     </span>
                                     <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                                      {canUpload && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingDoc(doc);
+                                            setEditDocChapter(doc.chapterNumber || 'All');
+                                            setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                          }}
+                                          className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                                          title="Edit Chapter & Tag"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
                                       <a
                                         href={getDownloadUrl(doc)}
                                         target="_blank"
@@ -3254,6 +3397,20 @@ export const SubjectRooms: React.FC = () => {
                               )}
 
                               <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                                {canUpload && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingDoc(doc);
+                                      setEditDocChapter(doc.chapterNumber || matchedCh?.number || 'All');
+                                      setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                    }}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                                    title="Edit Chapter & Tag"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                                 <a
                                   href={getDownloadUrl(doc)}
                                   target="_blank"
@@ -3571,6 +3728,356 @@ export const SubjectRooms: React.FC = () => {
             loadContent();
           }}
         />
+      )}
+
+      {/* 🏷️ Interactive Tag Creation & PDF/Chapter Assignment Modal */}
+      {showTagAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-scale-up">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-slate-50/70 dark:bg-slate-900/70">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-400/15 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20">
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+                    Create Tag & Assign Study Materials
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Choose which chapters & PDFs belong to this tag in {activeRoom}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTagAssignModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body: Scrollable */}
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+              {/* Step 1: Tag Name Input & Suggestion Pills */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>1. Tag Name</span>
+                  <span className="text-[11px] font-normal text-slate-400">Required</span>
+                </label>
+                <input
+                  type="text"
+                  value={assignTagName}
+                  onChange={(e) => setAssignTagName(e.target.value)}
+                  placeholder="e.g. Theory Notes, Question Bank, Formula Sheet, Important Numericals"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                  autoFocus
+                />
+                {/* Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Quick ideas:</span>
+                  {[
+                    'Theory Notes',
+                    'Question Bank',
+                    'Formula Sheet',
+                    'Summary & Revision',
+                    'Solved Examples',
+                    'Important Questions',
+                    'Board Paper Solutions',
+                    'Key Definitions',
+                  ].map((idea) => (
+                    <button
+                      key={idea}
+                      type="button"
+                      onClick={() => setAssignTagName(idea)}
+                      className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                        assignTagName.toLowerCase() === idea.toLowerCase()
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-400'
+                      }`}
+                    >
+                      {idea}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Step 2: Target Chapters Selector */}
+              {activeRoomChapters.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      2. Filter / Assign by Chapters ({assignSelectedChapters.length} selected)
+                    </label>
+                    <span className="text-[11px] text-slate-400">Click a chapter to auto-select its PDFs</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
+                    {activeRoomChapters.map((ch) => {
+                      const isSel = assignSelectedChapters.includes(ch.number);
+                      const chDocCount = roomDocuments.filter(
+                        (d) => getDocsForChapter(ch, [d], effectiveStandard).length > 0
+                      ).length;
+
+                      return (
+                        <button
+                          key={ch.number}
+                          type="button"
+                          onClick={() => handleToggleAssignChapter(ch.number)}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                            isSel
+                              ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
+                              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-brand-400'
+                          }`}
+                        >
+                          <span>{ch.number}</span>
+                          <span
+                            className={`text-[10px] px-1 rounded-md ${
+                              isSel ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                            }`}
+                          >
+                            {chDocCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Select which PDFs to include */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <span>3. Select PDFs to Keep in Tag ({assignSelectedDocIds.length} of {roomDocuments.length} selected)</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAllDocs}
+                      className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer"
+                    >
+                      {assignSelectedDocIds.length === roomDocuments.length && roomDocuments.length > 0
+                        ? 'Deselect All'
+                        : 'Select All'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* PDF Search Filter */}
+                {roomDocuments.length > 5 && (
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={assignSearchFilter}
+                      onChange={(e) => setAssignSearchFilter(e.target.value)}
+                      placeholder="Search PDFs by title..."
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs pl-8 pr-3 py-1.5 rounded-xl outline-none"
+                    />
+                  </div>
+                )}
+
+                {/* Document List */}
+                {roomDocuments.length === 0 ? (
+                  <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-1.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      No PDFs currently uploaded for {activeRoom}.
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      You can still create this tag now, and it will be available when you upload new study materials!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                    {roomDocuments
+                      .filter((d) => {
+                        if (!assignSearchFilter.trim()) return true;
+                        const q = assignSearchFilter.toLowerCase();
+                        return (d.name || d.originalName || '').toLowerCase().includes(q);
+                      })
+                      .map((doc) => {
+                        const isChecked = assignSelectedDocIds.includes(doc.id);
+                        const matchedCh = activeRoomChapters.find(
+                          (ch) => getDocsForChapter(ch, [doc], effectiveStandard).length > 0
+                        );
+
+                        return (
+                          <div
+                            key={doc.id}
+                            onClick={() => handleToggleAssignDoc(doc.id)}
+                            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                              isChecked
+                                ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 shadow-2xs'
+                                : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleAssignDoc(doc.id)}
+                                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                  {doc.name || doc.originalName}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                                  {matchedCh && (
+                                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                      {matchedCh.number}
+                                    </span>
+                                  )}
+                                  {doc.customFilter && (
+                                    <span>Current tag: {doc.customFilter}</span>
+                                  )}
+                                  <span>{doc.size || 'PDF'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                isChecked
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                              }`}
+                            >
+                              {isChecked ? 'Included' : 'Add'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowTagAssignModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={!assignTagName.trim()}
+                onClick={handleSaveTagAssignment}
+                className="px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-amber-600 to-brand-600 hover:from-amber-500 hover:to-brand-500 disabled:opacity-50 shadow-md shadow-amber-500/20 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+              >
+                <Check className="w-4 h-4" />
+                <span>
+                  {assignSelectedDocIds.length > 0
+                    ? `Save & Assign to ${assignSelectedDocIds.length} ${assignSelectedDocIds.length === 1 ? 'PDF' : 'PDFs'}`
+                    : 'Create Tag'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✏️ Quick Single Document Tag & Chapter Editor Modal */}
+      {editingDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full overflow-hidden animate-scale-up">
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900/70">
+              <div className="flex items-center space-x-2">
+                <Edit3 className="w-4 h-4 text-brand-500" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Edit PDF Chapter & Tag
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingDoc(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 mb-1">Document:</p>
+                <p className="text-xs font-extrabold text-slate-900 dark:text-white line-clamp-2">
+                  {editingDoc.name || editingDoc.originalName}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Assigned Chapter
+                </label>
+                <select
+                  value={editDocChapter}
+                  onChange={(e) => setEditDocChapter(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                >
+                  <option value="All">General / All Chapters</option>
+                  {activeRoomChapters.map((ch) => (
+                    <option key={ch.number} value={ch.number}>
+                      {ch.number}: {ch.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Filter Tag
+                </label>
+                {/* Suggestions */}
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {availableCustomFilters.slice(0, 6).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setEditDocTag(t)}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                        editDocTag === t
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={editDocTag}
+                  onChange={(e) => setEditDocTag(e.target.value)}
+                  placeholder="e.g. Theory Notes, Question Bank, Formula Sheet"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/50 dark:bg-slate-900/50">
+              <button
+                type="button"
+                onClick={() => setEditingDoc(null)}
+                className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSingleDocEdit}
+                className="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-xs transition-all cursor-pointer"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
