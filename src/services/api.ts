@@ -488,12 +488,20 @@ export const api = {
   // 4. Documents Storage API
   getLocalDocuments(): ServerDocument[] {
     try {
+      // Purge obsolete pre-seeded cached documents from old versions
+      const DOCS_CLEAN_VERSION_KEY = 'aether_docs_clean_version';
+      const CURRENT_CLEAN_VERSION = 'v5_clean_all';
+      if (typeof window !== 'undefined' && localStorage.getItem(DOCS_CLEAN_VERSION_KEY) !== CURRENT_CLEAN_VERSION) {
+        localStorage.removeItem('aether_cached_documents');
+        localStorage.setItem(DOCS_CLEAN_VERSION_KEY, CURRENT_CLEAN_VERSION);
+      }
+
       const docMap = new Map<string, ServerDocument>();
-      // 1. Seed from bundled official catalog first (guaranteed instant availability on all devices)
+      // 1. Seed from bundled official catalog first
       const bundledDocs = (((catalogData as any)?.default?.documents || (catalogData as any)?.documents) || []) as ServerDocument[];
       if (Array.isArray(bundledDocs)) {
         bundledDocs.forEach((d: any) => {
-          if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+          if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !d.id.startsWith('doc-TWF0') && !d.streamUrl?.includes('/Material/')) {
             docMap.set(d.id, d as ServerDocument);
           }
         });
@@ -505,7 +513,7 @@ export const api = {
         const list: ServerDocument[] = JSON.parse(cached);
         if (Array.isArray(list)) {
           list.forEach((d) => {
-            if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+            if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !d.id.startsWith('doc-TWF0') && !d.streamUrl?.includes('/Material/')) {
               docMap.set(d.id, d);
             }
           });
@@ -514,15 +522,15 @@ export const api = {
 
       return Array.from(docMap.values());
     } catch {
-      return ((((catalogData as any)?.default?.documents || (catalogData as any)?.documents) || []) as ServerDocument[]).filter(
-        (d) => d && d.id && !firebaseDeletedDocs.isDeleted(d.id)
-      );
+      return [];
     }
   },
 
   saveLocalDocuments(docs: ServerDocument[]): void {
     try {
-      const clean = docs.filter((d) => d && d.id && !firebaseDeletedDocs.isDeleted(d.id));
+      const clean = docs.filter(
+        (d) => d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !d.id.startsWith('doc-TWF0') && !d.streamUrl?.includes('/Material/')
+      );
       localStorage.setItem('aether_cached_documents', JSON.stringify(clean));
     } catch (err) {
       console.warn('Failed to persist documents to localStorage:', err);
@@ -532,60 +540,25 @@ export const api = {
   async getDocuments(standard?: string): Promise<ServerDocument[]> {
     const docMap = new Map<string, ServerDocument>();
 
-    // 1. Instant Synchronous Seed: All official study materials from bundled catalog
-    const bundledDocs = (((catalogData as any)?.default?.documents || (catalogData as any)?.documents) || []) as ServerDocument[];
-    if (Array.isArray(bundledDocs)) {
-      bundledDocs.forEach((d: any) => {
-        if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
-          docMap.set(d.id, d as ServerDocument);
-        }
-      });
-    }
-
-    // 2. Client Offline Vault: Overlay local stored documents (never deleted ones)
-    try {
-      const cached = localStorage.getItem('aether_cached_documents');
-      if (cached) {
-        const localDocs: ServerDocument[] = JSON.parse(cached);
-        if (Array.isArray(localDocs)) {
-          localDocs.forEach((d) => {
-            if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !d.id.startsWith('doc-TWF0')) {
-              docMap.set(d.id, d);
-            }
-          });
-        }
+    // 1. Start from local documents (without pre-seeded material)
+    const localDocs = api.getLocalDocuments();
+    localDocs.forEach((d) => {
+      if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+        docMap.set(d.id, d);
       }
-    } catch {}
+    });
 
-    // 3. Fast non-blocking cloud fetch (with strict 1500ms safety limit)
-    try {
-      const fbPromise = firebaseDocuments.fetch();
-      const fbDocs = await Promise.race([
-        fbPromise,
-        new Promise<ServerDocument[]>((r) => setTimeout(() => r([]), 1500))
-      ]);
-      if (Array.isArray(fbDocs)) {
-        fbDocs.forEach((d) => {
-          if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
-            docMap.set(d.id, d);
-          }
-        });
-      }
-    } catch (fbErr) {
-      console.warn('[Documents API] Firebase cloud fetch note:', fbErr);
-    }
-
-    // 4. Secondary: Fetch from Server Endpoint (/api/documents) if local server is active
+    // 2. Fetch all persistent documents from Cloudflare D1 via Edge Server endpoint (/api/documents)
     try {
       const url = standard && standard !== 'ALL'
         ? `${API_BASE}/documents?standard=${encodeURIComponent(standard)}`
         : `${API_BASE}/documents`;
-      const res = await fetchWithTimeout(url, {}, 1200);
+      const res = await fetchWithTimeout(url, {}, 5000);
       if (res.ok) {
         const serverDocs = await res.json();
         if (Array.isArray(serverDocs)) {
-          serverDocs.forEach((d) => {
-            if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+          serverDocs.forEach((d: ServerDocument) => {
+            if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !d.id.startsWith('doc-TWF0') && !d.streamUrl?.includes('/Material/')) {
               docMap.set(d.id, d);
             }
           });
@@ -593,16 +566,16 @@ export const api = {
       }
     } catch {}
 
-    // 5. Final sanitized documents list
+    // 3. Final sanitized documents list
     const allDocs = Array.from(docMap.values()).filter((d) => {
-      if (!d || !d.id || firebaseDeletedDocs.isDeleted(d.id)) return false;
+      if (!d || !d.id || firebaseDeletedDocs.isDeleted(d.id) || d.id.startsWith('doc-TWF0') || d.streamUrl?.includes('/Material/')) {
+        return false;
+      }
       return true;
     });
 
-    // 6. Update local cache
-    if (allDocs.length > 0) {
-      api.saveLocalDocuments(allDocs);
-    }
+    // 4. Update local cache
+    api.saveLocalDocuments(allDocs);
 
     if (standard && standard !== 'ALL') {
       return allDocs.filter((d) => !d.standard || d.standard === 'ALL' || d.standard === standard);
@@ -637,21 +610,22 @@ export const api = {
     const targetStandard = standard || '12';
     const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
 
-    // 1. Instantly store binary blob into local IndexedDB Vault (< 50ms)
-    let streamUrl = '';
+    // 1. Instantly store binary blob into local IndexedDB Vault (< 50ms) for instant local reading
+    let localVaultUrl = '';
     try {
-      streamUrl = await pdfVault.store(docId, file, file.name);
+      localVaultUrl = await pdfVault.store(docId, file, file.name);
     } catch {
-      streamUrl = URL.createObjectURL(file);
+      localVaultUrl = URL.createObjectURL(file);
     }
 
+    const defaultStreamUrl = `/api/documents/${docId}/pdf`;
     const newDoc: ServerDocument = {
       id: docId,
       name: file.name,
       originalName: file.name,
-      streamUrl,
-      serverUrl: streamUrl,
-      url: streamUrl,
+      streamUrl: localVaultUrl || defaultStreamUrl,
+      serverUrl: defaultStreamUrl,
+      url: localVaultUrl || defaultStreamUrl,
       mimeType: file.type || 'application/pdf',
       sizeBytes: file.size,
       size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
@@ -674,69 +648,95 @@ export const api = {
     const local = api.getLocalDocuments();
     api.saveLocalDocuments([newDoc, ...local.filter((d) => d.id !== newDoc.id)]);
 
-    // Synchronize metadata non-blockingly to Firebase & Cloudflare D1 (<1KB payload)
-    firebaseDocuments.saveDocument(newDoc).catch(() => {});
-    fetch(`${API_BASE}/documents/sync`, {
-      method: 'POST',
-      headers: getAuthHeaders(true),
-      body: JSON.stringify({ documents: [newDoc] }),
-    }).catch(() => {});
+    // 2. Upload file binary & metadata to Edge Storage (Cloudflare D1 via server)
+    try {
+      if (file.size < 3.5 * 1024 * 1024) {
+        // Direct single-request multipart upload for files < 3.5MB
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('subject', subject);
+        formData.append('uploadedBy', uploadedBy || 'Faculty');
+        formData.append('standard', targetStandard);
+        if (category) formData.append('category', category);
+        if (chapterNumber) formData.append('chapterNumber', chapterNumber);
+        if (chapterTitle) formData.append('chapterTitle', chapterTitle);
+        if (customFilter) formData.append('customFilter', customFilter);
+        if (tags && tags.length > 0) formData.append('tags', tags.join(','));
 
-    // Upload binary blob directly to Firebase Storage so all devices can access and read the PDF
-    (async () => {
-      try {
-        const storageRes = await firebaseStorageService.uploadPdf(file, subject, targetStandard);
-        if (storageRes && storageRes.url) {
-          newDoc.serverUrl = storageRes.url;
-          newDoc.streamUrl = storageRes.url;
-          newDoc.url = storageRes.url;
-          await firebaseDocuments.saveDocument(newDoc);
-          const currentLocals = api.getLocalDocuments();
-          api.saveLocalDocuments(currentLocals.map((d) => (d.id === newDoc.id ? newDoc : d)));
-        }
-      } catch (fbStorageErr) {
-        console.warn('[Firebase Cloud Storage Upload Fallback]:', fbStorageErr);
-      }
-    })();
+        const res = await fetch(`${API_BASE}/documents/upload`, {
+          method: 'POST',
+          headers: getAuthHeaders(false),
+          body: formData,
+        });
 
-    // Fast background cloud forward: only attempt for small files (< 4MB) if running on local server
-    if (file.size < 4 * 1024 * 1024) {
-      (async () => {
-        try {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('subject', subject);
-          formData.append('uploadedBy', uploadedBy || 'Faculty');
-          if (standard) formData.append('standard', targetStandard);
-          if (category) formData.append('category', category);
-          if (chapterNumber) formData.append('chapterNumber', chapterNumber);
-          if (chapterTitle) formData.append('chapterTitle', chapterTitle);
-          if (customFilter) formData.append('customFilter', customFilter);
-          if (tags && tags.length > 0) formData.append('tags', tags.join(','));
-
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-          const res = await fetch(`${API_BASE}/documents/upload`, {
-            method: 'POST',
-            headers: getAuthHeaders(false),
-            body: formData,
-            signal: controller.signal,
-          });
-          clearTimeout(timeoutId);
-
-          if (res.ok) {
-            const uploaded = await res.json();
-            if (uploaded && (uploaded.serverUrl || uploaded.streamUrl)) {
-              if (!newDoc.serverUrl || !newDoc.serverUrl.startsWith('https://firebasestorage')) {
-                newDoc.serverUrl = uploaded.serverUrl || uploaded.streamUrl;
-                firebaseDocuments.saveDocument(newDoc).catch(() => {});
-              }
-            }
+        if (res.ok) {
+          const uploaded = await res.json();
+          if (uploaded && uploaded.id) {
+            newDoc.id = uploaded.id;
+            newDoc.serverUrl = uploaded.serverUrl || `/api/documents/${uploaded.id}/pdf`;
+            newDoc.streamUrl = uploaded.streamUrl || `/api/documents/${uploaded.id}/pdf`;
+            newDoc.url = uploaded.url || `/api/documents/${uploaded.id}/pdf`;
           }
-        } catch {}
-      })();
+        }
+      } else {
+        // Chunked upload for files >= 3.5MB to bypass Vercel 4.5MB request limit
+        const base64Str = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const res = reader.result as string;
+            resolve(res.split(',')[1] || res);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const CHUNK_SIZE = 300000;
+        const totalChunks = Math.ceil(base64Str.length / CHUNK_SIZE);
+
+        for (let i = 0; i < totalChunks; i++) {
+          const chunkData = base64Str.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          await fetch(`${API_BASE}/documents/upload-chunk`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: docId, chunkIndex: i, totalChunks, chunkData }),
+          });
+        }
+
+        const completeRes = await fetch(`${API_BASE}/documents/complete-chunked`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: docId,
+            name: file.name,
+            originalName: file.name,
+            subject,
+            standard: targetStandard,
+            category: category || 'notes',
+            chapterNumber: chapterNumber || '',
+            chapterTitle: chapterTitle || '',
+            customFilter: customFilter || '',
+            tags: tags || [],
+            sizeBytes: file.size,
+            uploadedBy: uploadedBy || 'Faculty',
+          }),
+        });
+
+        if (completeRes.ok) {
+          const uploaded = await completeRes.json();
+          if (uploaded && uploaded.id) {
+            newDoc.serverUrl = uploaded.serverUrl || `/api/documents/${docId}/pdf`;
+            newDoc.streamUrl = uploaded.streamUrl || `/api/documents/${docId}/pdf`;
+            newDoc.url = uploaded.url || `/api/documents/${docId}/pdf`;
+          }
+        }
+      }
+    } catch (uploadErr) {
+      console.warn('[Server Edge Upload Error]:', uploadErr);
     }
+
+    // Refresh and persist updated document with permanent Cloudflare D1 streamUrl
+    const currentLocals = api.getLocalDocuments();
+    api.saveLocalDocuments(currentLocals.map((d) => (d.id === docId ? newDoc : d)));
 
     return newDoc;
   },

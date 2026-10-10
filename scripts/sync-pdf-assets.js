@@ -213,25 +213,8 @@ try {
     } catch {}
   }
 
-  // Merge scanned documents
-  const docMap = new Map();
-  scannedDocs.forEach((d) => docMap.set(d.id, d));
-
-  // Merge any server documents
-  if (fs.existsSync(serverDocsPath)) {
-    try {
-      const sDocs = JSON.parse(fs.readFileSync(serverDocsPath, 'utf8'));
-      if (Array.isArray(sDocs)) {
-        sDocs.forEach((d) => {
-          if (d && d.id && !docMap.has(d.id)) {
-            docMap.set(d.id, d);
-          }
-        });
-      }
-    } catch {}
-  }
-
-  catalog.documents = Array.from(docMap.values());
+  // Clean slate: all subject study documents removed as requested by user
+  catalog.documents = [];
 
   // Load test papers
   if (fs.existsSync(serverPapersPath)) {
