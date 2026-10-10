@@ -22,6 +22,7 @@ import {
   ChevronRight,
   ScrollText,
   FileText,
+  Download,
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey, DocBookmark } from '../../services/readingMemory';
 import { transformDocumentUrl } from '../../utils/urlTransformer';
@@ -471,6 +472,45 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           }
         } catch {}
 
+        // Fallback 1: Retry in main thread without Web Worker (fixes mobile Safari, in-app webviews, and restricted worker sandboxes)
+        try {
+          const workerlessTask = (pdfjsLib as any).getDocument({
+            url: targetUrl,
+            disableWorker: true,
+            cMapUrl: localCmap,
+            cMapPacked: true,
+          });
+          const loadedDoc = await workerlessTask.promise;
+          if (isCancelled) return;
+          setPdfDoc(loadedDoc);
+          const total = loadedDoc.numPages;
+          setNumPages(total);
+          setLoading(false);
+
+          const saved = readingMemory.getProgress(docKey);
+          const targetPage =
+            initialPage && initialPage > 0
+              ? initialPage
+              : saved && saved.currentPage > 1 && saved.currentPage <= total
+              ? saved.currentPage
+              : 1;
+          setCurrentPage(targetPage);
+          setScrubberValue(targetPage);
+
+          loadedDoc.getPage(targetPage).then((p: any) => {
+            if (isCancelled) return;
+            const baseVp = p.getViewport({ scale: 1, rotation: 0 });
+            unscaledPageDimRef.current = { width: baseVp.width, height: baseVp.height };
+            const containerW = containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800);
+            const pad = containerW < 640 ? 16 : 48;
+            const fitScale = Math.min(Math.max((containerW - pad) / baseVp.width, 0.55), 1.6);
+            setScale(Number(fitScale.toFixed(2)));
+          }).catch(() => {});
+          return;
+        } catch (workerlessErr) {
+          console.warn('PDF.js workerless fallback also encountered error:', workerlessErr);
+        }
+
         console.warn('PDF.js canvas load error, activating high-speed native browser embed:', err);
         setEngineMode('native');
         setLoading(false);
@@ -881,19 +921,58 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           </div>
         )}
 
-        {/* ENGINE 2: NATIVE BROWSER EMBED */}
+        {/* ENGINE 2: NATIVE BROWSER EMBED WITH MOBILE ACTION BAR */}
         {engineMode === 'native' && (
           <div className="w-full h-full relative flex flex-col bg-slate-900">
+            {/* Always visible mobile-friendly action banner */}
+            <div className="p-3 sm:p-4 bg-slate-800/95 border-b border-white/10 flex items-center justify-between gap-3 text-white z-10 shrink-0 shadow-md">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold truncate">{title}</p>
+                <p className="text-[10px] text-slate-400 truncate">If browser preview is blank, tap Open or Download</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={resolvedPdfUrl || safePdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open PDF</span>
+                </a>
+                <a
+                  href={resolvedPdfUrl || safePdfUrl}
+                  download={title || 'document.pdf'}
+                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </a>
+              </div>
+            </div>
             <object
               data={resolvedPdfUrl || safePdfUrl}
               type="application/pdf"
               className="w-full h-full flex-1"
             >
-              <iframe
-                src={resolvedPdfUrl || safePdfUrl}
-                title={title}
-                className="w-full h-full border-0"
-              />
+              <div className="flex flex-col items-center justify-center p-8 text-center text-white space-y-4 h-full">
+                <FileText className="w-12 h-12 text-brand-400" />
+                <h4 className="text-sm font-bold">PDF Ready</h4>
+                <p className="text-xs text-slate-400 max-w-xs">
+                  Your device browser does not support inline PDF embedding. Tap below to view or download.
+                </p>
+                <div className="flex gap-2">
+                  <a
+                    href={resolvedPdfUrl || safePdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold flex items-center gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Open in Device Reader</span>
+                  </a>
+                </div>
+              </div>
             </object>
           </div>
         )}

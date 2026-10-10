@@ -3,7 +3,7 @@
  * Provides 100% offline functionality, asset caching, and instant startup.
  */
 
-const CACHE_NAME = 'aetherstudy-cache-v1';
+const CACHE_NAME = 'aetherstudy-cache-v3';
 
 // Core assets to pre-cache immediately during Service Worker installation
 const PRECACHE_ASSETS = [
@@ -22,7 +22,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Event: Clear outdated caches
+// Activate Event: Clear outdated caches immediately and claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -68,12 +68,33 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Static Assets & PDFs (Scripts, CSS, Fonts, Images, Icons, Material & PYQ PDFs)
+  // 2. Critical Dynamic Code Bundles & Catalog Data (/assets/*.js, /data/catalog.json)
+  // Strategy: Network First so fresh deployments are immediately seen on all devices without stale cache lag
+  const isCodeOrCatalog =
+    url.pathname.endsWith('.js') ||
+    url.pathname.includes('/data/') ||
+    url.pathname.endsWith('.json');
+
+  if (isCodeOrCatalog) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // 3. Static Assets & PDFs (CSS, Fonts, Images, Material & PYQ PDFs)
   // Strategy: Stale-While-Revalidate (Serve cached instantly, update in background)
   const isStaticAsset =
-    url.pathname.match(/\.(js|css|svg|png|jpg|jpeg|webp|woff|woff2|ttf|json|pdf)$/i) ||
+    url.pathname.match(/\.(css|svg|png|jpg|jpeg|webp|woff|woff2|ttf|pdf)$/i) ||
     url.pathname.startsWith('/Material/') ||
-    url.pathname.startsWith('/data/') ||
     url.hostname.includes('fonts.googleapis.com') ||
     url.hostname.includes('fonts.gstatic.com');
 
@@ -96,7 +117,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. API Requests (/api/)
+  // 4. API Requests (/api/)
   // Strategy: Network First, Fallback to Cache
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(

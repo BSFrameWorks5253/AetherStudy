@@ -15,7 +15,12 @@ export function registerServiceWorker(): void {
     navigator.serviceWorker
       .register(swUrl)
       .then((registration) => {
-        // Listen for found updates
+        // If a new worker is waiting, activate it immediately
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+
+        // Listen for new updates
         registration.onupdatefound = () => {
           const installingWorker = registration.installing;
           if (installingWorker == null) return;
@@ -23,8 +28,9 @@ export function registerServiceWorker(): void {
           installingWorker.onstatechange = () => {
             if (installingWorker.state === 'installed') {
               if (navigator.serviceWorker.controller) {
-                // New update available
-                console.log('[AetherStudy PWA] New update ready. Refresh to activate.');
+                // New update available, activate it immediately!
+                console.log('[AetherStudy PWA] New update ready. Activating...');
+                installingWorker.postMessage({ type: 'SKIP_WAITING' });
               } else {
                 // Content cached for offline use
                 console.log('[AetherStudy PWA] Content cached for full offline use.');
@@ -36,5 +42,15 @@ export function registerServiceWorker(): void {
       .catch((error) => {
         console.warn('[AetherStudy PWA] Service Worker registration failed:', error);
       });
+
+    // Auto-reload once when a new Service Worker takes control of the page
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        console.log('[AetherStudy PWA] Controller changed. Reloading with latest code...');
+        window.location.reload();
+      }
+    });
   });
 }
