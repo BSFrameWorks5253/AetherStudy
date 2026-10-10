@@ -610,7 +610,7 @@ const detectChapterForFile = (
 };
 
 export const SubjectRooms: React.FC = () => {
-  const { currentUser, isSuperAdmin, canUpload, activeStandard } = useAuth();
+  const { currentUser, isSuperAdmin, isAdmin, canUpload, activeStandard } = useAuth();
 
   // Navigation & Room State
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
@@ -1522,8 +1522,12 @@ export const SubjectRooms: React.FC = () => {
     }
   };
 
-  // Open Tag Creation & Assignment Modal
+  // Open Tag Creation & Assignment Modal (Admin only)
   const handleOpenCreateTagModal = (presetTag?: string) => {
+    if (!isAdmin) {
+      alert('Tag creation and assignment is restricted to administrators.');
+      return;
+    }
     setAssignTagName(presetTag || '');
     setAssignSelectedChapters([]);
     if (selectedChapterFilter !== 'All') {
@@ -1589,8 +1593,12 @@ export const SubjectRooms: React.FC = () => {
     }
   };
 
-  // Save Tag & Document Assignment
+  // Save Tag & Document Assignment (Admin only)
   const handleSaveTagAssignment = async () => {
+    if (!isAdmin) {
+      alert('Only administrators can create or assign tags.');
+      return;
+    }
     const trimmedTag = assignTagName.trim();
     if (!trimmedTag) return;
 
@@ -1631,8 +1639,12 @@ export const SubjectRooms: React.FC = () => {
     setShowTagAssignModal(false);
   };
 
-  // Delete a tag from customFiltersList and remove it from all matching documents
+  // Delete a tag from customFiltersList and remove it from all matching documents (Admin only)
   const handleDeleteTag = async (tagToDelete: string) => {
+    if (!isAdmin) {
+      alert('Only administrators can delete tags.');
+      return;
+    }
     const trimmed = tagToDelete.trim();
     if (!trimmed) return;
 
@@ -1684,8 +1696,12 @@ export const SubjectRooms: React.FC = () => {
     setActiveTagMenu(null);
   };
 
-  // Rename a tag across customFiltersList and all matching documents
+  // Rename a tag across customFiltersList and all matching documents (Admin only)
   const handleRenameTag = async (oldTag: string, newTag: string) => {
+    if (!isAdmin) {
+      alert('Only administrators can rename tags.');
+      return;
+    }
     const trimmedOld = oldTag.trim();
     const trimmedNew = newTag.trim();
     if (!trimmedOld || !trimmedNew || trimmedOld.toLowerCase() === trimmedNew.toLowerCase()) return;
@@ -1738,8 +1754,12 @@ export const SubjectRooms: React.FC = () => {
     setActiveTagMenu(null);
   };
 
-  // Open Tag Assignment Modal for a specific tag
+  // Open Tag Assignment Modal for a specific tag (Admin only)
   const handleOpenAssignTagModal = (tagName: string) => {
+    if (!isAdmin) {
+      alert('Only administrators can manage tag assignments.');
+      return;
+    }
     setAssignTagName(tagName);
     const lower = tagName.toLowerCase();
     const matchingDocIds = roomDocuments
@@ -1757,9 +1777,13 @@ export const SubjectRooms: React.FC = () => {
     setActiveTagMenu(null);
   };
 
-  // Save Single Document Edit (Chapter & Tag)
+  // Save Single Document Edit (Chapter & Tag) (Admin only)
   const handleSaveSingleDocEdit = async () => {
     if (!editingDoc) return;
+    if (!isAdmin) {
+      alert('Only administrators can edit document properties and tags.');
+      return;
+    }
     const trimmedTag = editDocTag.trim();
     const existingTags = editingDoc.tags || [];
     const nextTags = trimmedTag && !existingTags.includes(trimmedTag)
@@ -1821,8 +1845,8 @@ export const SubjectRooms: React.FC = () => {
       const finalChapterTitle = uploadChapterTitle || matchedChapterItem?.title || (uploadChapterNumber === 'custom' ? uploadCustomChapter.trim() : '');
       const finalFilter = uploadCustomFilter.trim();
 
-      // If user typed a new custom filter, persist it
-      if (finalFilter && !customFiltersList.includes(finalFilter)) {
+      // If user typed a new custom filter, persist it (Admin only)
+      if (isAdmin && finalFilter && !customFiltersList.includes(finalFilter)) {
         const updated = [...customFiltersList, finalFilter];
         setCustomFiltersList(updated);
         try {
@@ -3381,23 +3405,25 @@ export const SubjectRooms: React.FC = () => {
                             >
                               {count}
                             </span>
-                            {/* Tag Options Trigger */}
-                            <span
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveTagMenu(isMenuOpen ? null : filter);
-                              }}
-                              className={`ml-0.5 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ${
-                                isSelected ? 'text-white' : 'text-slate-400 hover:text-slate-600'
-                              }`}
-                              title={`Options for "${filter}" tag`}
-                            >
-                              <MoreVertical className="w-3 h-3" />
-                            </span>
+                            {/* Tag Options Trigger (Admin Only) */}
+                            {isAdmin && (
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTagMenu(isMenuOpen ? null : filter);
+                                }}
+                                className={`ml-0.5 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ${
+                                  isSelected ? 'text-white' : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                                title={`Options for "${filter}" tag`}
+                              >
+                                <MoreVertical className="w-3 h-3" />
+                              </span>
+                            )}
                           </button>
 
                           {/* Tag Options Menu */}
-                          {isMenuOpen && (
+                          {isAdmin && isMenuOpen && (
                             <div
                               onClick={(e) => e.stopPropagation()}
                               className="absolute top-full left-0 mt-1.5 z-40 w-44 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 text-xs animate-scale-up"
@@ -3439,27 +3465,30 @@ export const SubjectRooms: React.FC = () => {
                       );
                     })}
 
-                    {/* Create & Assign Tag Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleOpenCreateTagModal()}
-                      className="px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-brand-600 hover:from-amber-500 hover:to-brand-500 shadow-xs transition-all shrink-0 cursor-pointer flex items-center gap-1 active:scale-95"
-                      title="Create a new tag and select which chapters & PDFs belong to it"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>New Tag</span>
-                    </button>
+                    {/* Create & Manage Tags Buttons (Admin Only) */}
+                    {isAdmin && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCreateTagModal()}
+                          className="px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-brand-600 hover:from-amber-500 hover:to-brand-500 shadow-xs transition-all shrink-0 cursor-pointer flex items-center gap-1 active:scale-95"
+                          title="Create a new tag (Admin only)"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>New Tag</span>
+                        </button>
 
-                    {/* Manage All Tags Options Button */}
-                    <button
-                      type="button"
-                      onClick={() => setShowManageTagsModal(true)}
-                      className="px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all shrink-0 cursor-pointer flex items-center gap-1 active:scale-95"
-                      title="Manage all tags, rename or remove tags"
-                    >
-                      <SlidersHorizontal className="w-3.5 h-3.5" />
-                      <span>Manage Tags</span>
-                    </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowManageTagsModal(true)}
+                          className="px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all shrink-0 cursor-pointer flex items-center gap-1 active:scale-95"
+                          title="Manage all tags, rename or remove tags (Admin only)"
+                        >
+                          <SlidersHorizontal className="w-3.5 h-3.5" />
+                          <span>Manage Tags</span>
+                        </button>
+                      </>
+                    )}
                   </div>
 
                   {/* ========================================================
@@ -3882,7 +3911,7 @@ export const SubjectRooms: React.FC = () => {
                               )}
 
                               <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                                {canUpload && (
+                                {isAdmin && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -3891,7 +3920,7 @@ export const SubjectRooms: React.FC = () => {
                                       setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
                                     }}
                                     className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                    title="Edit Chapter & Tag"
+                                    title="Edit Chapter & Tag (Admin only)"
                                   >
                                     <Edit3 className="w-3.5 h-3.5" />
                                   </button>
@@ -4215,8 +4244,8 @@ export const SubjectRooms: React.FC = () => {
         />
       )}
 
-      {/* 🏷️ Interactive Tag Creation & PDF/Chapter Assignment Modal */}
-      {showTagAssignModal && (
+      {/* 🏷️ Interactive Tag Creation & PDF/Chapter Assignment Modal (Admin only) */}
+      {isAdmin && showTagAssignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-scale-up">
             {/* Modal Header */}
@@ -4468,8 +4497,8 @@ export const SubjectRooms: React.FC = () => {
         </div>
       )}
 
-      {/* ✏️ Quick Single Document Tag & Chapter Editor Modal */}
-      {editingDoc && (
+      {/* ✏️ Quick Single Document Tag & Chapter Editor Modal (Admin only) */}
+      {isAdmin && editingDoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full overflow-hidden animate-scale-up">
             <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900/70">
@@ -4574,8 +4603,8 @@ export const SubjectRooms: React.FC = () => {
         </div>
       )}
 
-      {/* 🏷️ Dedicated Manage Tags & Categories Modal */}
-      {showManageTagsModal && (
+      {/* 🏷️ Dedicated Manage Tags & Categories Modal (Admin only) */}
+      {isAdmin && showManageTagsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden animate-scale-up">
             {/* Header */}
@@ -4618,6 +4647,10 @@ export const SubjectRooms: React.FC = () => {
                     className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && newTagInputInModal.trim()) {
+                        if (!isAdmin) {
+                          alert('Only administrators can create tags.');
+                          return;
+                        }
                         const t = newTagInputInModal.trim();
                         if (!customFiltersList.includes(t)) {
                           const next = [...customFiltersList, t];
@@ -4634,6 +4667,10 @@ export const SubjectRooms: React.FC = () => {
                     type="button"
                     disabled={!newTagInputInModal.trim()}
                     onClick={() => {
+                      if (!isAdmin) {
+                        alert('Only administrators can create tags.');
+                        return;
+                      }
                       const t = newTagInputInModal.trim();
                       if (!customFiltersList.includes(t)) {
                         const next = [...customFiltersList, t];
@@ -4783,8 +4820,8 @@ export const SubjectRooms: React.FC = () => {
         </div>
       )}
 
-      {/* ✏️ Direct Rename Tag Modal (When triggered from tag pill 3-dot dropdown) */}
-      {tagToRename && !showManageTagsModal && (
+      {/* ✏️ Direct Rename Tag Modal (When triggered from tag pill 3-dot dropdown - Admin only) */}
+      {isAdmin && tagToRename && !showManageTagsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-sm w-full p-4 sm:p-5 space-y-4 animate-scale-up">
             <div className="flex items-center space-x-2 text-slate-900 dark:text-white font-bold text-sm">
