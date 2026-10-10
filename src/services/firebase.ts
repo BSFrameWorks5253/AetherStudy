@@ -819,6 +819,24 @@ export const firebaseDeletedDocs = {
  * Synchronizes in real-time across student devices and prevents data loss.
  * ============================================================================
  */
+function sanitizeForFirebase<T>(val: T): T {
+  if (val === undefined) return '' as any;
+  if (val === null) return null as any;
+  if (Array.isArray(val)) {
+    return val.filter((item) => item !== undefined).map((item) => sanitizeForFirebase(item)) as any;
+  }
+  if (typeof val === 'object' && !(val instanceof Date)) {
+    const res: Record<string, any> = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) {
+        res[k] = sanitizeForFirebase(v);
+      }
+    }
+    return res as any;
+  }
+  return val;
+}
+
 export const firebaseDocuments = {
   subscribe(callback: (docs: any[]) => void): () => void {
     const rtdbRef = ref(rtdb, 'academic_documents');
@@ -852,16 +870,16 @@ export const firebaseDocuments = {
 
   async fetch(): Promise<any[]> {
     await firebaseDeletedDocs.syncDeletedFromCloud();
-    const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 2000));
+    const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 6000));
     const workPromise = (async () => {
       try {
         await Promise.race([
           ensureFirebaseAuth(),
-          new Promise((r) => setTimeout(r, 1000))
+          new Promise((r) => setTimeout(r, 2000))
         ]);
         const snap = await Promise.race([
           get(ref(rtdb, 'academic_documents')),
-          new Promise<null>((r) => setTimeout(() => r(null), 1500))
+          new Promise<null>((r) => setTimeout(() => r(null), 4500))
         ]);
         if (snap && snap.exists()) {
           const val = snap.val();
@@ -879,11 +897,11 @@ export const firebaseDocuments = {
         console.warn('[Firebase Fetch Documents RTDB]:', err);
       }
 
-      // Firestore fallback with 1.2s timeout
+      // Firestore fallback
       try {
         const snap = await Promise.race([
           getDoc(doc(db, 'academic_documents', 'catalog')),
-          new Promise<null>((r) => setTimeout(() => r(null), 1200))
+          new Promise<null>((r) => setTimeout(() => r(null), 3000))
         ]);
         if (snap && snap.exists()) {
           const data = snap.data();
@@ -913,11 +931,11 @@ export const firebaseDocuments = {
     const cleanId = String(docData.id).replace(/[^a-zA-Z0-9_-]/g, '_');
     try {
       await ensureFirebaseAuth();
-      const cleanDoc = {
+      const cleanDoc = sanitizeForFirebase({
         ...docData,
         uploadedAt: docData.uploadedAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      };
+      });
 
       // 1. RTDB node
       const rtdbRef = ref(rtdb, `academic_documents/${cleanId}`);
@@ -947,10 +965,13 @@ export const firebaseDocuments = {
     try {
       await ensureFirebaseAuth();
       const rtdbMap: Record<string, any> = {};
+      const sanitizedDocs: any[] = [];
       cleanDocs.forEach((d) => {
         if (d && d.id) {
           const cleanId = String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_');
-          rtdbMap[cleanId] = d;
+          const sanitized = sanitizeForFirebase(d);
+          rtdbMap[cleanId] = sanitized;
+          sanitizedDocs.push(sanitized);
         }
       });
       await set(ref(rtdb, 'academic_documents'), rtdbMap);
@@ -958,7 +979,7 @@ export const firebaseDocuments = {
       // Firestore backup catalog
       await setDoc(
         doc(db, 'academic_documents', 'catalog'),
-        { documents: cleanDocs, updatedAt: firestoreServerTimestamp() },
+        { documents: sanitizedDocs, updatedAt: firestoreServerTimestamp() },
         { merge: true }
       );
       return true;

@@ -678,7 +678,24 @@ export const api = {
       body: JSON.stringify({ documents: [newDoc] }),
     }).catch(() => {});
 
-    // Fast background cloud forward: only attempt for small files (< 4MB) to strictly respect Vercel 4.5MB serverless limit
+    // Upload binary blob directly to Firebase Storage so all devices can access and read the PDF
+    (async () => {
+      try {
+        const storageRes = await firebaseStorageService.uploadPdf(file, subject, targetStandard);
+        if (storageRes && storageRes.url) {
+          newDoc.serverUrl = storageRes.url;
+          newDoc.streamUrl = storageRes.url;
+          newDoc.url = storageRes.url;
+          await firebaseDocuments.saveDocument(newDoc);
+          const currentLocals = api.getLocalDocuments();
+          api.saveLocalDocuments(currentLocals.map((d) => (d.id === newDoc.id ? newDoc : d)));
+        }
+      } catch (fbStorageErr) {
+        console.warn('[Firebase Cloud Storage Upload Fallback]:', fbStorageErr);
+      }
+    })();
+
+    // Fast background cloud forward: only attempt for small files (< 4MB) if running on local server
     if (file.size < 4 * 1024 * 1024) {
       (async () => {
         try {
@@ -707,8 +724,10 @@ export const api = {
           if (res.ok) {
             const uploaded = await res.json();
             if (uploaded && (uploaded.serverUrl || uploaded.streamUrl)) {
-              newDoc.serverUrl = uploaded.serverUrl || uploaded.streamUrl;
-              firebaseDocuments.saveDocument(newDoc).catch(() => {});
+              if (!newDoc.serverUrl || !newDoc.serverUrl.startsWith('https://firebasestorage')) {
+                newDoc.serverUrl = uploaded.serverUrl || uploaded.streamUrl;
+                firebaseDocuments.saveDocument(newDoc).catch(() => {});
+              }
             }
           }
         } catch {}

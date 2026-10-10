@@ -151,6 +151,57 @@ export const pdfVault = {
   },
 
   /**
+   * Retrieve raw Blob for a document ID or filename
+   */
+  async getBlob(idOrName: string): Promise<Blob | null> {
+    if (!idOrName) return null;
+    try {
+      const db = await getDb();
+      let item = await new Promise<StoredPdf | null>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get(idOrName);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+
+      if (!item) {
+        const cleanSearch = idOrName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        item = await new Promise<StoredPdf | null>((resolve) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const cursorReq = store.openCursor();
+          cursorReq.onsuccess = (e: any) => {
+            const cursor = e.target.result;
+            if (cursor) {
+              const val: StoredPdf = cursor.value;
+              const valNameClean = (val.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (
+                valNameClean &&
+                (valNameClean === cleanSearch ||
+                  cleanSearch.includes(valNameClean) ||
+                  valNameClean.includes(cleanSearch))
+              ) {
+                resolve(val);
+                return;
+              }
+              cursor.continue();
+            } else {
+              resolve(null);
+            }
+          };
+          cursorReq.onerror = () => resolve(null);
+        });
+      }
+
+      return item?.blob || null;
+    } catch (err) {
+      console.warn('[PDF Vault] Failed to get blob for ID/Name:', idOrName, err);
+      return null;
+    }
+  },
+
+  /**
    * Check if a document is cached in the local IndexedDB vault
    */
   async has(id: string): Promise<boolean> {

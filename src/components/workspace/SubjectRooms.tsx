@@ -4,7 +4,7 @@ import { api, ServerDocument } from '../../services/api';
 import { getUserStorageItem, setUserStorageItem } from '../../utils/userStorage';
 import { TestPaper } from '../../types/testPaper';
 import { deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
-import { firebaseDocuments, firebaseDeletedDocs } from '../../services/firebase';
+import { firebaseDocuments, firebaseDeletedDocs, firebaseStorageService } from '../../services/firebase';
 import { pdfVault } from '../../services/pdfVault';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import { CardSkeleton } from '../common/LoadingSkeleton';
@@ -722,21 +722,42 @@ export const SubjectRooms: React.FC = () => {
     }
   };
 
-  // One-time automatic clean-slate migration to flush old Google Drive cache
+  // Proactive multi-device cloud synchronizer: Pushes any local documents to Firebase Cloud
   useEffect(() => {
-    const CLEAN_SLATE_KEY = 'aether_db_clean_slate_2026_v1';
-    if (typeof window !== 'undefined' && localStorage.getItem(CLEAN_SLATE_KEY) !== 'done') {
-      localStorage.setItem(CLEAN_SLATE_KEY, 'done');
-      localStorage.removeItem('aether_cached_documents');
-      localStorage.removeItem('aether_deleted_document_ids');
-      localStorage.removeItem('aether_documents');
-      localStorage.removeItem('aether_local_documents');
-      localStorage.removeItem('aether_user_documents');
-      api.saveLocalDocuments([]);
-      setDocuments([]);
-      firebaseDocuments.resetFull().catch(() => {});
-      fetch('/api/documents-all/reset-full', { method: 'POST' }).catch(() => {});
-    }
+    const syncLocalDocsToCloud = async () => {
+      try {
+        const local = api.getLocalDocuments();
+        if (local.length > 0) {
+          // Immediately ensure Firebase Realtime Database has all documents
+          await firebaseDocuments.saveAll(local);
+
+          // Asynchronously promote any local vault blobs to permanent Firebase Storage HTTPS URLs
+          // so they are readable on phones, tablets, and any other device
+          for (const doc of local) {
+            if (!doc.serverUrl || !doc.serverUrl.startsWith('https://')) {
+              try {
+                const blob = await pdfVault.getBlob(doc.id || doc.name);
+                if (blob) {
+                  const file = new File([blob], doc.originalName || doc.name, { type: 'application/pdf' });
+                  const res = await firebaseStorageService.uploadPdf(file, doc.subject || 'General', doc.standard || '12');
+                  if (res?.url) {
+                    const updated: ServerDocument = { ...doc, streamUrl: res.url, serverUrl: res.url, url: res.url };
+                    await firebaseDocuments.saveDocument(updated);
+                    setDocuments((prev) => prev.map((d) => (d.id === doc.id ? updated : d)));
+                    api.saveLocalDocuments(api.getLocalDocuments().map((d) => (d.id === doc.id ? updated : d)));
+                  }
+                }
+              } catch (e) {
+                console.warn('[Sync Blob to Firebase Storage Notice]:', e);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Sync Local Documents to Cloud Error]:', err);
+      }
+    };
+    syncLocalDocsToCloud();
   }, []);
 
   useEffect(() => {
@@ -748,24 +769,32 @@ export const SubjectRooms: React.FC = () => {
     const unsubscribe = firebaseDocuments.subscribe((cloudDocs) => {
       if (Array.isArray(cloudDocs)) {
         const deletedIds = firebaseDeletedDocs.getDeletedIds();
-        setDocuments((prev) => {
-          const docMap = new Map<string, ServerDocument>();
-          // Cloud documents take precedence (strictly filtering out deleted documents)
-          cloudDocs.forEach((d) => {
-            if (d && d.id && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d)) {
-              docMap.set(d.id, d);
-            }
+        if (cloudDocs.length > 0) {
+          setDocuments((prev) => {
+            const docMap = new Map<string, ServerDocument>();
+            // Cloud documents take precedence (strictly filtering out deleted documents)
+            cloudDocs.forEach((d) => {
+              if (d && d.id && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d)) {
+                docMap.set(d.id, d);
+              }
+            });
+            // Preserve local documents not yet in cloud (strictly filtering out deleted documents)
+            prev.forEach((d) => {
+              if (d && d.id && !docMap.has(d.id) && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d)) {
+                docMap.set(d.id, d);
+              }
+            });
+            const merged = Array.from(docMap.values());
+            api.saveLocalDocuments(merged);
+            return merged;
           });
-          // Preserve local documents not yet in cloud (strictly filtering out deleted documents)
-          prev.forEach((d) => {
-            if (d && d.id && !docMap.has(d.id) && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d)) {
-              docMap.set(d.id, d);
-            }
-          });
-          const merged = Array.from(docMap.values());
-          api.saveLocalDocuments(merged);
-          return merged;
-        });
+        } else {
+          // If cloud is currently empty but this client has local documents, push them to cloud
+          const local = api.getLocalDocuments();
+          if (local.length > 0) {
+            firebaseDocuments.saveAll(local).catch(() => {});
+          }
+        }
       }
     });
     return () => unsubscribe();
