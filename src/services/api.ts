@@ -3,6 +3,7 @@ import { TestPaper } from '../types/testPaper';
 import { firebaseTimetable, firebasePaperRequests, firebaseDocuments, firebaseStorageService, firebaseDeletedDocs } from './firebase';
 import { deleteFromGoogleDrive } from './clientGoogleDrive';
 import { pdfVault } from './pdfVault';
+import catalogData from '../data/catalog.json';
 
 export interface ServerDocument {
   id: string;
@@ -292,12 +293,10 @@ export const api = {
       // offline fallback
     }
 
-    try {
-      const catalog = await import('../data/catalog.json');
-      if (catalog && Array.isArray(catalog.testPapers) && catalog.testPapers.length > 0) {
-        return catalog.testPapers as TestPaper[];
-      }
-    } catch {}
+    const bundledPapers = (((catalogData as any)?.default?.testPapers || (catalogData as any)?.testPapers) || []) as TestPaper[];
+    if (bundledPapers.length > 0) {
+      return bundledPapers;
+    }
 
     try {
       const cached = localStorage.getItem('aether_cached_test_papers');
@@ -489,15 +488,35 @@ export const api = {
   // 4. Documents Storage API
   getLocalDocuments(): ServerDocument[] {
     try {
+      const docMap = new Map<string, ServerDocument>();
+      // 1. Seed from bundled official catalog first (guaranteed instant availability on all devices)
+      const bundledDocs = (((catalogData as any)?.default?.documents || (catalogData as any)?.documents) || []) as ServerDocument[];
+      if (Array.isArray(bundledDocs)) {
+        bundledDocs.forEach((d: any) => {
+          if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+            docMap.set(d.id, d as ServerDocument);
+          }
+        });
+      }
+
+      // 2. Overlay any cached user documents from localStorage
       const cached = localStorage.getItem('aether_cached_documents');
-      const list: ServerDocument[] = cached ? JSON.parse(cached) : [];
-      // Strictly prune any deleted documents
-      return list.filter((d) => {
-        if (!d || !d.id || firebaseDeletedDocs.isDeleted(d.id)) return false;
-        return true;
-      });
+      if (cached) {
+        const list: ServerDocument[] = JSON.parse(cached);
+        if (Array.isArray(list)) {
+          list.forEach((d) => {
+            if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+              docMap.set(d.id, d);
+            }
+          });
+        }
+      }
+
+      return Array.from(docMap.values());
     } catch {
-      return [];
+      return ((((catalogData as any)?.default?.documents || (catalogData as any)?.documents) || []) as ServerDocument[]).filter(
+        (d) => d && d.id && !firebaseDeletedDocs.isDeleted(d.id)
+      );
     }
   },
 
@@ -511,32 +530,59 @@ export const api = {
   },
 
   async getDocuments(standard?: string): Promise<ServerDocument[]> {
-    // 0. Ensure deleted documents set is in sync
-    await firebaseDeletedDocs.syncDeletedFromCloud().catch(() => {});
     const docMap = new Map<string, ServerDocument>();
 
-    // 1. Primary Cloud Store: Fetch from Firebase Realtime Database / Firestore
-    let firebaseDocs: ServerDocument[] = [];
-    try {
-      firebaseDocs = await firebaseDocuments.fetch();
-      firebaseDocs.forEach((d) => {
+    // 1. Instant Synchronous Seed: All official study materials from bundled catalog
+    const bundledDocs = (((catalogData as any)?.default?.documents || (catalogData as any)?.documents) || []) as ServerDocument[];
+    if (Array.isArray(bundledDocs)) {
+      bundledDocs.forEach((d: any) => {
         if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
-          docMap.set(d.id, d);
+          docMap.set(d.id, d as ServerDocument);
         }
       });
+    }
+
+    // 2. Client Offline Vault: Overlay local stored documents (never deleted ones)
+    try {
+      const cached = localStorage.getItem('aether_cached_documents');
+      if (cached) {
+        const localDocs: ServerDocument[] = JSON.parse(cached);
+        if (Array.isArray(localDocs)) {
+          localDocs.forEach((d) => {
+            if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !d.id.startsWith('doc-TWF0')) {
+              docMap.set(d.id, d);
+            }
+          });
+        }
+      }
+    } catch {}
+
+    // 3. Fast non-blocking cloud fetch (with strict 1500ms safety limit)
+    try {
+      const fbPromise = firebaseDocuments.fetch();
+      const fbDocs = await Promise.race([
+        fbPromise,
+        new Promise<ServerDocument[]>((r) => setTimeout(() => r([]), 1500))
+      ]);
+      if (Array.isArray(fbDocs)) {
+        fbDocs.forEach((d) => {
+          if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+            docMap.set(d.id, d);
+          }
+        });
+      }
     } catch (fbErr) {
       console.warn('[Documents API] Firebase cloud fetch note:', fbErr);
     }
 
-    // 2. Secondary: Fetch from Server Endpoint (/api/documents)
-    let serverDocs: ServerDocument[] = [];
+    // 4. Secondary: Fetch from Server Endpoint (/api/documents) if local server is active
     try {
       const url = standard && standard !== 'ALL'
         ? `${API_BASE}/documents?standard=${encodeURIComponent(standard)}`
         : `${API_BASE}/documents`;
-      const res = await fetchWithTimeout(url, {}, 2500);
+      const res = await fetchWithTimeout(url, {}, 1200);
       if (res.ok) {
-        serverDocs = await res.json();
+        const serverDocs = await res.json();
         if (Array.isArray(serverDocs)) {
           serverDocs.forEach((d) => {
             if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
@@ -545,53 +591,17 @@ export const api = {
           });
         }
       }
-    } catch (err) {
-      console.warn('[Documents API] Server documents endpoint note:', err);
-    }
-
-    // 3. Tertiary: Seed from local bundled catalog.json (filtering deleted docs)
-    try {
-      const catalog = await import('../data/catalog.json');
-      if (catalog && Array.isArray(catalog.documents)) {
-        catalog.documents.forEach((d: any) => {
-          if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !docMap.has(d.id)) {
-            docMap.set(d.id, d as ServerDocument);
-          }
-        });
-      }
     } catch {}
 
-    // 4. Client Offline Vault: Overlay local stored documents (never deleted ones)
-    const localDocs = api.getLocalDocuments();
-    localDocs.forEach((d) => {
-      if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !d.id.startsWith('doc-TWF0')) {
-        if (!docMap.has(d.id) || (!docMap.get(d.id)?.streamUrl && d.streamUrl)) {
-          docMap.set(d.id, d);
-        }
-      }
-    });
-
-    // 5. Filter out ANY remaining deleted documents
+    // 5. Final sanitized documents list
     const allDocs = Array.from(docMap.values()).filter((d) => {
       if (!d || !d.id || firebaseDeletedDocs.isDeleted(d.id)) return false;
       return true;
     });
 
-    // 6. Update local cache and background-sync valid documents
+    // 6. Update local cache
     if (allDocs.length > 0) {
       api.saveLocalDocuments(allDocs);
-      // Synchronize client documents to server storage
-      if (allDocs.length > serverDocs.length) {
-        fetch(`${API_BASE}/documents/sync`, {
-          method: 'POST',
-          headers: getAuthHeaders(true),
-          body: JSON.stringify({ documents: allDocs }),
-        }).catch(() => {});
-      }
-      // Auto-sync missing documents to Firebase
-      if (firebaseDocs.length < allDocs.length) {
-        firebaseDocuments.saveAll(allDocs).catch(() => {});
-      }
     }
 
     if (standard && standard !== 'ALL') {

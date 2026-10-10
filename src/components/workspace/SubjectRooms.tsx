@@ -793,6 +793,12 @@ export const SubjectRooms: React.FC = () => {
                 docMap.set(d.id, d);
               }
             });
+            // Always preserve official bundled catalog documents
+            api.getLocalDocuments().forEach((d) => {
+              if (d && d.id && !docMap.has(d.id) && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d)) {
+                docMap.set(d.id, d);
+              }
+            });
             const merged = Array.from(docMap.values());
             api.saveLocalDocuments(merged);
             return merged;
