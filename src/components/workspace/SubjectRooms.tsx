@@ -673,8 +673,6 @@ export const SubjectRooms: React.FC = () => {
   const [newTagInput, setNewTagInput] = useState<string>('');
   const [showAddTagModal, setShowAddTagModal] = useState<boolean>(false);
   const [isPurgingNotes, setIsPurgingNotes] = useState<boolean>(false);
-  const [deskFilter, setDeskFilter] = useState<'all' | 'core' | 'math_it' | 'languages'>('all');
-  const [deskSearch, setDeskSearch] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -945,29 +943,8 @@ export const SubjectRooms: React.FC = () => {
     return metrics;
   }, [availableSubjects, standardFilteredDocuments, testPapers]);
 
-  // Desk Home Filtered Subjects List
-  const filteredDeskSubjects = useMemo(() => {
-    return availableSubjects.filter((sub) => {
-      const slug = getSubjectSlug(sub.name);
-      if (deskFilter === 'core') {
-        if (!['accounts', 'ocm', 'eco'].includes(slug)) return false;
-      } else if (deskFilter === 'math_it') {
-        if (!['maths', 'it'].includes(slug)) return false;
-      } else if (deskFilter === 'languages') {
-        if (!['english', 'sp', 'hindi', 'marathi'].includes(slug)) return false;
-      }
-
-      if (deskSearch.trim()) {
-        const q = deskSearch.trim().toLowerCase();
-        return (
-          sub.name.toLowerCase().includes(q) ||
-          sub.code.toLowerCase().includes(q) ||
-          sub.description.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [availableSubjects, deskFilter, deskSearch]);
+  // Desk Home Subjects List (Direct display of all subjects)
+  const filteredDeskSubjects = availableSubjects;
 
   // Deep Link URL sync logic
   const syncWithUrl = () => {
@@ -3448,77 +3425,7 @@ export const SubjectRooms: React.FC = () => {
             </div>
           </div>
 
-          {/* Search & Subject Category Filter Suite */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-2 border-slate-200 dark:border-slate-800 shadow-md">
-            {/* Category Segmented Buttons */}
-            <div className="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-              <button
-                type="button"
-                onClick={() => setDeskFilter('all')}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-                  deskFilter === 'all'
-                    ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-indigo-500/30 scale-105'
-                    : 'bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700'
-                }`}
-              >
-                🎓 All Subjects ({availableSubjects.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeskFilter('core')}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-                  deskFilter === 'core'
-                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-500/30 scale-105'
-                    : 'bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700'
-                }`}
-              >
-                📊 Core Commerce
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeskFilter('math_it')}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-                  deskFilter === 'math_it'
-                    ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-amber-500/30 scale-105'
-                    : 'bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700'
-                }`}
-              >
-                ⚡ Maths & IT
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeskFilter('languages')}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-                  deskFilter === 'languages'
-                    ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-md shadow-rose-500/30 scale-105'
-                    : 'bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700'
-                }`}
-              >
-                ✍️ Languages & SP
-              </button>
-            </div>
 
-            {/* Instant Search Bar */}
-            <div className="relative min-w-[240px] max-w-full sm:max-w-xs">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-300 pointer-events-none" />
-              <input
-                type="text"
-                value={deskSearch}
-                onChange={(e) => setDeskSearch(e.target.value)}
-                placeholder="Search subject or code..."
-                className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border-2 border-indigo-200 dark:border-indigo-900/80 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 font-bold focus:outline-none focus:border-indigo-500 shadow-xs"
-              />
-              {deskSearch && (
-                <button
-                  type="button"
-                  onClick={() => setDeskSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-extrabold"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
 
           {/* Subject Rooms Grid */}
           {isLoading ? (
@@ -3526,15 +3433,8 @@ export const SubjectRooms: React.FC = () => {
           ) : filteredDeskSubjects.length === 0 ? (
             <div className="p-12 text-center bg-white/95 dark:bg-slate-900/95 rounded-3xl border-2 border-slate-200 dark:border-slate-800 space-y-3 shadow-lg">
               <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">No matching subjects found</h3>
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Try adjusting your category filter or search query.</p>
-              <button
-                type="button"
-                onClick={() => { setDeskFilter('all'); setDeskSearch(''); }}
-                className="mt-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-extrabold rounded-xl shadow-md cursor-pointer hover:brightness-110"
-              >
-                Reset Filters
-              </button>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">No subjects available</h3>
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Subject rooms will appear here once loaded.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
