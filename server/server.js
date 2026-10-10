@@ -1562,7 +1562,26 @@ app.delete('/api/documents-all/purge', requireAdmin, async (req, res) => {
   });
 
   writeJsonFile('documents.json', []);
+  if (isConfigured) {
+    queryD1('DELETE FROM documents').catch((e) => console.warn('[D1 Purge Documents Notice]:', e.message));
+  }
   res.json({ success: true, message: 'All study notes and Google Drive documents removed successfully.' });
+});
+
+// Full Database Reset (Wipes documents and clears tombstone for fresh re-uploads)
+app.post('/api/documents-all/reset-full', requireAdmin, async (req, res) => {
+  writeJsonFile('documents.json', []);
+  writeJsonFile('deleted_documents.json', []);
+  if (isConfigured) {
+    try {
+      await queryD1('DELETE FROM documents');
+      await queryD1('DELETE FROM user_reading_progress');
+      await queryD1('DELETE FROM document_bookmarks');
+    } catch (e) {
+      console.warn('[D1 Reset Full Notice]:', e.message);
+    }
+  }
+  res.json({ success: true, message: 'All document data wiped cleanly. Ready for fresh re-upload.' });
 });
 
 // 5. NOTES STORAGE

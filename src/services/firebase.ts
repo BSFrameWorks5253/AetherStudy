@@ -808,6 +808,12 @@ export const firebaseDeletedDocs = {
     } catch {}
     return deletedIdSet;
   },
+
+  clearAllTombstones(): void {
+    try {
+      localStorage.removeItem(DELETED_DOCS_KEY);
+    } catch {}
+  },
 };
 
 /**
@@ -1007,6 +1013,20 @@ export const firebaseDocuments = {
       return true;
     } catch (err) {
       console.warn('[Firebase PurgeAll Documents Error]:', err);
+      return false;
+    }
+  },
+
+  async resetFull(): Promise<boolean> {
+    try {
+      localStorage.removeItem(DELETED_DOCS_KEY);
+      await ensureFirebaseAuth();
+      await set(ref(rtdb, 'academic_documents'), null);
+      await set(ref(rtdb, 'deleted_documents'), null);
+      await setDoc(doc(db, 'academic_documents', 'catalog'), { documents: [], updatedAt: firestoreServerTimestamp() });
+      return true;
+    } catch (err) {
+      console.warn('[Firebase Reset Full Documents Error]:', err);
       return false;
     }
   },

@@ -691,6 +691,23 @@ export const SubjectRooms: React.FC = () => {
     }
   };
 
+  // One-time automatic clean-slate migration to flush old Google Drive cache
+  useEffect(() => {
+    const CLEAN_SLATE_KEY = 'aether_db_clean_slate_2026_v1';
+    if (typeof window !== 'undefined' && localStorage.getItem(CLEAN_SLATE_KEY) !== 'done') {
+      localStorage.setItem(CLEAN_SLATE_KEY, 'done');
+      localStorage.removeItem('aether_cached_documents');
+      localStorage.removeItem('aether_deleted_document_ids');
+      localStorage.removeItem('aether_documents');
+      localStorage.removeItem('aether_local_documents');
+      localStorage.removeItem('aether_user_documents');
+      api.saveLocalDocuments([]);
+      setDocuments([]);
+      firebaseDocuments.resetFull().catch(() => {});
+      fetch('/api/documents-all/reset-full', { method: 'POST' }).catch(() => {});
+    }
+  }, []);
+
   useEffect(() => {
     loadContent();
   }, [activeStandard, isSuperAdmin]);
@@ -698,19 +715,19 @@ export const SubjectRooms: React.FC = () => {
   // Real-time Cloud Synchronization for academic documents across tabs and devices
   useEffect(() => {
     const unsubscribe = firebaseDocuments.subscribe((cloudDocs) => {
-      if (Array.isArray(cloudDocs) && cloudDocs.length > 0) {
+      if (Array.isArray(cloudDocs)) {
         const deletedIds = firebaseDeletedDocs.getDeletedIds();
         setDocuments((prev) => {
           const docMap = new Map<string, ServerDocument>();
           // Cloud documents take precedence (strictly filtering out deleted documents)
           cloudDocs.forEach((d) => {
-            if (d && d.id && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d.id)) {
+            if (d && d.id && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d)) {
               docMap.set(d.id, d);
             }
           });
           // Preserve local documents not yet in cloud (strictly filtering out deleted documents)
           prev.forEach((d) => {
-            if (d && d.id && !docMap.has(d.id) && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d.id)) {
+            if (d && d.id && !docMap.has(d.id) && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d)) {
               docMap.set(d.id, d);
             }
           });
@@ -1320,25 +1337,30 @@ export const SubjectRooms: React.FC = () => {
     })();
   };
 
-  // Purge All Study Notes (Super Admin only - preserves PYQs)
+  // Complete Database Reset (Super Admin only - preserves PYQs)
   const handlePurgeAllNotes = async () => {
     if (!isSuperAdmin) return;
     const confirmed = window.confirm(
-      '⚠️ DANGER: Are you sure you want to completely erase ALL study notes from the database?\n\n' +
-      '• All uploaded notes will be permanently removed so you can upload fresh ones.\n' +
+      '⚠️ COMPLETE DATABASE RESET:\n\n' +
+      '• Completely wipes all uploaded study notes and old Google Drive records from all databases.\n' +
+      '• Resets all caches and tombstones so you can reupload fresh files cleanly.\n' +
       '• ALL PYQ past board exam papers will remain 100% SAFE and untouched.\n\n' +
-      'Click OK to proceed with erasing all notes.'
+      'Click OK to proceed with resetting the database.'
     );
     if (!confirmed) return;
 
     // Instant optimistic UI purge
-    setDocuments((prev) => prev.filter((d) => d.category === 'textbook'));
+    setDocuments([]);
     localStorage.removeItem('aether_cached_documents');
+    localStorage.removeItem('aether_deleted_document_ids');
+    localStorage.removeItem('aether_documents');
+    localStorage.removeItem('aether_local_documents');
+    api.saveLocalDocuments([]);
 
     try {
       setIsPurgingNotes(true);
-      await api.purgeAllDocuments();
-      alert('All study notes have been wiped cleanly. All PYQ exam papers remain intact.');
+      await api.resetFullData();
+      alert('All study notes have been wiped cleanly. Database is ready for fresh uploads.');
     } catch (err: any) {
       alert(err.message || 'Failed to purge documents.');
     } finally {
@@ -2760,10 +2782,10 @@ export const SubjectRooms: React.FC = () => {
                           onClick={handlePurgeAllNotes}
                           disabled={isPurgingNotes}
                           className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-                          title="Purge all study notes from database while preserving PYQ test papers"
+                          title="Reset entire notes database cleanly so you can reupload fresh files"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>Purge Notes</span>
+                          <span>{isPurgingNotes ? 'Resetting DB...' : 'Reset Notes DB'}</span>
                         </button>
                       )}
 

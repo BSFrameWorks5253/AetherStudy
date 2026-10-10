@@ -514,49 +514,6 @@ export const api = {
       console.warn('[Documents API] Server documents endpoint note:', err);
     }
 
-    // 2.5 Cloud Bridge: Fetch from Google Apps Script / Google Drive
-    const GAS_URL = (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL as string) || 'https://script.google.com/macros/s/AKfycbyP7ulx0qKE5dL57j_In3D8MWXjMAdK6lYd2a0WTDo50f1Y6YscA6qCp2SEv9F_-b5Wmg/exec';
-    if (GAS_URL) {
-      try {
-        const gasRes = await fetchWithTimeout(`${GAS_URL}${GAS_URL.includes('?') ? '&' : '?'}action=list&t=${Date.now()}`, {}, 3000);
-        if (gasRes.ok) {
-          const gasData = await gasRes.json().catch(() => null);
-          if (gasData && Array.isArray(gasData.files)) {
-            gasData.files.forEach((f: any) => {
-              if (f && f.id && !firebaseDeletedDocs.isDeleted(f.id)) {
-                // Strictly omit Class 11 / FYJC items: Platform is 100% focused on Class 12 HSC
-                const combinedName = ((f.name || '') + ' ' + (f.folderPath || '') + ' ' + (f.subject || '')).toLowerCase();
-                const isFyj = combinedName.includes('fyjc') || combinedName.includes('class 11') || combinedName.includes('std 11') || f.standard === '11';
-                if (isFyj) return; // Never load Class 11 files into HSC 12 platform
-
-                const inferredStd = '12';
-
-                const docItem: ServerDocument = {
-                  id: f.id,
-                  name: f.name,
-                  originalName: f.name,
-                  streamUrl: f.streamUrl || `https://drive.google.com/file/d/${f.id}/preview`,
-                  serverUrl: f.streamUrl || `https://drive.google.com/file/d/${f.id}/preview`,
-                  url: f.streamUrl,
-                  sizeBytes: f.sizeBytes,
-                  size: f.size || '1.5 MB',
-                  subject: f.subject || (f.folderPath ? f.folderPath.split('/')[2] : 'General'),
-                  standard: inferredStd,
-                  category: f.category || 'notes',
-                  uploadedAt: f.uploadedAt || new Date().toISOString(),
-                };
-                if (!docMap.has(f.id)) {
-                  docMap.set(f.id, docItem);
-                }
-              }
-            });
-          }
-        }
-      } catch (gasErr) {
-        console.warn('[Documents API] Google Apps Script fetch note:', gasErr);
-      }
-    }
-
     // 3. Tertiary: Seed from local bundled catalog.json (filtering deleted docs)
     try {
       const catalog = await import('../data/catalog.json');
@@ -622,16 +579,6 @@ export const api = {
         body: JSON.stringify({ documents: localDocs }),
       });
     } catch {}
-    const GAS_URL = (import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL as string) || 'https://script.google.com/macros/s/AKfycbyP7ulx0qKE5dL57j_In3D8MWXjMAdK6lYd2a0WTDo50f1Y6YscA6qCp2SEv9F_-b5Wmg/exec';
-    if (GAS_URL) {
-      try {
-        await fetch(GAS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'sync_catalog', documents: localDocs }),
-        });
-      } catch {}
-    }
   },
 
   async uploadDocument(
@@ -850,6 +797,36 @@ export const api = {
     } catch {
       return true;
     }
+  },
+
+  async resetFullData(): Promise<boolean> {
+    // 1. Wipe all local client caches and tombstones
+    try {
+      localStorage.removeItem('aether_cached_documents');
+      localStorage.removeItem('aether_deleted_document_ids');
+      localStorage.removeItem('aether_documents');
+      localStorage.removeItem('aether_local_documents');
+      localStorage.removeItem('aether_user_documents');
+      firebaseDeletedDocs.clearAllTombstones();
+      api.saveLocalDocuments([]);
+    } catch {}
+
+    // 2. Wipe Firebase Realtime Database and Firestore
+    try {
+      await firebaseDocuments.resetFull();
+    } catch (fbErr) {
+      console.warn('[Firebase Reset Full Note]:', fbErr);
+    }
+
+    // 3. Wipe Server and Cloudflare D1
+    try {
+      await fetch(`${API_BASE}/documents-all/reset-full`, {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+      });
+    } catch {}
+
+    return true;
   },
 
   // 5. Notes Storage API
