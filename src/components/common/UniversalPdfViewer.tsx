@@ -18,9 +18,10 @@ import {
   Sun,
   Moon,
   Coffee,
-  ChevronDown,
-  ChevronUp,
-  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  ScrollText,
+  FileText,
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey, DocBookmark } from '../../services/readingMemory';
 import { transformDocumentUrl } from '../../utils/urlTransformer';
@@ -37,6 +38,7 @@ if (typeof window !== 'undefined') {
 }
 
 export type ReadingTheme = 'light' | 'sepia' | 'dark';
+export type ViewLayout = 'continuous' | 'single';
 
 interface UniversalPdfViewerProps {
   url: string;
@@ -48,6 +50,111 @@ interface UniversalPdfViewerProps {
   backLabel?: string;
 }
 
+/**
+ * Continuous Scroll Page Component with Intersection Visibility
+ */
+const ContinuousPdfPage: React.FC<{
+  pdfDoc: any;
+  pageNumber: number;
+  scale: number;
+  rotation: number;
+  themeStyles: any;
+  onVisible?: (page: number) => void;
+}> = ({ pdfDoc, pageNumber, scale, rotation, themeStyles, onVisible }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [rendered, setRendered] = useState<boolean>(false);
+  const [inView, setInView] = useState<boolean>(pageNumber <= 3); // Preload first 3 pages
+  const renderTaskRef = useRef<any>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setInView(true);
+            if (onVisible) onVisible(pageNumber);
+          } else {
+            // Keep memory lean: unmount canvases that are far away (>1200px)
+            if (pageNumber > 3) {
+              setInView(false);
+              setRendered(false);
+            }
+          }
+        });
+      },
+      { rootMargin: '1200px 0px 1200px 0px', threshold: 0.05 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pageNumber, onVisible]);
+
+  useEffect(() => {
+    if (!pdfDoc || !inView) return;
+    let cancelled = false;
+
+    pdfDoc.getPage(pageNumber).then((page: any) => {
+      if (cancelled) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const viewport = page.getViewport({ scale, rotation });
+
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = `${Math.floor(viewport.width)}px`;
+      canvas.style.height = `${Math.floor(viewport.height)}px`;
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const task = page.render({ canvasContext: context, viewport });
+      renderTaskRef.current = task;
+      task.promise
+        .then(() => {
+          if (!cancelled) setRendered(true);
+          try { page.cleanup(); } catch {}
+        })
+        .catch(() => {
+          try { page.cleanup(); } catch {}
+        });
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+      if (renderTaskRef.current) {
+        try { renderTaskRef.current.cancel(); } catch {}
+      }
+    };
+  }, [pdfDoc, pageNumber, scale, rotation, inView]);
+
+  return (
+    <div
+      ref={containerRef}
+      id={`pdf-page-${pageNumber}`}
+      className={`relative my-3 sm:my-6 shadow-2xl rounded-xl sm:rounded-2xl transition-all overflow-hidden ${themeStyles.paperBg}`}
+      style={{
+        minHeight: rendered ? 'auto' : '450px',
+        filter: themeStyles.canvasFilter,
+      }}
+    >
+      <div className="absolute top-2.5 left-3 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-mono font-bold text-white z-10 opacity-70 hover:opacity-100 select-none pointer-events-none">
+        Page {pageNumber}
+      </div>
+      <canvas ref={canvasRef} className="block max-w-none rounded-xl" />
+      {!rendered && inView && (
+        <div className="flex flex-col items-center justify-center py-24 text-xs font-semibold opacity-60">
+          <RefreshCw className="w-5 h-5 animate-spin mb-2 text-brand-500" />
+          <span>Rendering Page {pageNumber}...</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   url,
   title = 'Document',
@@ -58,7 +165,8 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   backLabel,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const singleCanvasRef = useRef<HTMLCanvasElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const renderTaskRef = useRef<any>(null);
 
   const docKey = useMemo(() => getCanonicalDocKey(url, title), [url, title]);
@@ -73,6 +181,15 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
     }
     return 'light';
+  });
+
+  // Reading Layout: 'continuous' (default - scroll up & down smoothly) | 'single'
+  const [layout, setLayout] = useState<ViewLayout>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('aether_pdf_layout') as ViewLayout;
+      if (saved === 'continuous' || saved === 'single') return saved;
+    }
+    return 'continuous';
   });
 
   // Engine Mode: 'canvas' | 'native' | 'drive'
@@ -90,11 +207,11 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      if (window.innerWidth < 640) return 1.0;
-      if (window.innerWidth < 1024) return 1.25;
-      return 1.45;
+      if (window.innerWidth < 640) return 0.95;
+      if (window.innerWidth < 1024) return 1.2;
+      return 1.4;
     }
-    return 1.45;
+    return 1.3;
   });
   const [rotation, setRotation] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -118,12 +235,12 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   const [scrubberValue, setScrubberValue] = useState<number>(currentPage);
   const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
 
-  // Gesture tracking refs
-  const touchStartY = useRef<number>(0);
+  // Touch tracking for horizontal page flip (single page mode)
   const touchStartX = useRef<number>(0);
-  const lastWheelTime = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const unscaledPageDimRef = useRef<{ width: number; height: number }>({ width: 595, height: 842 });
 
-  // Save selected reading theme
+  // Save selected reading theme & layout
   const handleSelectTheme = (t: ReadingTheme) => {
     setTheme(t);
     try {
@@ -131,7 +248,14 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     } catch {}
   };
 
-  // Convert relative paths to absolute URLs so Web Workers can resolve them
+  const handleToggleLayout = (l: ViewLayout) => {
+    setLayout(l);
+    try {
+      localStorage.setItem('aether_pdf_layout', l);
+    } catch {}
+  };
+
+  // Convert relative paths to absolute URLs
   const safePdfUrl = useMemo(() => {
     if (!url) return '';
     if (urlBundle.isDrive) {
@@ -156,97 +280,73 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
   // Page navigation helpers
   const goToNextPage = useCallback(() => {
-    setCurrentPage((prev) => {
-      if (numPages > 0 && prev < numPages) {
-        const next = prev + 1;
-        setScrubberValue(next);
-        return next;
+    if (numPages > 0 && currentPage < numPages) {
+      const next = currentPage + 1;
+      setCurrentPage(next);
+      setScrubberValue(next);
+      if (layout === 'continuous') {
+        const el = document.getElementById(`pdf-page-${next}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      return prev;
-    });
-  }, [numPages]);
+    }
+  }, [numPages, currentPage, layout]);
 
   const goToPrevPage = useCallback(() => {
-    setCurrentPage((prev) => {
-      if (prev > 1) {
-        const p = prev - 1;
-        setScrubberValue(p);
-        return p;
+    if (currentPage > 1) {
+      const prev = currentPage - 1;
+      setCurrentPage(prev);
+      setScrubberValue(prev);
+      if (layout === 'continuous') {
+        const el = document.getElementById(`pdf-page-${prev}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      return prev;
-    });
-  }, []);
+    }
+  }, [currentPage, layout]);
 
   const jumpToPage = useCallback(
     (target: number) => {
       if (target >= 1 && (numPages === 0 || target <= numPages)) {
         setCurrentPage(target);
         setScrubberValue(target);
+        if (layout === 'continuous') {
+          const el = document.getElementById(`pdf-page-${target}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
     },
-    [numPages]
+    [numPages, layout]
   );
 
-  // Keep scrubber synced with current page when not actively dragging
+  // Sync scrubber value with current page when not scrubbing
   useEffect(() => {
     if (!isScrubbing) {
       setScrubberValue(currentPage);
     }
   }, [currentPage, isScrubbing]);
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const unscaledPageDimRef = useRef<{ width: number; height: number }>({ width: 595, height: 842 });
-
-  // Reset scroll container to top whenever currentPage changes
+  // Reset scroll to top in single-page mode when page changes
   useEffect(() => {
-    if (scrollContainerRef.current) {
+    if (layout === 'single' && scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: 'instant' });
     }
-  }, [currentPage]);
+  }, [currentPage, layout]);
 
-  // Vertical Swipe Gesture Detection (Only transitions pages at top/bottom scroll boundaries)
+  // Horizontal Swipe for Single-Page Mode (Never conflicts with vertical scrolling!)
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    const endY = e.changedTouches[0].clientY;
-    const endX = e.changedTouches[0].clientX;
-    const diffY = touchStartY.current - endY;
-    const diffX = touchStartX.current - endX;
+    if (layout !== 'single') return; // In continuous mode, native vertical scroll handles everything!
+    const diffX = touchStartX.current - e.changedTouches[0].clientX;
+    const diffY = touchStartY.current - e.changedTouches[0].clientY;
 
-    const el = scrollContainerRef.current;
-    const isAtBottom = el ? el.scrollTop + el.clientHeight >= el.scrollHeight - 25 : true;
-    const isAtTop = el ? el.scrollTop <= 25 : true;
-    const contentFitsOnScreen = el ? el.scrollHeight <= el.clientHeight + 15 : true;
-
-    // Minimum 55px vertical delta with vertical dominance
-    if (Math.abs(diffY) > 55 && Math.abs(diffY) > Math.abs(diffX) * 1.5) {
-      if (diffY > 0 && (isAtBottom || contentFitsOnScreen)) {
+    // Minimum 45px horizontal swipe with horizontal dominance
+    if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY) * 1.4) {
+      if (diffX > 0) {
         goToNextPage();
-      } else if (diffY < 0 && (isAtTop || contentFitsOnScreen)) {
-        goToPrevPage();
-      }
-    }
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    const el = scrollContainerRef.current;
-    const isAtBottom = el ? el.scrollTop + el.clientHeight >= el.scrollHeight - 15 : true;
-    const isAtTop = el ? el.scrollTop <= 15 : true;
-    const contentFitsOnScreen = el ? el.scrollHeight <= el.clientHeight + 15 : true;
-
-    if (Math.abs(e.deltaY) > 30) {
-      if (e.deltaY > 0 && (isAtBottom || contentFitsOnScreen)) {
-        const now = Date.now();
-        if (now - lastWheelTime.current < 350) return;
-        lastWheelTime.current = now;
-        goToNextPage();
-      } else if (e.deltaY < 0 && (isAtTop || contentFitsOnScreen)) {
-        const now = Date.now();
-        if (now - lastWheelTime.current < 350) return;
-        lastWheelTime.current = now;
+      } else {
         goToPrevPage();
       }
     }
@@ -255,20 +355,14 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   // Keyboard Navigation (Arrow Keys & Page Up/Down)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'ArrowRight') {
-        const el = scrollContainerRef.current;
-        const isAtBottom = el ? el.scrollTop + el.clientHeight >= el.scrollHeight - 20 : true;
-        if (isAtBottom) {
-          e.preventDefault();
-          goToNextPage();
-        }
-      } else if (e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === 'ArrowLeft') {
-        const el = scrollContainerRef.current;
-        const isAtTop = el ? el.scrollTop <= 20 : true;
-        if (isAtTop) {
-          e.preventDefault();
-          goToPrevPage();
-        }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        e.preventDefault();
+        goToNextPage();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        goToPrevPage();
       } else if (e.key === 'z' || e.key === 'Z') {
         setZenMode((prev) => !prev);
       }
@@ -277,7 +371,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNextPage, goToPrevPage]);
 
-  // Load PDF Document via PDF.js for Canvas engine
+  // Load PDF Document via PDF.js
   useEffect(() => {
     if (!safePdfUrl || isGoogleDrive) {
       setLoading(false);
@@ -314,13 +408,13 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         setCurrentPage(targetPage);
         setScrubberValue(targetPage);
 
-        // Auto-scale to fit container width comfortably on first load
+        // Auto-scale to fit container width comfortably
         loadedDoc.getPage(targetPage).then((p: any) => {
           if (isCancelled) return;
           const baseVp = p.getViewport({ scale: 1, rotation: 0 });
           unscaledPageDimRef.current = { width: baseVp.width, height: baseVp.height };
           const containerW = containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800);
-          const pad = containerW < 640 ? 20 : 48;
+          const pad = containerW < 640 ? 16 : 48;
           const fitScale = Math.min(Math.max((containerW - pad) / baseVp.width, 0.55), 1.6);
           setScale(Number(fitScale.toFixed(2)));
         }).catch(() => {});
@@ -332,7 +426,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           });
           const t = setTimeout(() => {
             setResumeNotification(null);
-          }, 5000);
+          }, 4500);
           return () => clearTimeout(t);
         }
       })
@@ -358,9 +452,9 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     }
   }, [docKey, title, currentPage, numPages]);
 
-  // High-DPI Page Canvas Rendering
+  // Single-Page Canvas Render Mode
   useEffect(() => {
-    if (!pdfDoc || isGoogleDrive || engineMode !== 'canvas') return;
+    if (!pdfDoc || isGoogleDrive || engineMode !== 'canvas' || layout !== 'single') return;
 
     let isCancelled = false;
 
@@ -379,7 +473,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       const unscaled = page.getViewport({ scale: 1, rotation });
       unscaledPageDimRef.current = { width: unscaled.width, height: unscaled.height };
 
-      const canvas = canvasRef.current;
+      const canvas = singleCanvasRef.current;
       if (!canvas) {
         setIsPageRendering(false);
         return;
@@ -391,7 +485,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       }
 
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewport = page.getViewport({ scale: scale, rotation: rotation });
+      const viewport = page.getViewport({ scale, rotation });
 
       canvas.width = Math.floor(viewport.width * dpr);
       canvas.height = Math.floor(viewport.height * dpr);
@@ -436,7 +530,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         renderTaskRef.current = null;
       }
     };
-  }, [pdfDoc, currentPage, scale, rotation, isGoogleDrive, engineMode]);
+  }, [pdfDoc, currentPage, scale, rotation, isGoogleDrive, engineMode, layout]);
 
   const handleZoomIn = () => setScale((prev) => Math.min(Number((prev + 0.15).toFixed(2)), 3.0));
   const handleZoomOut = () => setScale((prev) => Math.max(Number((prev - 0.15).toFixed(2)), 0.5));
@@ -444,7 +538,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
   const handleFitWidth = useCallback(() => {
     const containerW = containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800);
-    const pad = containerW < 640 ? 20 : 48;
+    const pad = containerW < 640 ? 16 : 48;
     const baseW = unscaledPageDimRef.current.width || 595;
     const target = Math.min(Math.max((containerW - pad) / baseW, 0.55), 3.0);
     setScale(Number(target.toFixed(2)));
@@ -452,7 +546,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
   const handleFitPage = useCallback(() => {
     const containerH = containerRef.current?.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 900);
-    const pad = 140; // header (56px) + footer (64px) + margin (20px)
+    const pad = 140;
     const baseH = unscaledPageDimRef.current.height || 842;
     const target = Math.min(Math.max((containerH - pad) / baseH, 0.45), 2.5);
     setScale(Number(target.toFixed(2)));
@@ -490,14 +584,16 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           wrapper: 'bg-[#f4ebd9] text-[#433422]',
           canvasFilter: 'sepia(35%) brightness(96%) contrast(98%)',
           paperBg: 'bg-[#faf3e7]',
-          toolbar: 'bg-[#ebe0cb]/90 border-[#d8cbb2] text-[#433422]',
+          toolbar: 'bg-[#ebe0cb]/95 border-[#d8cbb2] text-[#433422]',
+          accent: 'text-amber-700 dark:text-amber-400',
         };
       case 'dark':
         return {
           wrapper: 'bg-[#080d1a] text-slate-100',
           canvasFilter: 'invert(92%) hue-rotate(180deg) brightness(96%) contrast(92%)',
           paperBg: 'bg-[#0c1324]',
-          toolbar: 'bg-[#0e1629]/90 border-white/10 text-slate-100',
+          toolbar: 'bg-[#0e1629]/95 border-white/10 text-slate-100',
+          accent: 'text-brand-400',
         };
       case 'light':
       default:
@@ -505,7 +601,8 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           wrapper: 'bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white',
           canvasFilter: 'none',
           paperBg: 'bg-white',
-          toolbar: 'bg-white/90 dark:bg-slate-900/90 border-black/10 dark:border-white/10 text-slate-900 dark:text-white',
+          toolbar: 'bg-white/95 dark:bg-slate-900/95 border-black/10 dark:border-white/10 text-slate-900 dark:text-white',
+          accent: 'text-brand-600 dark:text-brand-400',
         };
     }
   }, [theme]);
@@ -515,11 +612,10 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onWheel={handleWheel}
       className={`relative flex flex-col w-full h-full select-none overflow-hidden transition-colors duration-300 ${themeStyles.wrapper} ${className}`}
     >
       {/* ============================================================== */}
-      {/* 1. APPLE BOOKS TOP FROSTED CONTROL BAR                        */}
+      {/* 1. TOP FROSTED CONTROL BAR                                     */}
       {/* ============================================================== */}
       <header
         className={`h-14 px-3 sm:px-5 border-b backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 ${
@@ -527,7 +623,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         } ${themeStyles.toolbar}`}
       >
         {/* Left: Back / Title */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1 mr-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
           {onClose && (
             <button
               onClick={onClose}
@@ -535,7 +631,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
               title={backLabel || 'Close Reader (Esc)'}
             >
               <ArrowLeft className="w-4 h-4 shrink-0" />
-              <span className="font-semibold tracking-tight">Back</span>
+              <span className="font-semibold tracking-tight hidden sm:inline">Back</span>
             </button>
           )}
 
@@ -553,8 +649,38 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           </div>
         </div>
 
-        {/* Center: Reading Theme & Engine Pills */}
+        {/* Center/Right: Actions */}
         <div className="flex items-center space-x-1.5 shrink-0">
+          {/* Continuous vs Single Page Switcher */}
+          {engineMode === 'canvas' && numPages > 1 && (
+            <div className="flex items-center bg-black/5 dark:bg-white/10 rounded-full p-0.5 border border-black/5 dark:border-white/5">
+              <button
+                onClick={() => handleToggleLayout('continuous')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  layout === 'continuous'
+                    ? 'bg-brand-600 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                }`}
+                title="Continuous Scroll Mode (Scroll freely up & down)"
+              >
+                <ScrollText className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Scroll</span>
+              </button>
+              <button
+                onClick={() => handleToggleLayout('single')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  layout === 'single'
+                    ? 'bg-brand-600 text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                }`}
+                title="Single Page Mode (Swipe / Tap page flip)"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Page</span>
+              </button>
+            </div>
+          )}
+
           {/* Theme Selector (Paper / Sepia / Night) */}
           <div className="flex items-center bg-black/5 dark:bg-white/10 rounded-full p-0.5 border border-black/5 dark:border-white/5">
             <button
@@ -585,18 +711,6 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
               <Moon className="w-3.5 h-3.5" />
             </button>
           </div>
-
-          {/* Engine Mode Toggle (Canvas vs Native GPU) */}
-          {!isGoogleDrive && (
-            <button
-              onClick={() => setEngineMode(engineMode === 'canvas' ? 'native' : 'canvas')}
-              className="hidden lg:flex items-center space-x-1 px-2.5 py-1 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 text-[11px] font-bold border border-black/5 dark:border-white/5 transition-all cursor-pointer"
-              title="Switch PDF Rendering Engine"
-            >
-              <Sparkles className="w-3 h-3 text-brand-500" />
-              <span>{engineMode === 'canvas' ? 'Canvas' : 'Native GPU'}</span>
-            </button>
-          )}
 
           {/* Bookmark Button */}
           <button
@@ -656,7 +770,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
               <button
                 onClick={handleFitPage}
                 className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer hidden md:inline-block"
-                title="Fit Whole Page Height"
+                title="Fit Page Height"
               >
                 Fit Page
               </button>
@@ -686,7 +800,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
-          {/* Direct Open in System App */}
+          {/* Direct Open in External App */}
           <a
             href={directOpenUrl}
             target="_blank"
@@ -704,20 +818,14 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       {/* 2. MAIN DOCUMENT VIEWPORT                                      */}
       {/* ============================================================== */}
       <main
-        onClick={(e) => {
-          // Tap background to toggle Zen distraction-free mode
-          if (e.target === e.currentTarget) {
-            setZenMode((prev) => !prev);
-          }
-        }}
         className="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center"
       >
-        {/* Loading Spinner with subtle backdrop */}
+        {/* Loading Spinner */}
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-xs z-20">
             <RefreshCw className="w-8 h-8 text-brand-500 animate-spin mb-2" />
             <p className="text-xs font-bold text-white tracking-wide">
-              Preparing Smooth High-Res Document...
+              Preparing High-Definition Document...
             </p>
           </div>
         )}
@@ -734,7 +842,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           </div>
         )}
 
-        {/* ENGINE 2: NATIVE BROWSER EMBED (Zero Lag GPU Render) */}
+        {/* ENGINE 2: NATIVE BROWSER EMBED */}
         {engineMode === 'native' && (
           <div className="w-full h-full relative flex flex-col bg-slate-900">
             <object
@@ -751,11 +859,35 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           </div>
         )}
 
-        {/* ENGINE 3: HIGH-DPI CANVAS WITH SMOOTH SWIPE / SCROLL */}
-        {engineMode === 'canvas' && (
+        {/* ENGINE 3: HIGH-DPI CANVAS (CONTINUOUS SCROLL MODE) */}
+        {engineMode === 'canvas' && layout === 'continuous' && (
           <div
             ref={scrollContainerRef}
-            className="w-full h-full overflow-y-auto overflow-x-auto relative p-2 sm:p-6 pb-32 sm:pb-36"
+            className="w-full h-full overflow-y-auto overflow-x-auto relative p-2 sm:p-6 pb-28 sm:pb-32 overscroll-contain"
+          >
+            <div className="flex flex-col items-center justify-start min-w-full">
+              {Array.from({ length: numPages || 1 }, (_, i) => i + 1).map((p) => (
+                <ContinuousPdfPage
+                  key={`page-${p}-${scale}-${rotation}`}
+                  pdfDoc={pdfDoc}
+                  pageNumber={p}
+                  scale={scale}
+                  rotation={rotation}
+                  themeStyles={themeStyles}
+                  onVisible={(visiblePage) => {
+                    setCurrentPage(visiblePage);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ENGINE 3B: HIGH-DPI CANVAS (SINGLE PAGE FLIP MODE) */}
+        {engineMode === 'canvas' && layout === 'single' && (
+          <div
+            ref={scrollContainerRef}
+            className="w-full h-full overflow-y-auto overflow-x-auto relative p-2 sm:p-6 pb-28 sm:pb-32 overscroll-contain"
           >
             <div className="flex flex-col items-center justify-start min-w-full">
               <div
@@ -767,14 +899,32 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
                 }}
               >
                 <canvas
-                  ref={canvasRef}
-                  className="block cursor-default transition-opacity duration-150 max-w-none"
+                  ref={singleCanvasRef}
+                  className="block cursor-default transition-opacity duration-150 max-w-none rounded-xl sm:rounded-2xl"
                   style={{
                     opacity: isPageRendering ? 0.75 : 1,
                   }}
                 />
               </div>
             </div>
+
+            {/* Desktop Lateral Flip Buttons for Single Page Mode */}
+            <button
+              onClick={goToPrevPage}
+              disabled={currentPage <= 1}
+              className="hidden md:flex fixed left-6 top-1/2 -translate-y-1/2 z-30 p-3.5 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white shadow-2xl backdrop-blur-md disabled:opacity-20 disabled:pointer-events-none transition-all cursor-pointer border border-white/10"
+              title="Previous Page (←)"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={goToNextPage}
+              disabled={currentPage >= numPages}
+              className="hidden md:flex fixed right-6 top-1/2 -translate-y-1/2 z-30 p-3.5 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white shadow-2xl backdrop-blur-md disabled:opacity-20 disabled:pointer-events-none transition-all cursor-pointer border border-white/10"
+              title="Next Page (→)"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         )}
 
@@ -799,36 +949,39 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       </main>
 
       {/* ============================================================== */}
-      {/* 3. APPLE BOOKS BOTTOM SCRUBBER & PAGE CONTROLLER               */}
+      {/* 3. MOBILE & DESKTOP FLOATING NAVIGATION CONTROLLER             */}
       {/* ============================================================== */}
       {numPages > 1 && engineMode === 'canvas' && (
         <footer
-          className={`h-16 px-4 sm:px-8 border-t backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 ${
+          className={`h-16 px-3 sm:px-8 border-t backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 ${
             zenMode ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
           } ${themeStyles.toolbar}`}
         >
-          {/* Quick Prev Page */}
+          {/* Quick Prev Button (Large & Mobile Friendly) */}
           <button
             onClick={goToPrevPage}
             disabled={currentPage <= 1}
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
-            title="Previous Page (Swipe Down)"
+            className="flex items-center gap-1 px-3 py-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0 text-xs font-bold"
+            title="Previous Page (Swipe Down / Left)"
           >
-            <ChevronUp className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Prev</span>
           </button>
 
-          {/* Smooth Scrubber Track */}
-          <div className="flex-1 max-w-md mx-4 sm:mx-8 flex flex-col items-center">
-            {/* Scrubber Tooltip */}
+          {/* Smooth Scrubber Track & Page Badge */}
+          <div className="flex-1 max-w-md mx-3 sm:mx-8 flex flex-col items-center">
+            {/* Scrubber Badge */}
             <div className="text-[11px] font-bold tracking-tight mb-1 flex items-center gap-2">
               <span>
                 Page <strong className="font-extrabold text-brand-600 dark:text-brand-400">{scrubberValue}</strong> of {numPages}
               </span>
               <span className="opacity-40">•</span>
-              <span className="opacity-70 font-mono text-[10px]">{Math.round((scrubberValue / numPages) * 100)}% read</span>
+              <span className="opacity-70 font-mono text-[10px]">
+                {Math.round((scrubberValue / numPages) * 100)}% read
+              </span>
             </div>
 
-            {/* Range Input Slider */}
+            {/* Slider */}
             <input
               type="range"
               min={1}
@@ -851,20 +1004,21 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
             />
           </div>
 
-          {/* Quick Next Page */}
+          {/* Quick Next Button (Large & Mobile Friendly) */}
           <button
             onClick={goToNextPage}
             disabled={currentPage >= numPages}
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0"
-            title="Next Page (Swipe Up)"
+            className="flex items-center gap-1 px-3 py-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0 text-xs font-bold"
+            title="Next Page (Swipe Up / Right)"
           >
-            <ChevronDown className="w-4 h-4" />
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="w-4 h-4" />
           </button>
         </footer>
       )}
 
       {/* ============================================================== */}
-      {/* 4. PAGE GRID MODAL (Instant Chapter & Page Thumbnails)          */}
+      {/* 4. PAGE GRID MODAL (Instant Thumbnails Overview)               */}
       {/* ============================================================== */}
       {showPageGridModal && (
         <div

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../../services/api';
 import { TestPaper } from '../../types/testPaper';
-import { useAuth } from '../../context/AuthContext';
 import { useStudyStore } from '../../store/useStudyStore';
 import { InteractivePDFViewer } from './InteractivePDFViewer';
 import { matchSubjectDoc } from '../workspace/SubjectRooms';
@@ -93,8 +92,6 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
     isCompleted,
     getPageProgress,
   } = useStudyStore();
-
-  const { activeStandard } = useAuth();
 
   // Load paper repository from API
   useEffect(() => {
@@ -329,7 +326,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
                 HSC Commerce Board Exam Vault
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-2xl leading-relaxed">
-                Official previous year question papers for Standard {activeStandard}. Instant search by subject, year, and examination session.
+                Official previous year question papers for Maharashtra State Board Standard 12 HSC Commerce. Instant search by subject, year, and examination session.
               </p>
             </div>
 

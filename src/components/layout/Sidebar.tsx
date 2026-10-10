@@ -88,12 +88,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="truncate">
                   <h1 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white leading-tight flex items-center gap-1.5">
                     AetherStudy
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-300 border border-brand-500/20">
-                      Std {activeStandard}
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300 border border-brand-500/25">
+                      HSC 12th
                     </span>
                   </h1>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-tight mt-0.5">
-                    Maharashtra State Board
+                    MSBSHSE Commerce Board
                   </p>
                 </div>
               )}
@@ -182,7 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           ? 'Administrator'
                           : currentUser.role === 'ADMIN'
                           ? 'Faculty Admin'
-                          : `Class ${activeStandard}`}
+                          : 'Class 12 Student'}
                       </div>
                     </div>
                   </div>

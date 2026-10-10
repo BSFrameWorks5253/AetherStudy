@@ -316,11 +316,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                     onChange={(e) => setTargetStandard(e.target.value)}
                     className="w-full bg-white dark:bg-slate-900 rounded-xl px-3 py-2 text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                   >
-                    <option value="12">Standard 12 (HSC)</option>
-                    <option value="10">Standard 10 (SSC)</option>
-                    <option value="11">Standard 11 (FYJC)</option>
-                    <option value="9">Standard 9</option>
-                    <option value="ALL">All Standards (Universal)</option>
+                    <option value="12">Standard 12 (HSC Board)</option>
+                    <option value="ALL">All Students (Universal)</option>
                   </select>
                 </div>
 

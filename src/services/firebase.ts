@@ -22,7 +22,13 @@ import {
   onDisconnect,
   serverTimestamp as rtdbServerTimestamp,
 } from 'firebase/database';
-import { getStorage } from 'firebase/storage';
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage';
 import { TimeSlot } from '../types/timetable';
 import { getUserStorageItem, setUserStorageItem } from '../utils/userStorage';
 
@@ -607,7 +613,168 @@ export const firebaseNotifications = {
 
 /**
  * ============================================================================
- * FIREBASE ACADEMIC DOCUMENTS REPOSITORY
+ * 6. FIREBASE CLOUD STORAGE REPOSITORY (100% Mobile & Desktop Global CDN)
+ * Uploads PDF files directly to Firebase Storage bucket.
+ * Produces public HTTPS URLs that work on all phones, PCs, and tablets!
+ * ============================================================================
+ */
+export const firebaseStorageService = {
+  /**
+   * Uploads a File object to Firebase Storage and returns its permanent public HTTPS URL.
+   */
+  async uploadPdf(
+    file: File,
+    subject: string = 'General',
+    standard: string = '12'
+  ): Promise<{ url: string; storagePath: string; fileName: string; sizeBytes: number }> {
+    await ensureFirebaseAuth();
+    const cleanStd = standard === '11' ? 'Std11' : 'Std12';
+    const cleanSub = subject.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const uniquePath = `study_materials/${cleanStd}/${cleanSub}/${Date.now()}_${safeName}`;
+
+    const fileRef = storageRef(storage, uniquePath);
+    const metadata = {
+      contentType: file.type || 'application/pdf',
+      customMetadata: {
+        subject,
+        standard,
+        originalName: file.name,
+        uploadedAt: new Date().toISOString(),
+      },
+    };
+
+    const snapshot = await uploadBytes(fileRef, file, metadata);
+    const downloadUrl = await getDownloadURL(snapshot.ref);
+
+    return {
+      url: downloadUrl,
+      storagePath: uniquePath,
+      fileName: file.name,
+      sizeBytes: file.size,
+    };
+  },
+
+  /**
+   * Deletes a file from Firebase Storage given its public download URL or storage path.
+   */
+  async deletePdf(urlOrPath: string): Promise<boolean> {
+    if (!urlOrPath) return false;
+    try {
+      await ensureFirebaseAuth();
+      let fileRef;
+      if (urlOrPath.startsWith('https://') || urlOrPath.startsWith('http://')) {
+        fileRef = storageRef(storage, urlOrPath);
+      } else {
+        fileRef = storageRef(storage, urlOrPath);
+      }
+      await deleteObject(fileRef);
+      return true;
+    } catch (err) {
+      console.warn('[Firebase Storage Delete Notice]:', err);
+      return false;
+    }
+  },
+};
+
+/**
+ * ============================================================================
+ * 7. PERSISTENT DELETED DOCUMENTS TOMBSTONE SYSTEM
+ * Guarantees deleted notes NEVER come back on refresh or across devices!
+ * ============================================================================
+ */
+const DELETED_DOCS_KEY = 'aether_deleted_document_ids';
+
+export const firebaseDeletedDocs = {
+  getDeletedIds(): Set<string> {
+    try {
+      const raw = localStorage.getItem(DELETED_DOCS_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(list) ? list : []);
+    } catch {
+      return new Set();
+    }
+  },
+
+  isDeleted(id?: string | null): boolean {
+    if (!id) return false;
+    const cleanId = String(id).trim();
+    if (!cleanId) return false;
+    const set = this.getDeletedIds();
+    return set.has(cleanId) || set.has(cleanId.replace(/[^a-zA-Z0-9_-]/g, '_'));
+  },
+
+  async markDeleted(id: string): Promise<void> {
+    if (!id) return;
+    const cleanId = String(id).trim();
+    const deletedIdSet = this.getDeletedIds();
+    deletedIdSet.add(cleanId);
+    deletedIdSet.add(cleanId.replace(/[^a-zA-Z0-9_-]/g, '_'));
+    try {
+      localStorage.setItem(DELETED_DOCS_KEY, JSON.stringify(Array.from(deletedIdSet)));
+    } catch {}
+
+    try {
+      await ensureFirebaseAuth();
+      const rtdbKey = cleanId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      await set(ref(rtdb, `deleted_documents/${rtdbKey}`), {
+        id: cleanId,
+        deletedAt: new Date().toISOString(),
+      });
+      await setDoc(doc(db, 'deleted_documents_items', rtdbKey), {
+        id: cleanId,
+        deletedAt: firestoreServerTimestamp(),
+      }, { merge: true });
+    } catch (err) {
+      console.warn('[Firebase Mark Deleted Tombstone Warning]:', err);
+    }
+  },
+
+  async markPurged(ids: string[]): Promise<void> {
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    const deletedIdSet = this.getDeletedIds();
+    ids.forEach((id) => {
+      const clean = String(id).trim();
+      deletedIdSet.add(clean);
+      deletedIdSet.add(clean.replace(/[^a-zA-Z0-9_-]/g, '_'));
+    });
+    try {
+      localStorage.setItem(DELETED_DOCS_KEY, JSON.stringify(Array.from(deletedIdSet)));
+    } catch {}
+
+    try {
+      await ensureFirebaseAuth();
+      const updates: Record<string, any> = {};
+      ids.forEach((id) => {
+        const rtdbKey = String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+        updates[`deleted_documents/${rtdbKey}`] = { id, deletedAt: new Date().toISOString() };
+      });
+      await set(ref(rtdb, 'deleted_documents'), updates);
+    } catch {}
+  },
+
+  async syncDeletedFromCloud(): Promise<Set<string>> {
+    const deletedIdSet = this.getDeletedIds();
+    try {
+      const snap = await get(ref(rtdb, 'deleted_documents'));
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          Object.keys(val).forEach((k) => {
+            deletedIdSet.add(k);
+            if (val[k]?.id) deletedIdSet.add(val[k].id);
+          });
+          localStorage.setItem(DELETED_DOCS_KEY, JSON.stringify(Array.from(deletedIdSet)));
+        }
+      }
+    } catch {}
+    return deletedIdSet;
+  },
+};
+
+/**
+ * ============================================================================
+ * 8. FIREBASE ACADEMIC DOCUMENTS REPOSITORY
  * Persistent cloud storage of curriculum notes, textbooks, and PDF pointers.
  * Synchronizes in real-time across student devices and prevents data loss.
  * ============================================================================
@@ -619,10 +786,13 @@ export const firebaseDocuments = {
       rtdbRef,
       (snap) => {
         const val = snap.val();
+        const deletedSet = firebaseDeletedDocs.getDeletedIds();
         if (val && typeof val === 'object') {
-          const list: any[] = Array.isArray(val)
+          const list: any[] = (Array.isArray(val)
             ? val.filter(Boolean)
-            : Object.keys(val).map((k) => ({ id: k, ...val[k] }));
+            : Object.keys(val).map((k) => ({ id: k, ...val[k] }))
+          ).filter((d) => d && d.id && !deletedSet.has(d.id) && !deletedSet.has(String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_')));
+
           list.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
           callback(list);
         } else if (val === null) {
@@ -642,6 +812,7 @@ export const firebaseDocuments = {
   },
 
   async fetch(): Promise<any[]> {
+    const deletedSet = await firebaseDeletedDocs.syncDeletedFromCloud();
     const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 2000));
     const workPromise = (async () => {
       try {
@@ -656,9 +827,11 @@ export const firebaseDocuments = {
         if (snap && snap.exists()) {
           const val = snap.val();
           if (val && typeof val === 'object') {
-            const list: any[] = Array.isArray(val)
+            const list: any[] = (Array.isArray(val)
               ? val.filter(Boolean)
-              : Object.keys(val).map((k) => ({ id: k, ...val[k] }));
+              : Object.keys(val).map((k) => ({ id: k, ...val[k] }))
+            ).filter((d) => d && d.id && !deletedSet.has(d.id) && !deletedSet.has(String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_')));
+
             list.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
             return list;
           }
@@ -676,7 +849,9 @@ export const firebaseDocuments = {
         if (snap && snap.exists()) {
           const data = snap.data();
           if (Array.isArray(data?.documents) && data.documents.length > 0) {
-            return data.documents;
+            return data.documents.filter(
+              (d: any) => d && d.id && !deletedSet.has(d.id) && !deletedSet.has(String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_'))
+            );
           }
         }
       } catch (fErr) {
@@ -691,6 +866,11 @@ export const firebaseDocuments = {
 
   async saveDocument(docData: any): Promise<boolean> {
     if (!docData || !docData.id) return false;
+    if (firebaseDeletedDocs.isDeleted(docData.id)) {
+      console.warn(`[Firebase] Refusing to save document ${docData.id} because it was marked deleted.`);
+      return false;
+    }
+
     const cleanId = String(docData.id).replace(/[^a-zA-Z0-9_-]/g, '_');
     try {
       await ensureFirebaseAuth();
@@ -720,10 +900,15 @@ export const firebaseDocuments = {
 
   async saveAll(docs: any[]): Promise<boolean> {
     if (!Array.isArray(docs)) return false;
+    const deletedSet = firebaseDeletedDocs.getDeletedIds();
+    const cleanDocs = docs.filter(
+      (d) => d && d.id && !deletedSet.has(d.id) && !deletedSet.has(String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_'))
+    );
+
     try {
       await ensureFirebaseAuth();
       const rtdbMap: Record<string, any> = {};
-      docs.forEach((d) => {
+      cleanDocs.forEach((d) => {
         if (d && d.id) {
           const cleanId = String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_');
           rtdbMap[cleanId] = d;
@@ -734,7 +919,7 @@ export const firebaseDocuments = {
       // Firestore backup catalog
       await setDoc(
         doc(db, 'academic_documents', 'catalog'),
-        { documents: docs, updatedAt: firestoreServerTimestamp() },
+        { documents: cleanDocs, updatedAt: firestoreServerTimestamp() },
         { merge: true }
       );
       return true;
@@ -746,14 +931,45 @@ export const firebaseDocuments = {
 
   async deleteDocument(id: string): Promise<boolean> {
     if (!id) return false;
+    // 1. Permanently register in tombstone
+    await firebaseDeletedDocs.markDeleted(id);
+
     const cleanId = String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
     try {
       await ensureFirebaseAuth();
+      // Remove from RTDB
       await remove(ref(rtdb, `academic_documents/${cleanId}`));
+      // Remove from Firestore item
       await deleteDoc(doc(db, 'academic_documents_items', cleanId));
+
+      // Expunge from Firestore backup catalog
+      try {
+        const catSnap = await getDoc(doc(db, 'academic_documents', 'catalog'));
+        if (catSnap.exists()) {
+          const data = catSnap.data();
+          if (Array.isArray(data?.documents)) {
+            const updated = data.documents.filter((d: any) => d && d.id !== id && d.id !== cleanId);
+            await setDoc(doc(db, 'academic_documents', 'catalog'), { documents: updated }, { merge: true });
+          }
+        }
+      } catch {}
+
       return true;
     } catch (err) {
       console.warn('[Firebase Delete Document Error]:', err);
+      return false;
+    }
+  },
+
+  async purgeAll(existingIds: string[] = []): Promise<boolean> {
+    await firebaseDeletedDocs.markPurged(existingIds);
+    try {
+      await ensureFirebaseAuth();
+      await set(ref(rtdb, 'academic_documents'), null);
+      await setDoc(doc(db, 'academic_documents', 'catalog'), { documents: [], updatedAt: firestoreServerTimestamp() }, { merge: true });
+      return true;
+    } catch (err) {
+      console.warn('[Firebase PurgeAll Documents Error]:', err);
       return false;
     }
   },

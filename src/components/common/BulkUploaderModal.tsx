@@ -45,7 +45,7 @@ const DEFAULT_AVAILABLE_SUBJECTS = [
   'Marathi',
 ];
 
-const AVAILABLE_STANDARDS = ['12', '11', '10', 'ALL'];
+const AVAILABLE_STANDARDS = ['12'];
 const YEARS = Array.from({ length: 15 }, (_, i) => 2026 - i);
 const SESSIONS = ['March', 'July', 'October', 'November', 'Prelims', 'Annual'];
 

@@ -19,7 +19,7 @@ import {
   LogOut,
   LogIn,
   Download,
-  ChevronDown,
+  GraduationCap,
 } from 'lucide-react';
 import { triggerPWAInstall } from '../common/PWAInstallBanner';
 import { nativeNotifications } from '../../services/nativeNotifications';
@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   } = usePomodoro();
 
   const { theme, toggleTheme } = useTheme();
-  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, setActiveStandard, logout, openAuthModal } = useAuth();
+  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout, openAuthModal } = useAuth();
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
@@ -80,28 +80,36 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
     };
 
     checkNotifs();
-    const interval = setInterval(checkNotifs, 20000);
+    const interval = setInterval(checkNotifs, 60000);
 
     const handleReadChange = () => {
       checkNotifs();
     };
+    const handleOpenModal = () => {
+      setShowNotificationsModal(true);
+    };
+
     window.addEventListener('aetherstudy_announcements_read_change', handleReadChange);
+    window.addEventListener('aether_open_notifications_modal', handleOpenModal);
 
     // Realtime notification sync & native phone notification tray alerts
     const unsubscribe = firebaseNotifications.subscribe((cloudNotifs) => {
       if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
         const unread = nativeNotifications.getUnreadCount(cloudNotifs);
         setUnreadNotifsCount(unread);
-        const latest = cloudNotifs[0];
-        if (latest) {
-          nativeNotifications.notifyIfNew(latest);
-        }
+        // Process up to 3 recent notifications
+        cloudNotifs.slice(0, 3).forEach((n) => {
+          if (n) {
+            nativeNotifications.notifyIfNew(n);
+          }
+        });
       }
     });
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('aetherstudy_announcements_read_change', handleReadChange);
+      window.removeEventListener('aether_open_notifications_modal', handleOpenModal);
       unsubscribe();
     };
   }, [activeStandard, isSuperAdmin]);
@@ -133,24 +141,12 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
         {/* Header Right Actions - Apple Spatial Capsule Layout */}
         <div className="flex items-center space-x-2 shrink-0">
-          {/* Universal Grade Switcher Pill */}
-          <div className="relative flex items-center bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] rounded-full px-3 py-1.5 transition-all border border-black/[0.04] dark:border-white/[0.06]">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 mr-1.5 hidden sm:inline">
-              Class
+          {/* Dedicated Class 12 HSC Commerce Board Pill */}
+          <div className="flex items-center space-x-1.5 bg-brand-500/10 dark:bg-brand-400/15 border border-brand-500/20 dark:border-brand-400/25 rounded-full px-3 py-1.5 select-none shadow-xs">
+            <GraduationCap className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+            <span className="text-xs font-bold tracking-tight text-brand-700 dark:text-brand-300">
+              Class 12 HSC
             </span>
-            <select
-              value={activeStandard}
-              onChange={(e) => setActiveStandard(e.target.value)}
-              className="bg-transparent text-xs font-semibold tracking-tight outline-none cursor-pointer text-slate-900 dark:text-white pr-4 appearance-none"
-              title="Switch Grade / Standard"
-            >
-              <option value="12" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">12 (HSC)</option>
-              <option value="11" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">11 (FYJC)</option>
-              <option value="ALL" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All (11+12)</option>
-              <option value="10" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">10 (SSC)</option>
-              <option value="9" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">9 (Found.)</option>
-            </select>
-            <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2.5 pointer-events-none" />
           </div>
 
           {/* User Profile Capsule */}

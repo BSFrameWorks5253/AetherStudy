@@ -130,15 +130,72 @@ export class NativeNotificationService {
   }
 
   /**
-   * Automatically dispatch system notification for a newly received announcement
-   * only if it hasn't been posted to the phone notification bar yet.
+   * Play modern, subtle 2-tone chime using Web Audio API (Zero latency, no asset files)
+   */
+  public playNotificationChime(): void {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const now = ctx.currentTime;
+
+      // Bell chime tone 1: C5 (523.25 Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, now);
+      gain1.gain.setValueAtTime(0.06, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.3);
+
+      // Bell chime tone 2: G5 (783.99 Hz)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(783.99, now + 0.12);
+      gain2.gain.setValueAtTime(0.08, now + 0.12);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.12);
+      osc2.stop(now + 0.5);
+
+      // Haptic feedback on supported mobile devices
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([60, 30, 60]);
+      }
+    } catch {}
+  }
+
+  /**
+   * Automatically dispatch system notification and in-app toast for a newly received announcement
+   * only if it hasn't been posted yet and user hasn't already read it.
    */
   public notifyIfNew(announcement: { id: string; title: string; message: string; priority?: string }): void {
     if (!announcement?.id) return;
+    const readIds = this.getReadAnnouncementIds();
+    if (readIds.includes(announcement.id)) return;
+
     const notifiedIds = getUserStorageItem<string[]>(NOTIFIED_SYSTEM_IDS_KEY, []);
     if (notifiedIds.includes(announcement.id)) return;
 
-    // Check if permission granted
+    // 1. Dispatch In-App Banner Event (instantly visible on mobile & desktop screens)
+    window.dispatchEvent(
+      new CustomEvent('aether_new_announcement', {
+        detail: announcement,
+      })
+    );
+
+    // 2. Play acoustic chime
+    this.playNotificationChime();
+
+    // 3. Dispatch OS Tray / Lockscreen Notification if granted
     if (this.getPermission() === 'granted') {
       const prefix = announcement.priority === 'urgent' ? '🚨 URGENT: ' : '📢 ';
       this.sendNativeAlert(`${prefix}${announcement.title}`, announcement.message, {
@@ -146,12 +203,12 @@ export class NativeNotificationService {
       });
     }
 
-    // Remember we notified this announcement
+    // 4. Mark as notified to avoid repeating
     notifiedIds.push(announcement.id);
-    // Keep max 50 recent IDs
     if (notifiedIds.length > 50) notifiedIds.shift();
     setUserStorageItem(NOTIFIED_SYSTEM_IDS_KEY, notifiedIds);
   }
 }
 
 export const nativeNotifications = new NativeNotificationService();
+

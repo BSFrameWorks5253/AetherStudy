@@ -723,7 +723,7 @@ const detectChapterForFile = (
 };
 
 export const SubjectRooms: React.FC = () => {
-  const { currentUser, isSuperAdmin, canUpload, activeStandard, setActiveStandard } = useAuth();
+  const { currentUser, isSuperAdmin, canUpload, activeStandard } = useAuth();
 
   // Navigation & Room State
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
@@ -921,26 +921,8 @@ export const SubjectRooms: React.FC = () => {
     return [...baseList, ...customList];
   }, [activeStandard, serverSubjects, documents]);
 
-  // Local standard toggle when viewing room or desk
-  const [roomStandardView, setRoomStandardView] = useState<'12' | '11'>('12');
-
-  // Synchronize roomStandardView when header activeStandard changes
-  useEffect(() => {
-    if (activeStandard === '11') {
-      setRoomStandardView('11');
-    } else if (activeStandard === '12') {
-      setRoomStandardView('12');
-    }
-  }, [activeStandard]);
-
-  const handleSwitchStandard = (std: '12' | '11') => {
-    setRoomStandardView(std);
-    if (setActiveStandard) {
-      setActiveStandard(std);
-    }
-  };
-
-  const effectiveStandard = (activeStandard === '11' || activeStandard === '12') ? activeStandard : roomStandardView;
+  // Dedicated 100% to Maharashtra State Board Standard 12 (HSC Commerce)
+  const effectiveStandard = '12';
 
   // Open the dedicated full-view Document Upload Studio
   const openUploadStudio = (options?: {
@@ -1028,6 +1010,34 @@ export const SubjectRooms: React.FC = () => {
       (doc) => matchSubjectDoc(activeRoom, doc.subject || '')
     );
   }, [standardFilteredDocuments, activeRoom]);
+
+  // Pre-calculate per-subject document metrics for Desk view to eliminate render-time filtering lag
+  const subjectMetricsMap = useMemo(() => {
+    const metrics: Record<string, { directDocsCount: number; tBooks: number; nDocs: number }> = {};
+
+    availableSubjects.forEach((sub) => {
+      metrics[sub.name] = { directDocsCount: 0, tBooks: 0, nDocs: 0 };
+    });
+
+    standardFilteredDocuments.forEach((doc) => {
+      const docSub = doc.subject || '';
+      availableSubjects.forEach((sub) => {
+        if (matchSubjectDoc(sub.name, docSub)) {
+          const entry = metrics[sub.name];
+          if (entry) {
+            entry.directDocsCount++;
+            if (doc.category === 'textbook') {
+              entry.tBooks++;
+            } else {
+              entry.nDocs++;
+            }
+          }
+        }
+      });
+    });
+
+    return metrics;
+  }, [availableSubjects, standardFilteredDocuments]);
 
   // Deep Link URL sync logic
   const syncWithUrl = () => {
@@ -1179,18 +1189,6 @@ export const SubjectRooms: React.FC = () => {
   const notesDocs = useMemo(() => {
     return roomDocuments.filter((d) => d.category !== 'textbook');
   }, [roomDocuments]);
-
-  // Check if notes exist in the alternate standard for this subject
-  const otherStdNotesForRoom = useMemo(() => {
-    if (!activeRoom) return [];
-    const targetOtherStd = effectiveStandard === '12' ? '11' : '12';
-    return documents.filter(
-      (d) =>
-        matchSubjectDoc(activeRoom, d.subject || '') &&
-        d.standard === targetOtherStd &&
-        d.category !== 'textbook'
-    );
-  }, [documents, activeRoom, effectiveStandard]);
 
   // PYQ Past Papers for active room
   const roomPyqPapers = useMemo(() => {
@@ -1475,91 +1473,65 @@ export const SubjectRooms: React.FC = () => {
         const tags = meta.tags || (filt ? [filt] : []);
 
         let uploadedRecord: ServerDocument | null = null;
-        let driveResult: any = null;
 
-        // Step 1: Upload directly to Google Drive via Google Apps Script (100% Free, bypasses Vercel payload limit)
+        // 1. Primary: Upload to Firebase Cloud Storage / Server Pipeline
         try {
-          driveResult = await uploadDirectToGoogleDrive(
+          uploadedRecord = await api.uploadDocument(
             file,
             targetSub,
-            currentUser?.email || 'admin',
+            currentUser?.email || 'Faculty',
             targetStd,
             cat,
-            undefined,
-            undefined,
-            undefined
+            chNum,
+            chTitle,
+            filt,
+            tags
           );
-        } catch (driveErr: any) {
-          console.warn(`[Google Drive Upload Warning for ${file.name}]:`, driveErr);
-        }
+        } catch (fbErr: any) {
+          console.warn(`[Primary Cloud Storage Upload Notice for ${file.name}]:`, fbErr);
 
-        if (driveResult && driveResult.id) {
-          const driveDoc: ServerDocument = {
-            id: driveResult.id,
-            name: driveResult.name || file.name,
-            originalName: file.name,
-            streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-            serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-            mimeType: file.type || 'application/pdf',
-            sizeBytes: file.size,
-            size: driveResult.size || `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-            uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
-            uploadedBy: currentUser?.email || 'admin',
-            subject: targetSub,
-            standard: targetStd,
-            category: cat,
-            chapterNumber: chNum,
-            chapterTitle: chTitle,
-            customFilter: filt,
-            tags: tags,
-            uploadCount: 1,
-          };
-
+          // 2. Secondary Fallback: Google Drive Direct Upload via Apps Script
           try {
-            const attachRes = await api.attachDriveDoc(targetSub, driveDoc);
-            uploadedRecord = attachRes.document || driveDoc;
-          } catch {
-            uploadedRecord = driveDoc;
-          }
-        } else {
-          // Step 2: Fallback to server endpoint upload if Google Drive direct upload failed
-          try {
-            uploadedRecord = await api.uploadDocument(
+            const driveResult = await uploadDirectToGoogleDrive(
               file,
               targetSub,
               currentUser?.email || 'admin',
               targetStd,
-              cat,
-              chNum,
-              chTitle,
-              filt,
-              tags
+              cat
             );
-          } catch (servErr) {
-            console.warn(`[Server Upload Fallback Warning for ${file.name}]:`, servErr);
-            // Instant offline client document fallback
-            const localId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-            const localUrl = URL.createObjectURL(file);
-            uploadedRecord = {
-              id: localId,
-              name: file.name,
-              originalName: file.name,
-              streamUrl: localUrl,
-              serverUrl: localUrl,
-              mimeType: file.type || 'application/pdf',
-              sizeBytes: file.size,
-              size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: currentUser?.email || 'admin',
-              subject: targetSub,
-              standard: targetStd,
-              category: cat,
-              chapterNumber: chNum,
-              chapterTitle: chTitle,
-              customFilter: filt,
-              tags: tags,
-              uploadCount: 1,
-            };
+
+            if (driveResult && driveResult.id) {
+              const driveDoc: ServerDocument = {
+                id: driveResult.id,
+                name: driveResult.name || file.name,
+                originalName: file.name,
+                streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+                serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+                mimeType: file.type || 'application/pdf',
+                sizeBytes: file.size,
+                size: driveResult.size || `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+                uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
+                uploadedBy: currentUser?.email || 'admin',
+                subject: targetSub,
+                standard: targetStd,
+                category: cat,
+                chapterNumber: chNum,
+                chapterTitle: chTitle,
+                customFilter: filt,
+                tags: tags,
+                uploadCount: 1,
+              };
+
+              try {
+                const attachRes = await api.attachDriveDoc(targetSub, driveDoc);
+                uploadedRecord = attachRes.document || driveDoc;
+              } catch {
+                uploadedRecord = driveDoc;
+              }
+            }
+          } catch (driveErr: any) {
+            console.error(`[Upload Failed for ${file.name}]:`, driveErr);
+            throw new Error(`Upload failed for "${file.name}": ${(driveErr && driveErr.message) || (fbErr && fbErr.message) || 'Network error'}. Please try again.`);
           }
         }
 
@@ -1742,23 +1714,10 @@ export const SubjectRooms: React.FC = () => {
                         <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                           Academic Standard
                         </label>
-                        {isSuperAdmin ? (
-                          <select
-                            value={uploadStandard}
-                            onChange={(e) => setUploadStandard(e.target.value)}
-                            className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
-                          >
-                            <option value="12">Standard 12 (HSC)</option>
-                            <option value="11">Standard 11 (FYJC)</option>
-                            <option value="10">Standard 10 (SSC)</option>
-                            <option value="9">Standard 9 (Foundation)</option>
-                            <option value="ALL">ALL Standards</option>
-                          </select>
-                        ) : (
-                          <div className="w-full bg-slate-100 dark:bg-slate-800/80 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                            Class {currentUser?.standard || activeStandard}
-                          </div>
-                        )}
+                        <div className="w-full bg-brand-500/10 dark:bg-brand-400/15 rounded-xl px-3.5 py-2.5 text-xs font-bold border border-brand-500/20 dark:border-brand-400/25 text-brand-700 dark:text-brand-300 flex items-center space-x-2">
+                          <GraduationCap className="w-4 h-4" />
+                          <span>Standard 12 (HSC Commerce Board)</span>
+                        </div>
                       </div>
 
                       {/* Subject Room */}
@@ -2244,15 +2203,10 @@ export const SubjectRooms: React.FC = () => {
                   <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-normal">
                     {activeRoom}
                   </h2>
-                  {effectiveStandard === '12' ? (
-                    <span className="px-3 py-1 rounded-full ios-glass border border-brand-500/30 text-brand-700 dark:text-brand-300 text-xs font-bold shadow-xs ml-1">
-                      Standard 12 (HSC)
-                    </span>
-                  ) : (
-                    <span className="px-3 py-1 rounded-full ios-glass border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-bold shadow-xs ml-1">
-                      Standard 11 (FYJC)
-                    </span>
-                  )}
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-brand-500/10 dark:bg-brand-400/15 text-brand-700 dark:text-brand-300 border border-brand-500/20 dark:border-brand-400/25 ml-1">
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    <span>Class 12 HSC Board</span>
+                  </div>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                   {currentRoomMeta?.description || 'Dedicated Subject Room • Textbooks & Study Materials'}
@@ -2785,26 +2739,11 @@ export const SubjectRooms: React.FC = () => {
                     <FileText className="w-7 h-7" />
                   </div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    No Class {effectiveStandard} Study Notes Uploaded Yet
+                    No Study Notes Uploaded Yet
                   </h3>
-                  {effectiveStandard !== '12' && otherStdNotesForRoom.length > 0 ? (
-                    <div className="max-w-md mx-auto space-y-3">
-                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                        We found <span className="font-extrabold text-brand-600 dark:text-brand-400">{otherStdNotesForRoom.length} study notes</span> for {activeRoom} uploaded under <strong className="text-slate-900 dark:text-white">Class 12 (HSC)</strong>.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleSwitchStandard('12')}
-                        className="inline-flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-full shadow-md shadow-brand-500/20 transition-all cursor-pointer ios-pill"
-                      >
-                        <span>Switch to Class 12 Notes ({otherStdNotesForRoom.length}) →</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                      Official HSC Board revision summaries, chapter notes, and textbook guides for {activeRoom} will appear here.
-                    </p>
-                  )}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                    Official HSC Board revision summaries, chapter notes, and textbook guides for {activeRoom} will appear here.
+                  </p>
                   {canUpload && (
                     <div className="pt-2 flex items-center justify-center gap-2">
                       <button
@@ -3474,46 +3413,59 @@ export const SubjectRooms: React.FC = () => {
             VIEW 3: SUBJECT ROOMS OVERVIEW GRID (DESK HOME)
         ======================================================== */
         <div className="flex flex-col h-full w-full overflow-y-auto p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-          {/* Header Title Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Subject Rooms
-                </h2>
-                <span className="text-xs font-bold px-3 py-1 rounded-full ios-glass border border-brand-500/30 text-brand-700 dark:text-brand-300 shadow-xs">
-                  Standard {activeStandard}
-                </span>
+          {/* Cinematic Heroic Banner for HSC Class 12 Commerce */}
+          <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-brand-900/10 via-purple-900/5 to-transparent dark:from-brand-950/40 dark:via-purple-950/20 dark:to-transparent border border-brand-500/15 dark:border-brand-400/20 shadow-xl backdrop-blur-xl shrink-0">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2.5 max-w-2xl">
+                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300 border border-brand-500/25 text-[11px] font-bold uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Maharashtra State Board • HSC Class 12 Commerce</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                  Academic Subject Rooms
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+                  Official textbook PDFs, chapter-wise handwriting notes, solutions, and full syllabus mastery checklists curated strictly for Standard 12 Board examinations.
+                </p>
+                {/* Feature highlight tags */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-brand-500" /> 9 Board Subject Rooms
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> 100% Maharashtra HSC Syllabus
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-sky-500" /> Continuous Cloud PDF Reader
+                  </span>
+                </div>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Choose a subject room to access official textbook PDFs and curated study materials for Class {activeStandard}.
-              </p>
-            </div>
 
-            {canUpload && (
-              <div className="flex items-center space-x-2 self-start sm:self-auto">
-                <button
-                  onClick={() => {
-                    openUploadStudio({
-                      subject: availableSubjects[0]?.name || 'General',
-                      category: 'notes',
-                    });
-                  }}
-                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-full shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all ios-pill cursor-pointer"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Upload File</span>
-                </button>
-                <button
-                  onClick={() => setShowBulkModal(true)}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-full shadow-md shadow-purple-500/25 flex items-center space-x-1.5 transition-all ios-pill cursor-pointer"
-                  title="Bulk upload and auto-segregate complete folders of study materials"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Bulk Auto-Segregate</span>
-                </button>
-              </div>
-            )}
+              {canUpload && (
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start md:self-center">
+                  <button
+                    onClick={() => {
+                      openUploadStudio({
+                        subject: availableSubjects[0]?.name || 'Book-Keeping & Accountancy (Accounts)',
+                        category: 'notes',
+                      });
+                    }}
+                    className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-500/25 flex items-center space-x-2 transition-all cursor-pointer hover:scale-[1.02]"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Upload Notes / Textbook</span>
+                  </button>
+                  <button
+                    onClick={() => setShowBulkModal(true)}
+                    className="px-4 py-2.5 bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl border border-black/[0.06] dark:border-white/[0.08] flex items-center space-x-2 transition-all cursor-pointer"
+                    title="Bulk upload and auto-segregate complete folders of study materials"
+                  >
+                    <FolderUp className="w-4 h-4" />
+                    <span>Bulk Cloud Sync</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Subject Rooms Grid */}
@@ -3523,20 +3475,9 @@ export const SubjectRooms: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {availableSubjects.map((sub) => {
                 const Icon = sub.icon;
-                const directDocs = standardFilteredDocuments.filter(
-                  (d) => matchSubjectDoc(sub.name, d.subject || '')
-                );
-                const tBooks = directDocs.filter((d) => d.category === 'textbook').length;
-                const nDocs = directDocs.filter((d) => d.category !== 'textbook').length;
-
-                // Check if notes exist in the alternate standard (e.g. Class 11 notes when viewing Class 12)
-                const targetOtherStd = effectiveStandard === '12' ? '11' : '12';
-                const otherStdCount = documents.filter(
-                  (d) =>
-                    matchSubjectDoc(sub.name, d.subject || '') &&
-                    d.standard === targetOtherStd &&
-                    d.category !== 'textbook'
-                ).length;
+                const metrics = subjectMetricsMap[sub.name] || { directDocsCount: 0, tBooks: 0, nDocs: 0 };
+                const tBooks = metrics.tBooks;
+                const nDocs = metrics.nDocs;
 
                 return (
                   <div
@@ -3565,20 +3506,14 @@ export const SubjectRooms: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="pt-5 mt-4 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
+                    <div className="pt-4 mt-4 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                        <div>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">{tBooks}</span> Textbooks • <span className="font-bold text-slate-800 dark:text-slate-200">{nDocs}</span> Notes
-                        </div>
-                        {nDocs === 0 && otherStdCount > 0 && effectiveStandard !== '12' && (
-                          <div className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold mt-0.5">
-                            ({otherStdCount} notes in Class {targetOtherStd})
-                          </div>
-                        )}
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{tBooks}</span> Textbooks • <span className="font-bold text-slate-800 dark:text-slate-200">{nDocs}</span> Notes
                       </div>
 
-                      <span className="text-xs font-bold text-brand-600 dark:text-brand-400 group-hover:translate-x-0.5 transition-transform">
-                        Enter Room →
+                      <span className="text-xs font-bold text-brand-600 dark:text-brand-400 group-hover:translate-x-1 transition-transform flex items-center space-x-1">
+                        <span>Enter Room</span>
+                        <span>→</span>
                       </span>
                     </div>
                   </div>

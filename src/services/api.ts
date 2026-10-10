@@ -1,6 +1,6 @@
 import { UserProfile, UserRole } from '../types/auth';
 import { TestPaper } from '../types/testPaper';
-import { firebaseTimetable, firebasePaperRequests, firebaseDocuments } from './firebase';
+import { firebaseTimetable, firebasePaperRequests, firebaseDocuments, firebaseStorageService, firebaseDeletedDocs } from './firebase';
 import { deleteFromGoogleDrive } from './clientGoogleDrive';
 
 export interface ServerDocument {
@@ -452,7 +452,15 @@ export const api = {
   getLocalDocuments(): ServerDocument[] {
     try {
       const cached = localStorage.getItem('aether_cached_documents');
-      return cached ? JSON.parse(cached) : [];
+      const list: ServerDocument[] = cached ? JSON.parse(cached) : [];
+      // Strictly prune any deleted documents and Class 11/FYJC notes (Platform is 100% Class 12)
+      return list.filter((d) => {
+        if (!d || !d.id || firebaseDeletedDocs.isDeleted(d.id)) return false;
+        if (d.standard === '11') return false;
+        const name = ((d.name || '') + ' ' + (d.originalName || '')).toLowerCase();
+        if (name.includes('fyjc') || name.includes('class 11') || name.includes('std 11')) return false;
+        return true;
+      });
     } catch {
       return [];
     }
@@ -460,13 +468,16 @@ export const api = {
 
   saveLocalDocuments(docs: ServerDocument[]): void {
     try {
-      localStorage.setItem('aether_cached_documents', JSON.stringify(docs));
+      const clean = docs.filter((d) => d && d.id && !firebaseDeletedDocs.isDeleted(d.id));
+      localStorage.setItem('aether_cached_documents', JSON.stringify(clean));
     } catch (err) {
       console.warn('Failed to persist documents to localStorage:', err);
     }
   },
 
   async getDocuments(standard?: string): Promise<ServerDocument[]> {
+    // 0. Ensure deleted documents set is in sync
+    await firebaseDeletedDocs.syncDeletedFromCloud().catch(() => {});
     const docMap = new Map<string, ServerDocument>();
 
     // 1. Primary Cloud Store: Fetch from Firebase Realtime Database / Firestore
@@ -474,7 +485,9 @@ export const api = {
     try {
       firebaseDocs = await firebaseDocuments.fetch();
       firebaseDocs.forEach((d) => {
-        if (d && d.id) docMap.set(d.id, d);
+        if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+          docMap.set(d.id, d);
+        }
       });
     } catch (fbErr) {
       console.warn('[Documents API] Firebase cloud fetch note:', fbErr);
@@ -491,7 +504,9 @@ export const api = {
         serverDocs = await res.json();
         if (Array.isArray(serverDocs)) {
           serverDocs.forEach((d) => {
-            if (d && d.id) docMap.set(d.id, d);
+            if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id)) {
+              docMap.set(d.id, d);
+            }
           });
         }
       }
@@ -508,7 +523,14 @@ export const api = {
           const gasData = await gasRes.json().catch(() => null);
           if (gasData && Array.isArray(gasData.files)) {
             gasData.files.forEach((f: any) => {
-              if (f && f.id) {
+              if (f && f.id && !firebaseDeletedDocs.isDeleted(f.id)) {
+                // Strictly omit Class 11 / FYJC items: Platform is 100% focused on Class 12 HSC
+                const combinedName = ((f.name || '') + ' ' + (f.folderPath || '') + ' ' + (f.subject || '')).toLowerCase();
+                const isFyj = combinedName.includes('fyjc') || combinedName.includes('class 11') || combinedName.includes('std 11') || f.standard === '11';
+                if (isFyj) return; // Never load Class 11 files into HSC 12 platform
+
+                const inferredStd = '12';
+
                 const docItem: ServerDocument = {
                   id: f.id,
                   name: f.name,
@@ -519,7 +541,7 @@ export const api = {
                   sizeBytes: f.sizeBytes,
                   size: f.size || '1.5 MB',
                   subject: f.subject || (f.folderPath ? f.folderPath.split('/')[2] : 'General'),
-                  standard: f.standard || '12',
+                  standard: inferredStd,
                   category: f.category || 'notes',
                   uploadedAt: f.uploadedAt || new Date().toISOString(),
                 };
@@ -535,32 +557,38 @@ export const api = {
       }
     }
 
-    // 3. Tertiary: Seed from local bundled catalog.json
+    // 3. Tertiary: Seed from local bundled catalog.json (filtering deleted docs)
     try {
       const catalog = await import('../data/catalog.json');
       if (catalog && Array.isArray(catalog.documents)) {
         catalog.documents.forEach((d: any) => {
-          if (d && d.id && !docMap.has(d.id)) {
+          if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !docMap.has(d.id)) {
             docMap.set(d.id, d as ServerDocument);
           }
         });
       }
     } catch {}
 
-    // 4. Client Offline Vault: Overlay local stored documents (never discard user uploads)
+    // 4. Client Offline Vault: Overlay local stored documents (never deleted ones)
     const localDocs = api.getLocalDocuments();
     localDocs.forEach((d) => {
-      if (d && d.id && !d.id.startsWith('doc-TWF0')) {
-        // Overlay local version if not already present or if local has richer streamUrl
+      if (d && d.id && !firebaseDeletedDocs.isDeleted(d.id) && !d.id.startsWith('doc-TWF0')) {
         if (!docMap.has(d.id) || (!docMap.get(d.id)?.streamUrl && d.streamUrl)) {
           docMap.set(d.id, d);
         }
       }
     });
 
-    const allDocs = Array.from(docMap.values());
+    // 5. Filter out ANY remaining deleted documents and Class 11 items
+    const allDocs = Array.from(docMap.values()).filter((d) => {
+      if (!d || !d.id || firebaseDeletedDocs.isDeleted(d.id)) return false;
+      if (d.standard === '11') return false;
+      const name = ((d.name || '') + ' ' + (d.originalName || '')).toLowerCase();
+      if (name.includes('fyjc') || name.includes('class 11') || name.includes('std 11')) return false;
+      return true;
+    });
 
-    // 5. Update local cache and sync to server storage so other devices & browsers immediately see them
+    // 6. Update local cache and background-sync valid documents
     if (allDocs.length > 0) {
       api.saveLocalDocuments(allDocs);
       // Synchronize client documents to server storage
@@ -571,15 +599,7 @@ export const api = {
           body: JSON.stringify({ documents: allDocs }),
         }).catch(() => {});
       }
-      // Synchronize documents to Google Drive Cloud Catalog
-      if (GAS_URL) {
-        fetch(GAS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'sync_catalog', documents: allDocs }),
-        }).catch(() => {});
-      }
-      // Auto-sync missing documents to Firebase in background if configured
+      // Auto-sync missing documents to Firebase
       if (firebaseDocs.length < allDocs.length) {
         firebaseDocuments.saveAll(allDocs).catch(() => {});
       }
@@ -593,7 +613,7 @@ export const api = {
   },
 
   async syncLocalDocumentsToCloud(): Promise<void> {
-    const localDocs = api.getLocalDocuments();
+    const localDocs = api.getLocalDocuments().filter((d) => !firebaseDeletedDocs.isDeleted(d.id));
     if (localDocs.length === 0) return;
     try {
       await fetch(`${API_BASE}/documents/sync`, {
@@ -625,6 +645,54 @@ export const api = {
     customFilter?: string,
     tags?: string[]
   ): Promise<ServerDocument> {
+    const targetStandard = standard || '12';
+
+    // 1. Cloud-First: Upload directly to Firebase Cloud Storage (global CDN, 100% phone & desktop reliable)
+    let fbUploadResult: any = null;
+    try {
+      fbUploadResult = await firebaseStorageService.uploadPdf(file, subject, targetStandard);
+    } catch (fbErr) {
+      console.warn('[Firebase Cloud Storage Direct Upload Warning]:', fbErr);
+    }
+
+    if (fbUploadResult && fbUploadResult.url) {
+      const cloudDoc: ServerDocument = {
+        id: 'fb-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        name: file.name,
+        originalName: file.name,
+        streamUrl: fbUploadResult.url,
+        serverUrl: fbUploadResult.url,
+        url: fbUploadResult.url,
+        mimeType: file.type || 'application/pdf',
+        sizeBytes: file.size,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: uploadedBy || 'Faculty',
+        subject,
+        standard: targetStandard,
+        category: category || 'notes',
+        chapterNumber: chapterNumber || '',
+        chapterTitle: chapterTitle || '',
+        customFilter: customFilter || '',
+        tags: tags || [],
+        uploadCount: 1,
+      };
+
+      const local = api.getLocalDocuments();
+      api.saveLocalDocuments([cloudDoc, ...local.filter((d) => d.id !== cloudDoc.id)]);
+      firebaseDocuments.saveDocument(cloudDoc).catch(() => {});
+
+      // Forward metadata to server so server DB reflects it too
+      fetch(`${API_BASE}/documents/sync`, {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify({ documents: [cloudDoc] }),
+      }).catch(() => {});
+
+      return cloudDoc;
+    }
+
+    // 2. Fallback to Server Express Upload
     const formData = new FormData();
     formData.append('file', file);
     formData.append('subject', subject);
@@ -645,7 +713,7 @@ export const api = {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.error || 'Server file upload failed');
     }
-    const uploaded = await res.json();
+    const uploaded: ServerDocument = await res.json();
     const local = api.getLocalDocuments();
     api.saveLocalDocuments([uploaded, ...local.filter((d) => d.id !== uploaded.id)]);
     firebaseDocuments.saveDocument(uploaded).catch(() => {});
@@ -672,54 +740,65 @@ export const api = {
     }>
   ): Promise<ServerDocument[]> {
     if (files.length === 0) return [];
-    const formData = new FormData();
-    files.forEach((file) => formData.append('files', file));
-    formData.append('subject', subject);
-    formData.append('uploadedBy', uploadedBy);
-    if (standard) formData.append('standard', standard);
-    if (category) formData.append('category', category);
-    if (chapterNumber) formData.append('chapterNumber', chapterNumber);
-    if (chapterTitle) formData.append('chapterTitle', chapterTitle);
-    if (customFilter) formData.append('customFilter', customFilter);
-    if (tags && tags.length > 0) formData.append('tags', tags.join(','));
-    if (itemsMeta && itemsMeta.length > 0) formData.append('itemsMeta', JSON.stringify(itemsMeta));
 
-    const res = await fetch(`${API_BASE}/documents/upload-multiple`, {
-      method: 'POST',
-      headers: getAuthHeaders(false),
-      body: formData,
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Server batch file upload failed');
+    const uploadedList: ServerDocument[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const meta = itemsMeta && itemsMeta[i] ? itemsMeta[i] : undefined;
+      try {
+        const doc = await api.uploadDocument(
+          file,
+          subject,
+          uploadedBy,
+          standard,
+          meta?.category || category,
+          meta?.chapterNumber || chapterNumber,
+          meta?.chapterTitle || chapterTitle,
+          meta?.customFilter || customFilter,
+          meta?.tags || tags
+        );
+        uploadedList.push(doc);
+      } catch (err) {
+        console.warn(`[Batch upload error on ${file.name}]:`, err);
+      }
     }
-    const data = await res.json();
-    const uploadedDocs: ServerDocument[] = data.documents || [];
-    const local = api.getLocalDocuments();
-    api.saveLocalDocuments([...uploadedDocs, ...local]);
-    uploadedDocs.forEach((d) => firebaseDocuments.saveDocument(d).catch(() => {}));
-    return uploadedDocs;
+
+    return uploadedList;
   },
 
   async deleteDocument(id: string, requesterEmail?: string, docMeta?: ServerDocument): Promise<boolean> {
-    // 1. Delete from Firebase cloud repository
-    try {
-      firebaseDocuments.deleteDocument(id).catch(() => {});
-    } catch {}
+    if (!id) return false;
 
-    // 2. Delete from Google Drive client-side (Zero-cost Apps Script / OAuth)
+    // 1. Immediately register in persistent tombstone blacklist
+    await firebaseDeletedDocs.markDeleted(id);
+
+    // 2. Purge from local cache
     try {
       const local = api.getLocalDocuments();
-      const targetDoc = docMeta || local.find((d) => d.id === id);
+      api.saveLocalDocuments(local.filter((d) => d.id !== id));
+    } catch {}
+
+    // 3. Delete from Firebase cloud repository and Cloud Storage
+    try {
+      await firebaseDocuments.deleteDocument(id);
+      if (docMeta?.streamUrl && docMeta.streamUrl.includes('firebasestorage.googleapis.com')) {
+        firebaseStorageService.deletePdf(docMeta.streamUrl).catch(() => {});
+      }
+    } catch (fbErr) {
+      console.warn('[Firebase delete note]:', fbErr);
+    }
+
+    // 4. Delete from Google Drive client-side
+    try {
+      const targetDoc = docMeta;
       if (targetDoc) {
         deleteFromGoogleDrive(targetDoc).catch((e) => console.warn('[Drive Delete Warning]:', e));
       } else {
         deleteFromGoogleDrive(id).catch((e) => console.warn('[Drive Delete Warning]:', e));
       }
-      api.saveLocalDocuments(local.filter((d) => d.id !== id));
     } catch {}
 
-    // 3. Delete on server (removes from database, local disk, and server Google Drive)
+    // 5. Delete on server (removes from database, local disk, and server Google Drive)
     try {
       const res = await fetch(`${API_BASE}/documents/${id}`, {
         method: 'DELETE',
@@ -735,11 +814,19 @@ export const api = {
   async purgeAllDocuments(): Promise<boolean> {
     try {
       const local = api.getLocalDocuments();
+      const allIds = local.map((d) => d.id);
+
+      // Permanently blacklist all IDs
+      await firebaseDeletedDocs.markPurged(allIds);
+
       // Concurrently trigger Google Drive and Firebase deletion
       local.forEach((doc) => {
         deleteFromGoogleDrive(doc).catch(() => {});
-        firebaseDocuments.deleteDocument(doc.id).catch(() => {});
+        if (doc.streamUrl && doc.streamUrl.includes('firebasestorage.googleapis.com')) {
+          firebaseStorageService.deletePdf(doc.streamUrl).catch(() => {});
+        }
       });
+      await firebaseDocuments.purgeAll(allIds);
       localStorage.removeItem('aether_cached_documents');
     } catch {}
 

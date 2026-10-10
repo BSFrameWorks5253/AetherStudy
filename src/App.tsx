@@ -12,14 +12,14 @@ import { PullToRefresh } from './components/common/PullToRefresh';
 import { AuthRequiredGate } from './components/auth/AuthRequiredGate';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
+import { InAppNotificationToast } from './components/notifications/InAppNotificationToast';
 import { api } from './services/api';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const { theme } = useTheme();
-  const { isSuperAdmin, activeStandard, setActiveStandard, isAuthenticated } = useAuth();
-  const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
+  const { isAuthenticated } = useAuth();
 
   // Sync top-level tab with current browser URL path
   useEffect(() => {
@@ -67,7 +67,7 @@ export const App: React.FC = () => {
   const getTitle = () => {
     switch (activeTab) {
       case 'workspace':
-        return `Subject Rooms Desk • Standard ${activeStandard}`;
+        return 'HSC Subject Rooms • Class 12 Commerce';
       case 'tests':
         return 'Board PYQs & Solutions • Maharashtra State Board HSC Commerce';
       case 'timetable':
@@ -99,38 +99,7 @@ export const App: React.FC = () => {
         <PullToRefresh className="flex-1 relative min-h-0 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
           <main className="h-full w-full">
             {activeTab === 'workspace' && <SplitWorkspace />}
-            {activeTab === 'tests' && (
-              isBoardExamGrade ? (
-                <TestPapers />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-fade-in">
-                  <div className="w-16 h-16 rounded-3xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 border border-amber-200 dark:border-amber-900 shadow-sm">
-                    <span className="text-2xl">🔒</span>
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1.5">
-                    Board Exam Vault Restricted
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed mb-5">
-                    Previous Year Question papers are reserved exclusively for Board Examination classes (Standard 10 and Standard 12).
-                    Your active profile is enrolled in <strong className="text-slate-800 dark:text-slate-200">Standard {activeStandard}</strong>.
-                  </p>
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    <button
-                      onClick={() => setActiveStandard('12')}
-                      className="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/20 transition-all cursor-pointer"
-                    >
-                      Switch to Class 12 & Enter Vault
-                    </button>
-                    <button
-                      onClick={() => handleTabChange('workspace')}
-                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
-                    >
-                      Return to Subject Rooms
-                    </button>
-                  </div>
-                </div>
-              )
-            )}
+            {activeTab === 'tests' && <TestPapers />}
             {activeTab === 'timetable' && (
               isAuthenticated ? (
                 <TimetableGrid />
@@ -156,6 +125,7 @@ export const App: React.FC = () => {
       </div>
       <OfflineIndicator />
       <PWAInstallBanner />
+      <InAppNotificationToast />
     </div>
   );
 };

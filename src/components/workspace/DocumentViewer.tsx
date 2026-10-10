@@ -94,69 +94,36 @@ export const DocumentViewer: React.FC = () => {
     try {
       setIsUploading(true);
       const chosenSubject = uploadSubject || (subjects.length > 0 ? subjects[0] : 'General');
+      const targetStandard = currentUser?.standard && currentUser.standard !== 'ALL' ? currentUser.standard : '12';
+
       let newDoc: any;
-
-      // Step A: Client-side consumer Google Drive direct upload
-      let driveResult: any = null;
       try {
-        driveResult = await uploadDirectToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || 'admin');
-      } catch (clientDriveErr) {
-        console.warn('[Direct Drive fallback to serverless/local pipeline]:', clientDriveErr);
-      }
-
-      if (driveResult && driveResult.id) {
-        const driveDoc: ServerDocument = {
-          id: driveResult.id,
-          name: driveResult.name || selectedFile.name,
-          originalName: selectedFile.name,
-          streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-          serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
-          mimeType: selectedFile.type || 'application/pdf',
-          sizeBytes: selectedFile.size,
-          size: driveResult.size || `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
-          uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
-          uploadedBy: currentUser?.email || 'admin',
-          subject: chosenSubject,
-          standard: currentUser?.standard || '12',
-          category: 'notes',
-          uploadCount: 1,
-        };
-
-        try {
-          const attachRes = await api.attachDriveDoc(chosenSubject, driveDoc);
-          newDoc = attachRes.document || driveDoc;
-        } catch {
-          newDoc = driveDoc;
-        }
-      } else {
-        try {
-          const driveRes = await api.uploadToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || 'admin');
-          newDoc = driveRes.document;
-        } catch {
-          try {
-            newDoc = await api.uploadDocument(selectedFile, chosenSubject, currentUser?.email || 'admin');
-          } catch {
-            const localId = `doc-${Date.now()}`;
-            const localUrl = URL.createObjectURL(selectedFile);
-            newDoc = {
-              id: localId,
-              name: selectedFile.name,
-              originalName: selectedFile.name,
-              streamUrl: localUrl,
-              serverUrl: localUrl,
-              mimeType: selectedFile.type || 'application/pdf',
-              sizeBytes: selectedFile.size,
-              size: `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: currentUser?.email || 'admin',
-              subject: chosenSubject,
-              standard: currentUser?.standard || '12',
-              category: 'notes',
-              uploadCount: 1,
-            };
-          }
+        newDoc = await api.uploadDocument(selectedFile, chosenSubject, currentUser?.email || 'admin', targetStandard);
+      } catch (uploadErr) {
+        // Fallback to Google Drive direct upload
+        const driveResult = await uploadDirectToGoogleDrive(selectedFile, chosenSubject, currentUser?.email || 'admin', targetStandard);
+        if (driveResult && driveResult.id) {
+          newDoc = {
+            id: driveResult.id,
+            name: driveResult.name || selectedFile.name,
+            originalName: selectedFile.name,
+            streamUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+            serverUrl: driveResult.streamUrl || `https://drive.google.com/file/d/${driveResult.id}/preview`,
+            mimeType: selectedFile.type || 'application/pdf',
+            sizeBytes: selectedFile.size,
+            size: driveResult.size || `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
+            uploadedAt: driveResult.uploadedAt || new Date().toISOString(),
+            uploadedBy: currentUser?.email || 'admin',
+            subject: chosenSubject,
+            standard: targetStandard,
+            category: 'notes',
+            uploadCount: 1,
+          };
+        } else {
+          throw uploadErr;
         }
       }
+
       setDocuments((prev) => [newDoc, ...prev]);
       setActiveDoc(newDoc);
       setZoom(100);
@@ -166,7 +133,7 @@ export const DocumentViewer: React.FC = () => {
       setShowUploadModal(false);
       setTimeout(() => setUploadSuccess(false), 2500);
     } catch (err) {
-      alert((err as Error).message || 'File upload error');
+      alert((err as Error).message || 'File upload error. Please check your network connection.');
     } finally {
       setIsUploading(false);
     }

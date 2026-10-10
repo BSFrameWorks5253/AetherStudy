@@ -1139,6 +1139,10 @@ app.post('/api/subjects', (req, res) => {
 app.get('/api/documents', (req, res) => {
   const { standard } = req.query;
   let docs = readJsonFile('documents.json', []);
+  const deletedIds = new Set(readJsonFile('deleted_documents.json', []));
+
+  // Exclude any deleted document
+  docs = docs.filter((d) => d && d.id && !deletedIds.has(d.id));
 
   // Compute upload frequency for each unique file
   const nameCounts = {};
@@ -1180,15 +1184,16 @@ app.post('/api/documents/sync', (req, res) => {
   }
 
   try {
-    let existingDocs = readJsonFile('documents.json', []);
+    const deletedIds = new Set(readJsonFile('deleted_documents.json', []));
+    let existingDocs = readJsonFile('documents.json', []).filter((d) => d && d.id && !deletedIds.has(d.id));
     const docMap = new Map();
     // Existing documents first
     existingDocs.forEach((d) => {
       if (d && d.id) docMap.set(d.id, d);
     });
-    // Overlay client synced documents
+    // Overlay client synced documents (never re-add deleted documents)
     documents.forEach((d) => {
-      if (d && d.id) {
+      if (d && d.id && !deletedIds.has(d.id)) {
         docMap.set(d.id, {
           ...d,
           uploadedAt: d.uploadedAt || new Date().toISOString(),
@@ -1477,8 +1482,16 @@ async function deleteFromDriveServer(fileId) {
 
 // Delete Single Document (from database, Google Drive, and local storage)
 app.delete('/api/documents/:id', requireAdmin, async (req, res) => {
+  const docId = req.params.id;
   const docs = readJsonFile('documents.json', []);
-  const docToDelete = docs.find((d) => d.id === req.params.id);
+  const docToDelete = docs.find((d) => d.id === docId);
+
+  // Permanently record in deleted documents tombstone
+  const deletedList = readJsonFile('deleted_documents.json', []);
+  if (!deletedList.includes(docId)) {
+    deletedList.push(docId);
+    writeJsonFile('deleted_documents.json', deletedList);
+  }
 
   if (docToDelete) {
     // 1. Delete from Google Drive
@@ -1498,7 +1511,7 @@ app.delete('/api/documents/:id', requireAdmin, async (req, res) => {
     }
   }
 
-  const updated = docs.filter((d) => d.id !== req.params.id);
+  const updated = docs.filter((d) => d.id !== docId);
   writeJsonFile('documents.json', updated);
   res.json({ success: true, remaining: updated.length, deletedFromDrive: true });
 });
@@ -1506,6 +1519,15 @@ app.delete('/api/documents/:id', requireAdmin, async (req, res) => {
 // Wipe All Study Notes Documents (including Google Drive and disk)
 app.delete('/api/documents-all/purge', requireAdmin, async (req, res) => {
   const docs = readJsonFile('documents.json', []);
+  const deletedList = readJsonFile('deleted_documents.json', []);
+
+  // Record all purged document IDs into tombstone
+  docs.forEach((doc) => {
+    if (doc && doc.id && !deletedList.includes(doc.id)) {
+      deletedList.push(doc.id);
+    }
+  });
+  writeJsonFile('deleted_documents.json', deletedList);
 
   // Delete all associated files from Google Drive and local uploads in background
   docs.forEach((doc) => {
@@ -1872,6 +1894,95 @@ app.post('/api/storage/upload', async (req, res) => {
   } catch (error) {
     console.error('[Storage Upload Failure]:', error);
     return res.status(500).json({ error: 'Internal security node allocation error.' });
+  }
+});
+
+// ============================================================================
+// OFFICIAL ACADEMIC NOTIFICATIONS & REALTIME ANNOUNCEMENTS ENGINE
+// ============================================================================
+app.get('/api/notifications', (req, res) => {
+  try {
+    let notifs = readJsonFile('notifications.json', null);
+    if (!notifs || !Array.isArray(notifs) || notifs.length === 0) {
+      // Seed initial verified announcements
+      notifs = [
+        {
+          id: 'notif-seed-1',
+          title: 'HSC Board Examination Practical Dates Announced',
+          message: 'Official guidelines for Standard 12 Commerce practical projects and assessments have been posted. Please consult your respective subject rooms for textbook references.',
+          standard: '12',
+          priority: 'urgent',
+          createdAt: new Date().toISOString(),
+          senderEmail: SUPER_ADMIN_EMAIL,
+          senderName: 'Super Administrator',
+        },
+        {
+          id: 'notif-seed-2',
+          title: 'New HSC Commerce Textbooks & Notes Added',
+          message: 'Complete official textbook PDFs for Book-Keeping, OCM, Economics, and Maths & Statistics have been indexed in the Subject Rooms.',
+          standard: '12',
+          priority: 'important',
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
+          senderEmail: SUPER_ADMIN_EMAIL,
+          senderName: 'Faculty Administrator',
+        },
+      ];
+      writeJsonFile('notifications.json', notifs);
+    }
+
+    const { standard } = req.query;
+    if (standard && standard !== 'ALL') {
+      const filtered = notifs.filter(
+        (n) => !n.standard || n.standard === 'ALL' || n.standard === standard
+      );
+      return res.status(200).json(filtered);
+    }
+    return res.status(200).json(notifs);
+  } catch (err) {
+    console.error('[Notifications GET Error]:', err);
+    return res.status(500).json({ error: 'Failed to retrieve notifications' });
+  }
+});
+
+app.post('/api/notifications', (req, res) => {
+  try {
+    const { title, message, standard, priority, senderEmail, senderName } = req.body;
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and message are required' });
+    }
+
+    const notif = {
+      id: 'notif-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'),
+      title: title.trim(),
+      message: message.trim(),
+      standard: standard || 'ALL',
+      priority: priority || 'important',
+      senderEmail: senderEmail || 'admin@aetherstudy.internal',
+      senderName: senderName || 'Administrator',
+      createdAt: new Date().toISOString(),
+    };
+
+    const notifs = readJsonFile('notifications.json', []);
+    notifs.unshift(notif);
+    writeJsonFile('notifications.json', notifs);
+
+    return res.status(201).json(notif);
+  } catch (err) {
+    console.error('[Notifications POST Error]:', err);
+    return res.status(500).json({ error: 'Failed to create notification' });
+  }
+});
+
+app.delete('/api/notifications/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const notifs = readJsonFile('notifications.json', []);
+    const updated = notifs.filter((n) => n.id !== id);
+    writeJsonFile('notifications.json', updated);
+    return res.status(200).json({ success: true, message: 'Notification removed' });
+  } catch (err) {
+    console.error('[Notifications DELETE Error]:', err);
+    return res.status(500).json({ error: 'Failed to delete notification' });
   }
 });
 
