@@ -39,6 +39,8 @@ import {
   Check,
   X,
   Edit3,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey } from '../../services/readingMemory';
 
@@ -688,6 +690,10 @@ export const SubjectRooms: React.FC = () => {
   const [editDocChapter, setEditDocChapter] = useState<string>('');
   const [editDocTag, setEditDocTag] = useState<string>('');
 
+  // Section collapse/visibility toggles for empty chapters (keeps chapters with files UP at top)
+  const [showEmptyChaptersSyllabus, setShowEmptyChaptersSyllabus] = useState<boolean>(true);
+  const [showEmptyChaptersNotes, setShowEmptyChaptersNotes] = useState<boolean>(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch documents and subjects (non-blocking stale-while-revalidate with failsafe safety timer)
@@ -1238,6 +1244,61 @@ export const SubjectRooms: React.FC = () => {
       (ch) => !!completedChapters[`${activeSubjectSlug}-${ch.number}`]
     ).length;
   }, [activeRoomChapters, completedChapters, activeSubjectSlug]);
+
+  // Partition Syllabus chapters: Chapters WITH files go UP (top); chapters WITHOUT files go NICHE (bottom)
+  const syllabusChapterBuckets = useMemo(() => {
+    const withFiles: Array<{ chapter: ChapterItem; docs: ServerDocument[]; isCompleted: boolean; chapterKey: string }> = [];
+    const withoutFiles: Array<{ chapter: ChapterItem; docs: ServerDocument[]; isCompleted: boolean; chapterKey: string }> = [];
+
+    activeRoomChapters.forEach((ch) => {
+      const chapterKey = `${activeSubjectSlug}-${ch.number}`;
+      const isCompleted = !!completedChapters[chapterKey];
+      const docs = getDocsForChapter(ch, roomDocuments, effectiveStandard);
+
+      if (docs.length > 0) {
+        withFiles.push({ chapter: ch, docs, isCompleted, chapterKey });
+      } else {
+        withoutFiles.push({ chapter: ch, docs, isCompleted, chapterKey });
+      }
+    });
+
+    return { withFiles, withoutFiles };
+  }, [activeRoomChapters, roomDocuments, effectiveStandard, completedChapters, activeSubjectSlug]);
+
+  // Partition Notes chapters: Chapters WITH study notes go UP (top); chapters WITHOUT notes go NICHE (bottom)
+  const notesChapterBuckets = useMemo(() => {
+    const withNotes: Array<{ chapter: ChapterItem; allDocs: ServerDocument[]; filteredDocs: ServerDocument[] }> = [];
+    const withoutNotes: Array<{ chapter: ChapterItem; allDocs: ServerDocument[]; filteredDocs: ServerDocument[] }> = [];
+
+    activeRoomChapters.forEach((ch) => {
+      const allChDocs = notesDocs.filter((d) => getDocsForChapter(ch, [d], effectiveStandard).length > 0);
+      const chFilteredDocs = allChDocs.filter((d) => {
+        if (selectedCustomFilter !== 'All') {
+          const tagLower = selectedCustomFilter.toLowerCase();
+          const matchesTag =
+            (d.customFilter && d.customFilter.toLowerCase() === tagLower) ||
+            (d.tags && d.tags.some((t) => t.toLowerCase() === tagLower)) ||
+            (d.originalName || d.name || '').toLowerCase().includes(tagLower);
+          if (!matchesTag) return false;
+        }
+        if (noteSearchQuery.trim()) {
+          const q = noteSearchQuery.trim().toLowerCase();
+          const dName = (d.originalName || d.name || '').toLowerCase();
+          const filter = (d.customFilter || '').toLowerCase();
+          if (!dName.includes(q) && !filter.includes(q)) return false;
+        }
+        return true;
+      });
+
+      if (allChDocs.length > 0) {
+        withNotes.push({ chapter: ch, allDocs: allChDocs, filteredDocs: chFilteredDocs });
+      } else {
+        withoutNotes.push({ chapter: ch, allDocs: allChDocs, filteredDocs: [] });
+      }
+    });
+
+    return { withNotes, withoutNotes };
+  }, [activeRoomChapters, notesDocs, effectiveStandard, selectedCustomFilter, noteSearchQuery]);
 
   // Toggle chapter completion
   const toggleChapter = (chapterKey: string) => {
@@ -2536,163 +2597,232 @@ export const SubjectRooms: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {activeRoomChapters.map((ch) => {
-                      const chapterKey = `${activeSubjectSlug}-${ch.number}`;
-                      const isCompleted = !!completedChapters[chapterKey];
-                      const chapterDocs = getDocsForChapter(ch, roomDocuments, effectiveStandard);
+                  <div className="space-y-6">
+                    {/* SECTION 1: CHAPTERS WITH STUDY MATERIALS & PDFS (UP / TOP) */}
+                    {syllabusChapterBuckets.withFiles.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                              Chapters With Attached Study Materials ({syllabusChapterBuckets.withFiles.length})
+                            </h4>
+                          </div>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                            Available Now
+                          </span>
+                        </div>
 
-                      return (
-                        <div
-                          key={ch.number + ch.title}
-                          className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
-                            isCompleted
-                              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
-                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-md'
-                          }`}
-                        >
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <span
-                                className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-                                  isCompleted
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
-                                    : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                                }`}
-                              >
-                                {ch.number}
-                              </span>
-
-                              {ch.part && (
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                  {ch.part}
-                                </span>
-                              )}
-
-                              <div className="ml-auto">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleChapter(chapterKey)}
-                                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 transition-all ${
-                                    isCompleted
-                                      ? 'bg-emerald-600 text-white shadow-xs'
-                                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
-                                  }`}
-                                  title="Click to toggle mastery status"
-                                >
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  <span>{isCompleted ? 'Mastered' : 'Mark Done'}</span>
-                                </button>
-                              </div>
-                            </div>
-
-                            <h4
-                              className={`text-sm font-bold leading-snug transition-colors ${
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+                          {syllabusChapterBuckets.withFiles.map(({ chapter: ch, docs: chapterDocs, isCompleted, chapterKey }) => (
+                            <div
+                              key={ch.number + ch.title}
+                              className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between ${
                                 isCompleted
-                                  ? 'text-emerald-950 dark:text-emerald-100 line-through decoration-emerald-500/40'
-                                  : 'text-slate-900 dark:text-white'
+                                  ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
+                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-brand-500/50 hover:shadow-md'
                               }`}
                             >
-                              {ch.title}
-                            </h4>
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span
+                                    className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                                      isCompleted
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                    }`}
+                                  >
+                                    {ch.number}
+                                  </span>
 
-                            {ch.keyTopics && (
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                                <span className="font-semibold text-slate-600 dark:text-slate-300">Topics:</span>{' '}
-                                {ch.keyTopics}
-                              </p>
-                            )}
+                                  {ch.part && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                      {ch.part}
+                                    </span>
+                                  )}
 
-                            {/* Connected Chapter PDF Documents & Notes */}
-                            <div className="pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
-                              <div className="flex items-center justify-between text-[11px]">
-                                <span className="font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                                  <FileText className="w-3 h-3 text-brand-500" />
-                                  <span>Chapter Study PDFs:</span>
-                                </span>
-                                <span
-                                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                                    chapterDocs.length > 0
-                                      ? 'bg-brand-50 text-brand-700 dark:bg-brand-950/70 dark:text-brand-300 border border-brand-200 dark:border-brand-800'
-                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                                  }`}
-                                >
-                                  {chapterDocs.length > 0
-                                    ? `${chapterDocs.length} PDF${chapterDocs.length === 1 ? '' : 's'}`
-                                    : '0 PDFs'}
-                                </span>
-                              </div>
-
-                              {chapterDocs.length > 0 ? (
-                                <div className="space-y-1.5">
-                                  {chapterDocs.slice(0, 2).map((doc) => {
-                                    const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
-                                    const progress = readingMemory.getProgress(docKey);
-                                    const hasProgress = progress && progress.currentPage > 1;
-
-                                    return (
-                                      <div
-                                        key={doc.id}
-                                        onClick={() => handleOpenDoc(doc)}
-                                        className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-brand-50 dark:bg-slate-800/60 dark:hover:bg-brand-950/40 border border-slate-200 dark:border-slate-700/60 transition-colors cursor-pointer group/doc"
-                                        title={`Read ${doc.originalName || doc.name}`}
-                                      >
-                                        <div className="flex items-center space-x-2 truncate mr-2">
-                                          <BookOpen className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
-                                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover/doc:text-brand-600 dark:group-hover/doc:text-brand-400 truncate">
-                                            {doc.name || doc.originalName}
-                                          </span>
-                                        </div>
-
-                                        <div className="flex items-center space-x-1.5 shrink-0">
-                                          {hasProgress && (
-                                            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                                              <History className="w-2.5 h-2.5" /> p.{progress.currentPage}
-                                            </span>
-                                          )}
-                                          <span
-                                            className={`text-[10px] font-bold px-2 py-0.5 rounded-lg text-white shadow-xs flex items-center gap-1 ${
-                                              hasProgress ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-brand-600 hover:bg-brand-500'
-                                            }`}
-                                          >
-                                            <Eye className="w-3 h-3" /> {hasProgress ? 'Resume' : 'Read'}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                  {chapterDocs.length > 2 && (
+                                  <div className="ml-auto">
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setSelectedChapterFilter(ch.number);
-                                        setActiveCategoryTab('notes');
-                                      }}
-                                      className="text-[11px] font-bold text-brand-600 dark:text-brand-400 hover:underline pt-0.5 block"
+                                      onClick={() => toggleChapter(chapterKey)}
+                                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
+                                        isCompleted
+                                          ? 'bg-emerald-600 text-white shadow-xs'
+                                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                      }`}
+                                      title="Click to toggle mastery status"
                                     >
-                                      View all {chapterDocs.length} chapter notes →
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span>{isCompleted ? 'Mastered' : 'Mark Done'}</span>
                                     </button>
-                                  )}
+                                  </div>
                                 </div>
-                              ) : (
-                                <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                                  <span>No notes uploaded for this chapter</span>
+
+                                <h4
+                                  className={`text-sm font-bold leading-snug transition-colors ${
+                                    isCompleted
+                                      ? 'text-emerald-950 dark:text-emerald-100 line-through decoration-emerald-500/40'
+                                      : 'text-slate-900 dark:text-white'
+                                  }`}
+                                >
+                                  {ch.title}
+                                </h4>
+
+                                {ch.keyTopics && (
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                                    <span className="font-semibold text-slate-600 dark:text-slate-300">Topics:</span>{' '}
+                                    {ch.keyTopics}
+                                  </p>
+                                )}
+
+                                {/* Connected Chapter PDF Documents & Notes */}
+                                <div className="pt-2.5 mt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
+                                  <div className="flex items-center justify-between text-[11px]">
+                                    <span className="font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                                      <FileText className="w-3 h-3 text-brand-500" />
+                                      <span>Attached Study PDFs:</span>
+                                    </span>
+                                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/70 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                                      {chapterDocs.length} {chapterDocs.length === 1 ? 'PDF' : 'PDFs'}
+                                    </span>
+                                  </div>
+
+                                  <div className="space-y-1.5">
+                                    {chapterDocs.slice(0, 3).map((doc) => {
+                                      const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
+                                      const progress = readingMemory.getProgress(docKey);
+                                      const hasProgress = progress && progress.currentPage > 1;
+
+                                      return (
+                                        <div
+                                          key={doc.id}
+                                          onClick={() => handleOpenDoc(doc)}
+                                          className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-brand-50 dark:bg-slate-800/60 dark:hover:bg-brand-950/40 border border-slate-200 dark:border-slate-700/60 transition-colors cursor-pointer group/doc"
+                                          title={`Read ${doc.originalName || doc.name}`}
+                                        >
+                                          <div className="flex items-center space-x-2 truncate mr-2 min-w-0">
+                                            <BookOpen className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
+                                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover/doc:text-brand-600 truncate">
+                                              {doc.name || doc.originalName}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center space-x-1.5 shrink-0">
+                                            {hasProgress && (
+                                              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                                                <History className="w-2.5 h-2.5" /> p.{progress.currentPage}
+                                              </span>
+                                            )}
+                                            <span
+                                              className={`text-[10px] font-bold px-2 py-0.5 rounded-lg text-white shadow-xs flex items-center gap-1 ${
+                                                hasProgress ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-brand-600 hover:bg-brand-500'
+                                              }`}
+                                            >
+                                              <Eye className="w-3 h-3" /> {hasProgress ? 'Resume' : 'Read'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                    {chapterDocs.length > 3 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedChapterFilter(ch.number);
+                                          setActiveCategoryTab('notes');
+                                        }}
+                                        className="text-[11px] font-bold text-brand-600 dark:text-brand-400 hover:underline pt-0.5 block"
+                                      >
+                                        View all {chapterDocs.length} chapter notes →
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION 2: REMAINING CHAPTERS WITHOUT MATERIALS (NICHE / BOTTOM) */}
+                    {syllabusChapterBuckets.withoutFiles.length > 0 && (
+                      <div className="mt-8 pt-6 border-t-2 border-dashed border-slate-200 dark:border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-slate-400 dark:bg-slate-600" />
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                              Remaining Chapters ({syllabusChapterBuckets.withoutFiles.length} without materials)
+                            </h4>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowEmptyChaptersSyllabus(!showEmptyChaptersSyllabus)}
+                            className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>{showEmptyChaptersSyllabus ? 'Hide Remaining' : 'Show Remaining'}</span>
+                            {showEmptyChaptersSyllabus ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+
+                        {showEmptyChaptersSyllabus && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {syllabusChapterBuckets.withoutFiles.map(({ chapter: ch, isCompleted, chapterKey }) => (
+                              <div
+                                key={ch.number + ch.title}
+                                className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                                  isCompleted
+                                    ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80'
+                                    : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                      {ch.number}
+                                    </span>
+                                    {isCompleted && (
+                                      <span className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                        Done
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h4 className={`text-xs font-bold truncate ${isCompleted ? 'line-through text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                                    {ch.title}
+                                  </h4>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleChapter(chapterKey)}
+                                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                                      isCompleted
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-emerald-600'
+                                    }`}
+                                    title="Toggle mastery"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                  </button>
                                   {canUpload && (
                                     <button
                                       type="button"
                                       onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
-                                      className="text-brand-600 dark:text-brand-400 font-bold hover:underline cursor-pointer"
+                                      className="px-2 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                                      title="Upload study note"
                                     >
-                                      + Upload
+                                      <Plus className="w-3 h-3" />
+                                      <span>Upload</span>
                                     </button>
                                   )}
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                      );
-                    })}
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3038,195 +3168,198 @@ export const SubjectRooms: React.FC = () => {
                       VIEW MODE 1: BY CHAPTER ACCORDION / NAVIGATION VIEW
                   ======================================================== */}
                   {notesViewMode === 'chapter' ? (
-                    <div className="space-y-4">
-                      {activeRoomChapters.map((ch) => {
-                        // All docs matching this chapter
-                        const allChDocs = notesDocs.filter((d) => getDocsForChapter(ch, [d], effectiveStandard).length > 0);
-                        // Filtered docs matching active tag and search query
-                        const chDocs = allChDocs.filter((d) => {
-                          if (selectedCustomFilter !== 'All') {
-                            const tagLower = selectedCustomFilter.toLowerCase();
-                            const matchesTag = (d.customFilter && d.customFilter.toLowerCase() === tagLower) ||
-                              (d.tags && d.tags.some((t) => t.toLowerCase() === tagLower)) ||
-                              (d.originalName || d.name || '').toLowerCase().includes(tagLower);
-                            if (!matchesTag) return false;
-                          }
-                          if (noteSearchQuery.trim()) {
-                            const q = noteSearchQuery.trim().toLowerCase();
-                            const dName = (d.originalName || d.name || '').toLowerCase();
-                            const filter = (d.customFilter || '').toLowerCase();
-                            if (!dName.includes(q) && !filter.includes(q)) return false;
-                          }
-                          return true;
-                        });
-
-                        return (
-                          <div
-                            key={ch.number}
-                            className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden transition-all hover:border-slate-300 dark:hover:border-slate-700"
-                          >
-                            {/* Chapter Header */}
-                            <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                                    {ch.number}
-                                  </span>
-                                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                                    {ch.title}
-                                  </h3>
-                                </div>
-                                {ch.keyTopics && (
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                                    Topics: {ch.keyTopics}
-                                  </p>
-                                )}
-                              </div>
-
-                              {/* Chapter Actions: Count Badge & Upload Button */}
-                              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl ${
-                                  allChDocs.length > 0
-                                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800'
-                                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                                }`}>
-                                  {allChDocs.length} {allChDocs.length === 1 ? 'PDF' : 'PDFs'}
-                                </span>
-
-                                {canUpload && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
-                                    className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                                    title={`Upload notes directly to ${ch.number}`}
-                                  >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    <span>Add PDF</span>
-                                  </button>
-                                )}
-                              </div>
+                    <div className="space-y-6">
+                      {/* SECTION 1: CHAPTERS WITH STUDY NOTES (UP / TOP) */}
+                      {notesChapterBuckets.withNotes.length > 0 ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                              <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                                Chapters With Notes & Materials ({notesChapterBuckets.withNotes.length})
+                              </h4>
                             </div>
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                              Ready To Study
+                            </span>
+                          </div>
 
-                            {/* Chapter PDFs List */}
-                            <div className="p-4 sm:p-5">
-                              {chDocs.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                                  {chDocs.map((doc) => {
-                                    const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
-                                    const progress = readingMemory.getProgress(docKey);
-                                    const hasProgress = progress && progress.currentPage > 1;
+                          {notesChapterBuckets.withNotes.map(({ chapter: ch, allDocs: allChDocs, filteredDocs: chDocs }) => {
+                            return (
+                              <div
+                                key={ch.number}
+                                className="rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden transition-all hover:border-slate-300 dark:hover:border-slate-700"
+                              >
+                                {/* Chapter Header */}
+                                <div className="p-3.5 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800">
+                                  <div className="space-y-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shrink-0">
+                                        {ch.number}
+                                      </span>
+                                      <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white break-words">
+                                        {ch.title}
+                                      </h3>
+                                    </div>
+                                    {ch.keyTopics && (
+                                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                                        Topics: {ch.keyTopics}
+                                      </p>
+                                    )}
+                                  </div>
 
-                                    return (
-                                      <div
-                                        key={doc.id}
-                                        onClick={() => handleOpenDoc(doc)}
-                                        className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 hover:border-amber-500/50 dark:hover:border-amber-500/50 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+                                  {/* Chapter Actions: Count Badge & Upload Button */}
+                                  <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                                    <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+                                      {allChDocs.length} {allChDocs.length === 1 ? 'PDF' : 'PDFs'}
+                                    </span>
+
+                                    {canUpload && (
+                                      <button
+                                        type="button"
+                                        onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
+                                        className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                                        title={`Upload notes directly to ${ch.number}`}
                                       >
-                                        <div>
-                                          <div className="flex items-start justify-between gap-2 mb-2">
-                                            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
-                                              <FileText className="w-4 h-4" />
-                                            </div>
-
-                                            <div className="flex items-center gap-1 flex-wrap justify-end">
-                                              {doc.customFilter && (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                                                  {doc.customFilter}
-                                                </span>
-                                              )}
-
-                                              {hasProgress && (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                                                  <History className="w-2.5 h-2.5" /> p.{progress.currentPage}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-
-                                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
-                                            {doc.name || doc.originalName}
-                                          </h4>
-                                          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-2">
-                                            <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
-                                            <span>•</span>
-                                            <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
-                                          </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/60">
-                                          {hasProgress ? (
-                                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                              <Eye className="w-3 h-3" /> Resume
-                                            </span>
-                                          ) : (
-                                            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                              <Eye className="w-3 h-3" /> Read PDF
-                                            </span>
-                                          )}
-
-                                          <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                                            {canUpload && (
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setEditingDoc(doc);
-                                                  setEditDocChapter(doc.chapterNumber || ch.number || 'All');
-                                                  setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
-                                                }}
-                                                className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                                title="Edit Chapter & Tag"
-                                              >
-                                                <Edit3 className="w-3.5 h-3.5" />
-                                              </button>
-                                            )}
-                                            <a
-                                              href={getDownloadUrl(doc)}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              download={doc.originalName || doc.name}
-                                              className="p-1 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
-                                              title="Download PDF"
-                                            >
-                                              <Download className="w-3.5 h-3.5" />
-                                            </a>
-                                            {canUpload && (
-                                              <button
-                                                onClick={(e) => handleDeleteDocument(doc.id, e)}
-                                                className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
-                                                title="Delete document"
-                                              >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                              </button>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
+                                        <Plus className="w-3.5 h-3.5" />
+                                        <span>Add PDF</span>
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-                              ) : (
-                                <div className="py-6 px-4 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-2">
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    {selectedCustomFilter !== 'All' || noteSearchQuery
-                                      ? `No study notes in ${ch.number} matched the selected filter or search.`
-                                      : `No study notes or PDFs uploaded for ${ch.number} yet.`}
-                                  </p>
-                                  {canUpload && (
-                                    <button
-                                      type="button"
-                                      onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
-                                      className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
-                                    >
-                                      <Plus className="w-3.5 h-3.5" />
-                                      <span>Upload PDF for {ch.number}</span>
-                                    </button>
+
+                                {/* Chapter PDFs List */}
+                                <div className="p-3.5 sm:p-5">
+                                  {chDocs.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                                      {chDocs.map((doc) => {
+                                        const docKey = getCanonicalDocKey(doc.streamUrl || doc.serverUrl || doc.name, doc.originalName || doc.name);
+                                        const progress = readingMemory.getProgress(docKey);
+                                        const hasProgress = progress && progress.currentPage > 1;
+
+                                        return (
+                                          <div
+                                            key={doc.id}
+                                            onClick={() => handleOpenDoc(doc)}
+                                            className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 hover:border-amber-500/50 dark:hover:border-amber-500/50 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+                                          >
+                                            <div>
+                                              <div className="flex items-start justify-between gap-2 mb-2">
+                                                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                                                  <FileText className="w-4 h-4" />
+                                                </div>
+
+                                                <div className="flex items-center gap-1 flex-wrap justify-end">
+                                                  {doc.customFilter && (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                                      {doc.customFilter}
+                                                    </span>
+                                                  )}
+
+                                                  {hasProgress && (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                                                      <History className="w-2.5 h-2.5" /> p.{progress.currentPage}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+
+                                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+                                                {doc.name || doc.originalName}
+                                              </h4>
+                                              <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-2">
+                                                <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
+                                                <span>•</span>
+                                                <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
+                                              </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/60">
+                                              {hasProgress ? (
+                                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                                  <Eye className="w-3 h-3" /> Resume
+                                                </span>
+                                              ) : (
+                                                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                  <Eye className="w-3 h-3" /> Read PDF
+                                                </span>
+                                              )}
+
+                                              <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                                                {canUpload && (
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setEditingDoc(doc);
+                                                      setEditDocChapter(doc.chapterNumber || ch.number || 'All');
+                                                      setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                                    }}
+                                                    className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                                                    title="Edit Chapter & Tag"
+                                                  >
+                                                    <Edit3 className="w-3.5 h-3.5" />
+                                                  </button>
+                                                )}
+                                                <a
+                                                  href={getDownloadUrl(doc)}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  download={doc.originalName || doc.name}
+                                                  className="p-1 rounded-lg text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                                                  title="Download PDF"
+                                                >
+                                                  <Download className="w-3.5 h-3.5" />
+                                                </a>
+                                                {canUpload && (
+                                                  <button
+                                                    onClick={(e) => handleDeleteDocument(doc.id, e)}
+                                                    className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                                                    title="Delete document"
+                                                  >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <div className="py-4 px-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-1.5">
+                                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        No notes in {ch.number} matched the "{selectedCustomFilter}" filter.
+                                      </p>
+                                    </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="py-10 px-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-100 dark:border-amber-900">
+                            <FileText className="w-6 h-6" />
                           </div>
-                        );
-                      })}
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                            No Chapter Notes Uploaded Yet
+                          </h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                            Add study material PDFs or select an empty chapter below to attach notes.
+                          </p>
+                          {canUpload && (
+                            <button
+                              type="button"
+                              onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
+                              className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                            >
+                              <Plus className="w-4 h-4" />
+                              <span>Upload First Note</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       {/* Uncategorized / General Notes Section */}
                       {(() => {
@@ -3320,6 +3453,60 @@ export const SubjectRooms: React.FC = () => {
                           </div>
                         );
                       })()}
+
+                      {/* SECTION 3: REMAINING CHAPTERS WITHOUT NOTES (NICHE / BOTTOM) */}
+                      {notesChapterBuckets.withoutNotes.length > 0 && (
+                        <div className="mt-8 pt-6 border-t-2 border-dashed border-slate-200 dark:border-slate-800 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-slate-400 dark:bg-slate-600" />
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                Remaining Chapters ({notesChapterBuckets.withoutNotes.length} without notes)
+                              </h4>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowEmptyChaptersNotes(!showEmptyChaptersNotes)}
+                              className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>{showEmptyChaptersNotes ? 'Hide Remaining' : 'Show Remaining'}</span>
+                              {showEmptyChaptersNotes ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+
+                          {showEmptyChaptersNotes && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {notesChapterBuckets.withoutNotes.map(({ chapter: ch }) => (
+                                <div
+                                  key={ch.number + ch.title}
+                                  className="p-3 sm:p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-between gap-3"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 mb-1 inline-block">
+                                      {ch.number}
+                                    </span>
+                                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                                      {ch.title}
+                                    </h4>
+                                  </div>
+
+                                  {canUpload && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
+                                      className="px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded-lg transition-colors flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
+                                      title={`Upload notes for ${ch.number}`}
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      <span>+ Upload</span>
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     /* ========================================================
