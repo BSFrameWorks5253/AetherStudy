@@ -142,10 +142,17 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
         {/* Header Right Actions - Apple Spatial Capsule Layout */}
         <div className="flex items-center space-x-2 shrink-0">
           {/* Dedicated Class 12 HSC Commerce Board Pill */}
-          <div className="flex items-center space-x-1.5 bg-brand-500/10 dark:bg-brand-400/15 border border-brand-500/20 dark:border-brand-400/25 rounded-full px-3 py-1.5 select-none shadow-xs">
+          <div className="flex items-center space-x-2 bg-gradient-to-r from-brand-500/15 to-purple-500/15 border border-brand-500/25 dark:border-brand-400/30 rounded-full px-3 py-1.5 select-none shadow-xs">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
             <GraduationCap className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
-            <span className="text-xs font-bold tracking-tight text-brand-700 dark:text-brand-300">
+            <span className="text-xs font-black tracking-tight text-brand-700 dark:text-brand-300">
               Class 12 HSC
+            </span>
+            <span className="hidden lg:inline text-[10px] font-semibold text-slate-500 dark:text-slate-400 border-l border-brand-500/20 pl-2">
+              MSBSHSE Commerce
             </span>
           </div>
 

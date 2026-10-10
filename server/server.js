@@ -55,10 +55,6 @@ function extractBearerUser(req) {
     const verified = verifySessionToken(token);
     if (verified) return verified;
   }
-  const email = req.headers['x-requester-email'] || req.body?.uploaderEmail || req.body?.uploadedBy || req.body?.requesterEmail;
-  if (email && typeof email === 'string' && SUPER_ADMIN_EMAIL && email.trim().toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-    return { email: email.trim().toLowerCase(), role: 'SUPER_ADMIN', standard: 'ALL' };
-  }
   return null;
 }
 
@@ -145,9 +141,8 @@ app.use(
       if (!origin) return callback(null, true);
       if (
         ALLOWED_ORIGINS.has(origin) ||
-        origin.endsWith('.vercel.app') ||
-        origin.startsWith('http://localhost:') ||
-        origin.startsWith('http://127.0.0.1:')
+        /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) ||
+        /^http:\/\/(localhost|127\.0\.0\.1):[0-9]+$/.test(origin)
       ) {
         return callback(null, true);
       }
@@ -204,8 +199,6 @@ app.use('/data', express.static(path.join(__dirname, '../data')));
 // File Validation & Multer Engine
 const ALLOWED_EXTENSIONS = new Set([
   '.pdf',
-  '.html',
-  '.htm',
   '.txt',
   '.md',
   '.png',
@@ -225,7 +218,6 @@ const ALLOWED_EXTENSIONS = new Set([
 ]);
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
-  'text/html',
   'text/plain',
   'text/markdown',
   'text/csv',
@@ -557,38 +549,22 @@ app.post('/api/auth/generate', async (req, res) => {
     // Max 1.5-second dispatch race so the serverless response is lightning fast
     await Promise.race([
       emailPromise,
-      new Promise((resolve) => setTimeout(resolve, 1500)),
+      new Promise((resolve) => setTimeout(resolve, 2500)),
     ]);
 
-    if (!sent && !fallbackPasscode) {
-      fallbackPasscode = otp;
-      sandboxNotice = 'Instant verification code ready.';
-    }
-
+    const isDev = process.env.NODE_ENV === 'development' && !process.env.VERCEL;
     const [uPart, dPart] = normalizedEmail.split('@');
     return res.status(200).json({
       success: true,
-      message: sent ? 'Verification code sent to your email.' : (sandboxNotice || 'Verification token initialized.'),
+      message: sent ? 'Verification code sent to your email.' : 'Verification token initialized.',
       token,
       maskedEmail: `${uPart[0]}***@${dPart}`,
-      devPasscode: fallbackPasscode || undefined,
-      sandboxNotice: sandboxNotice || undefined,
+      devPasscode: isDev ? fallbackPasscode : undefined,
+      sandboxNotice: isDev ? sandboxNotice : undefined,
     });
   } catch (error) {
     console.error('[Internal OTP Generation Notice]:', error);
-    // Never lock out the user on serverless runtime anomalies
-    const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000;
-    const token = `fallback_${expiresAt}_${Buffer.from(normalizedEmail + ':' + fallbackOtp).toString('base64url')}`;
-    const [uPart, dPart] = normalizedEmail.split('@');
-    return res.status(200).json({
-      success: true,
-      message: 'Instant verification code generated.',
-      token,
-      maskedEmail: `${uPart[0]}***@${dPart}`,
-      devPasscode: fallbackOtp,
-      sandboxNotice: 'Instant verification code ready.',
-    });
+    return res.status(500).json({ error: 'Failed to generate verification code. Please try again.' });
   }
 });
 
@@ -600,34 +576,6 @@ app.post('/api/auth/verify', (req, res) => {
 
   const normalizedEmail = email.trim().toLowerCase();
   const submittedOtp = otp.toString().trim();
-
-  // Allow client fallback token or testing bypass
-  if (token.startsWith('fallback_') || submittedOtp === '123456') {
-    const isSuper = (Boolean(SUPER_ADMIN_EMAIL) && normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) || normalizedEmail === 'bs.framework5253@gmail.com';
-    const users = readJsonFile('users.json', initialUsers);
-    let user = users.find((u) => u.email.toLowerCase() === normalizedEmail);
-    if (!user) {
-      user = {
-        email: normalizedEmail,
-        role: isSuper ? 'SUPER_ADMIN' : 'USER',
-        standard: isSuper ? 'ALL' : (standard || '12'),
-        lastLogin: new Date().toISOString(),
-      };
-      users.push(user);
-    } else {
-      if (isSuper) user.role = 'SUPER_ADMIN';
-      if (standard && !isSuper) user.standard = standard;
-      if (isSuper) user.standard = 'ALL';
-      user.lastLogin = new Date().toISOString();
-    }
-    writeJsonFile('users.json', users);
-    const sessionToken = signSessionToken({
-      email: user.email,
-      role: user.role,
-      standard: user.standard,
-    });
-    return res.status(200).json({ success: true, token: sessionToken, user });
-  }
 
   const [expiresAtStr, expectedHash] = token.split('.');
 
@@ -699,21 +647,34 @@ app.post('/api/auth/login', (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+
+  // Administrative accounts strictly require cryptographic OTP verification
+  if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    return res.status(403).json({
+      error: 'Administrator accounts require two-factor verification. Please request an authentication passcode.',
+      requiresOtp: true,
+    });
+  }
+
   const users = readJsonFile('users.json', initialUsers);
   let user = users.find((u) => u.email.toLowerCase() === normalizedEmail);
 
+  if (user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')) {
+    return res.status(403).json({
+      error: 'Administrator accounts require two-factor verification. Please request an authentication passcode.',
+      requiresOtp: true,
+    });
+  }
+
   if (!user) {
-    const isSuper = normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase();
     user = {
       email: normalizedEmail,
-      role: isSuper ? 'SUPER_ADMIN' : 'USER',
+      role: 'USER',
+      standard: '12',
       lastLogin: new Date().toISOString(),
     };
     users.push(user);
   } else {
-    if (normalizedEmail === SUPER_ADMIN_EMAIL.toLowerCase()) {
-      user.role = 'SUPER_ADMIN';
-    }
     user.lastLogin = new Date().toISOString();
   }
 
@@ -721,11 +682,11 @@ app.post('/api/auth/login', (req, res) => {
 
   const sessionToken = signSessionToken({
     email: user.email,
-    role: user.role,
-    standard: user.standard,
+    role: 'USER',
+    standard: user.standard || '12',
   });
 
-  res.json({ ...user, token: sessionToken });
+  res.json({ ...user, role: 'USER', token: sessionToken });
 });
 
 // Get registered users (Only for SUPER_ADMIN with valid cryptographic token)
@@ -1605,23 +1566,33 @@ app.put('/api/pomodoro', (req, res) => {
   res.json(updated);
 });
 
-// 9. ZERO-COST HIDDEN GITHUB DATABASE SYNC ENDPOINT
+// 9. SECURE DATABASE SYNC ENDPOINT
+const ALLOWED_DB_FILES = new Set([
+  'syllabus.json',
+  'timetable.json',
+  'notes.json',
+  'documents.json',
+  'test-papers.json',
+  'pomodoro.json',
+  'subjects.json',
+  'notifications.json',
+  'users.json',
+]);
+
 app.get('/api/db/sync', async (req, res) => {
   const rawFile = (req.query.file || 'syllabus.json').toString();
   const fileName = path.basename(rawFile);
-  const ALLOWED_DB_FILES = new Set([
-    'syllabus.json',
-    'timetable.json',
-    'notes.json',
-    'documents.json',
-    'test-papers.json',
-    'pomodoro.json',
-    'subjects.json',
-    'notifications.json',
-    'users.json',
-  ]);
   if (!ALLOWED_DB_FILES.has(fileName)) {
     return res.status(400).json({ error: 'Access to requested data file is restricted.' });
+  }
+
+  // users.json strictly requires super administrator authentication
+  if (fileName === 'users.json') {
+    const user = extractBearerUser(req);
+    const isSuper = user && ((Boolean(SUPER_ADMIN_EMAIL) && user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) || user.role === 'SUPER_ADMIN');
+    if (!isSuper) {
+      return res.status(403).json({ error: 'Permission denied. Super Admin access required for user records.' });
+    }
   }
 
   const GH_ACCESS_TOKEN = process.env.GH_ACCESS_TOKEN;
@@ -1652,8 +1623,9 @@ app.get('/api/db/sync', async (req, res) => {
   }
 });
 
-app.post('/api/db/sync', async (req, res) => {
+app.post('/api/db/sync', requireAdmin, async (req, res) => {
   const { file, data, action, subject, document } = req.body || {};
+  const user = req.user;
 
   // Special Action: Attach Google Drive PDF link into syllabus.json and documents.json
   if (action === 'attach-drive-doc' && document) {
@@ -1713,6 +1685,17 @@ app.post('/api/db/sync', async (req, res) => {
   }
 
   if (!file) return res.status(400).json({ error: 'Target file required.' });
+  const fileName = path.basename(file);
+  if (!ALLOWED_DB_FILES.has(fileName)) {
+    return res.status(400).json({ error: 'Access to requested data file is restricted.' });
+  }
+
+  if (fileName === 'users.json') {
+    const isSuper = (Boolean(SUPER_ADMIN_EMAIL) && user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) || user.role === 'SUPER_ADMIN';
+    if (!isSuper) {
+      return res.status(403).json({ error: 'Only Super Administrator can alter user records.' });
+    }
+  }
 
   const GH_ACCESS_TOKEN = process.env.GH_ACCESS_TOKEN;
   const GITHUB_REPO = process.env.GITHUB_REPO || 'BSFrameWorks5253/AetherStudy';
@@ -1720,7 +1703,7 @@ app.post('/api/db/sync', async (req, res) => {
   try {
     let savedToGitHub = false;
     if (GH_ACCESS_TOKEN) {
-      const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/data/${file}`;
+      const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/data/${fileName}`;
       let sha = undefined;
       const existing = await fetch(url, {
         headers: {
@@ -1743,7 +1726,7 @@ app.post('/api/db/sync', async (req, res) => {
           'User-Agent': 'AetherStudy-DB-Sync',
         },
         body: JSON.stringify({
-          message: `db(sync): update ${file} [Zero-Cost GitHub DB]`,
+          message: `db(sync): update ${fileName} [Zero-Cost GitHub DB]`,
           content: Buffer.from(JSON.stringify(data, null, 2), 'utf8').toString('base64'),
           sha,
         }),
@@ -1751,7 +1734,7 @@ app.post('/api/db/sync', async (req, res) => {
       savedToGitHub = putRes.ok;
     }
 
-    writeJsonFile(file, data);
+    writeJsonFile(fileName, data);
     return res.json({ success: true, source: savedToGitHub ? 'github' : 'local' });
   } catch (error) {
     console.error('[Database Sync POST Error]:', error);
@@ -1760,25 +1743,14 @@ app.post('/api/db/sync', async (req, res) => {
 });
 
 // 10. GOOGLE DRIVE LARGE PDF STORAGE ROUTING ENDPOINT WITH PROPER FOLDERS
-app.post('/api/storage/upload', async (req, res) => {
-  const { fileName, fileBase64, mimeType, subject, standard, category, year, isAnswerKey, folderPath, uploaderEmail } = req.body || {};
+app.post('/api/storage/upload', requireAdmin, async (req, res) => {
+  const { fileName, fileBase64, mimeType, subject, standard, category, year, isAnswerKey, folderPath } = req.body || {};
   if (!fileName || !fileBase64) {
     return res.status(400).json({ error: 'File name and file base64 buffer required.' });
   }
 
-  // Authorization check
-  const normalizedUploader = (uploaderEmail || '').trim().toLowerCase();
-  const users = readJsonFile('users.json', initialUsers);
-  const uploader = users.find((u) => u.email.toLowerCase() === normalizedUploader);
-  const isAuthorized =
-    normalizedUploader === SUPER_ADMIN_EMAIL.toLowerCase() ||
-    (uploader && (uploader.role === 'SUPER_ADMIN' || uploader.role === 'ADMIN'));
-
-  if (!isAuthorized) {
-    return res.status(403).json({
-      error: `Storage upload restricted. Only authorized administrators or ${SUPER_ADMIN_EMAIL} can upload to Drive.`,
-    });
-  }
+  const user = req.user;
+  const uploaderEmail = user.email;
 
   try {
     const base64Data = fileBase64.includes(';base64,') ? fileBase64.split(';base64,')[1] : fileBase64;
@@ -1894,95 +1866,6 @@ app.post('/api/storage/upload', async (req, res) => {
   } catch (error) {
     console.error('[Storage Upload Failure]:', error);
     return res.status(500).json({ error: 'Internal security node allocation error.' });
-  }
-});
-
-// ============================================================================
-// OFFICIAL ACADEMIC NOTIFICATIONS & REALTIME ANNOUNCEMENTS ENGINE
-// ============================================================================
-app.get('/api/notifications', (req, res) => {
-  try {
-    let notifs = readJsonFile('notifications.json', null);
-    if (!notifs || !Array.isArray(notifs) || notifs.length === 0) {
-      // Seed initial verified announcements
-      notifs = [
-        {
-          id: 'notif-seed-1',
-          title: 'HSC Board Examination Practical Dates Announced',
-          message: 'Official guidelines for Standard 12 Commerce practical projects and assessments have been posted. Please consult your respective subject rooms for textbook references.',
-          standard: '12',
-          priority: 'urgent',
-          createdAt: new Date().toISOString(),
-          senderEmail: SUPER_ADMIN_EMAIL,
-          senderName: 'Super Administrator',
-        },
-        {
-          id: 'notif-seed-2',
-          title: 'New HSC Commerce Textbooks & Notes Added',
-          message: 'Complete official textbook PDFs for Book-Keeping, OCM, Economics, and Maths & Statistics have been indexed in the Subject Rooms.',
-          standard: '12',
-          priority: 'important',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          senderEmail: SUPER_ADMIN_EMAIL,
-          senderName: 'Faculty Administrator',
-        },
-      ];
-      writeJsonFile('notifications.json', notifs);
-    }
-
-    const { standard } = req.query;
-    if (standard && standard !== 'ALL') {
-      const filtered = notifs.filter(
-        (n) => !n.standard || n.standard === 'ALL' || n.standard === standard
-      );
-      return res.status(200).json(filtered);
-    }
-    return res.status(200).json(notifs);
-  } catch (err) {
-    console.error('[Notifications GET Error]:', err);
-    return res.status(500).json({ error: 'Failed to retrieve notifications' });
-  }
-});
-
-app.post('/api/notifications', (req, res) => {
-  try {
-    const { title, message, standard, priority, senderEmail, senderName } = req.body;
-    if (!title || !message) {
-      return res.status(400).json({ error: 'Title and message are required' });
-    }
-
-    const notif = {
-      id: 'notif-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'),
-      title: title.trim(),
-      message: message.trim(),
-      standard: standard || 'ALL',
-      priority: priority || 'important',
-      senderEmail: senderEmail || 'admin@aetherstudy.internal',
-      senderName: senderName || 'Administrator',
-      createdAt: new Date().toISOString(),
-    };
-
-    const notifs = readJsonFile('notifications.json', []);
-    notifs.unshift(notif);
-    writeJsonFile('notifications.json', notifs);
-
-    return res.status(201).json(notif);
-  } catch (err) {
-    console.error('[Notifications POST Error]:', err);
-    return res.status(500).json({ error: 'Failed to create notification' });
-  }
-});
-
-app.delete('/api/notifications/:id', (req, res) => {
-  try {
-    const { id } = req.params;
-    const notifs = readJsonFile('notifications.json', []);
-    const updated = notifs.filter((n) => n.id !== id);
-    writeJsonFile('notifications.json', updated);
-    return res.status(200).json({ success: true, message: 'Notification removed' });
-  } catch (err) {
-    console.error('[Notifications DELETE Error]:', err);
-    return res.status(500).json({ error: 'Failed to delete notification' });
   }
 });
 

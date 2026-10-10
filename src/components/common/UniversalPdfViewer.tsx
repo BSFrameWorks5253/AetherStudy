@@ -804,7 +804,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           <a
             href={directOpenUrl}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="px-3 py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all shrink-0 ml-1 ios-pill"
             title="Open Document in External App"
           >

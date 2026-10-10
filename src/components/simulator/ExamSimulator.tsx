@@ -500,7 +500,7 @@ export const ExamSimulator: React.FC = () => {
                     onClick={() => {
                       const solBundle = transformDocumentUrl(selectedPaper.answerKeyPdfUrl);
                       if (solBundle.previewUrl) {
-                        window.open(solBundle.previewUrl, '_blank');
+                        window.open(solBundle.previewUrl, '_blank', 'noopener,noreferrer');
                       }
                     }}
                     className="w-full py-2.5 px-4 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/25 flex items-center justify-center gap-1.5 cursor-pointer ios-pill"
