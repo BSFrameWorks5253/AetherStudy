@@ -769,18 +769,29 @@ export const api = {
   async deleteDocument(id: string, requesterEmail?: string, docMeta?: ServerDocument): Promise<boolean> {
     if (!id) return false;
 
-    // 1. Immediately register in persistent tombstone blacklist
-    await firebaseDeletedDocs.markDeleted(id);
+    // 1. Immediately register in persistent tombstone blacklist synchronously
+    firebaseDeletedDocs.markDeletedSync(docMeta || id);
 
-    // 2. Purge from local cache
+    // 2. Synchronously purge from local cache
     try {
       const local = api.getLocalDocuments();
-      api.saveLocalDocuments(local.filter((d) => d.id !== id));
+      api.saveLocalDocuments(
+        local.filter((d) => {
+          if (d.id === id) return false;
+          if (docMeta) {
+            if (docMeta.name && d.name === docMeta.name) return false;
+            if (docMeta.originalName && d.originalName === docMeta.originalName) return false;
+            if (docMeta.streamUrl && d.streamUrl === docMeta.streamUrl) return false;
+          }
+          return true;
+        })
+      );
     } catch {}
 
-    // 3. Delete from Firebase cloud repository and Cloud Storage
+    // 3. Delete from Firebase cloud repository and Cloud Storage (non-blocking)
     try {
-      await firebaseDocuments.deleteDocument(id);
+      firebaseDeletedDocs.markDeleted(docMeta || id).catch(() => {});
+      firebaseDocuments.deleteDocument(id).catch(() => {});
       if (docMeta?.streamUrl && docMeta.streamUrl.includes('firebasestorage.googleapis.com')) {
         firebaseStorageService.deletePdf(docMeta.streamUrl).catch(() => {});
       }
@@ -788,7 +799,7 @@ export const api = {
       console.warn('[Firebase delete note]:', fbErr);
     }
 
-    // 4. Delete from Google Drive client-side
+    // 4. Delete from Google Drive client-side (non-blocking)
     try {
       const targetDoc = docMeta;
       if (targetDoc) {
@@ -816,8 +827,9 @@ export const api = {
       const local = api.getLocalDocuments();
       const allIds = local.map((d) => d.id);
 
-      // Permanently blacklist all IDs
-      await firebaseDeletedDocs.markPurged(allIds);
+      // Permanently blacklist all IDs synchronously
+      firebaseDeletedDocs.markPurged(local);
+      localStorage.removeItem('aether_cached_documents');
 
       // Concurrently trigger Google Drive and Firebase deletion
       local.forEach((doc) => {
@@ -826,8 +838,7 @@ export const api = {
           firebaseStorageService.deletePdf(doc.streamUrl).catch(() => {});
         }
       });
-      await firebaseDocuments.purgeAll(allIds);
-      localStorage.removeItem('aether_cached_documents');
+      firebaseDocuments.purgeAll(allIds).catch(() => {});
     } catch {}
 
     try {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api, ServerDocument } from '../../services/api';
 import { uploadDirectToGoogleDrive, deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
+import { firebaseDeletedDocs } from '../../services/firebase';
 import {
   Upload,
   FileText,
@@ -139,23 +140,48 @@ export const DocumentViewer: React.FC = () => {
     }
   };
 
-  const handleDeleteDoc = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteDoc = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm('Are you sure you want to remove this document? It will also be deleted from Google Drive.')) return;
-    try {
-      const docToDelete = documents.find((d) => d.id === id);
-      if (docToDelete) {
-        deleteFromGoogleDrive(docToDelete).catch(() => {});
-      }
-      await api.deleteDocument(id, currentUser?.email, docToDelete);
-      setDocuments((prev) => prev.filter((d) => d.id !== id));
-      if (activeDoc?.id === id) {
-        const remaining = documents.filter((d) => d.id !== id);
-        setActiveDoc(remaining.length > 0 ? remaining[0] : null);
-      }
-    } catch (err) {
-      console.error('Delete failed:', err);
+
+    const docToDelete = documents.find((d) => d.id === id);
+
+    // 1. Instant Optimistic UI removal
+    setDocuments((prev) =>
+      prev.filter((d) => {
+        if (d.id === id) return false;
+        if (docToDelete) {
+          if (docToDelete.name && d.name === docToDelete.name) return false;
+          if (docToDelete.originalName && d.originalName === docToDelete.originalName) return false;
+          if (docToDelete.streamUrl && d.streamUrl === docToDelete.streamUrl) return false;
+        }
+        return true;
+      })
+    );
+
+    if (activeDoc?.id === id || (docToDelete && activeDoc?.name === docToDelete.name)) {
+      const remaining = documents.filter((d) => d.id !== id && (!docToDelete || d.name !== docToDelete.name));
+      setActiveDoc(remaining.length > 0 ? remaining[0] : null);
     }
+
+    // 2. Synchronous tombstone & cache update
+    firebaseDeletedDocs.markDeletedSync(docToDelete || id);
+    try {
+      const local = api.getLocalDocuments();
+      api.saveLocalDocuments(local.filter((d) => d.id !== id && (!docToDelete || d.name !== docToDelete.name)));
+    } catch {}
+
+    // 3. Background cloud delete
+    (async () => {
+      try {
+        if (docToDelete) {
+          deleteFromGoogleDrive(docToDelete).catch(() => {});
+        }
+        await api.deleteDocument(id, currentUser?.email, docToDelete);
+      } catch (err) {
+        console.warn('Background delete failed:', err);
+      }
+    })();
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {

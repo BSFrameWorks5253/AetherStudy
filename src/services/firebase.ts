@@ -696,23 +696,66 @@ export const firebaseDeletedDocs = {
     }
   },
 
-  isDeleted(id?: string | null): boolean {
-    if (!id) return false;
-    const cleanId = String(id).trim();
-    if (!cleanId) return false;
+  isDeleted(idOrDoc?: string | any | null): boolean {
+    if (!idOrDoc) return false;
     const set = this.getDeletedIds();
-    return set.has(cleanId) || set.has(cleanId.replace(/[^a-zA-Z0-9_-]/g, '_'));
+    if (typeof idOrDoc === 'string') {
+      const clean = idOrDoc.trim();
+      if (!clean) return false;
+      return (
+        set.has(clean) ||
+        set.has(clean.toLowerCase()) ||
+        set.has(clean.replace(/[^a-zA-Z0-9_-]/g, '_')) ||
+        set.has(clean.replace(/\.pdf$/i, '').trim().toLowerCase())
+      );
+    }
+    const d = idOrDoc;
+    if (d.id && this.isDeleted(d.id)) return true;
+    if (d.name && this.isDeleted(d.name)) return true;
+    if (d.originalName && this.isDeleted(d.originalName)) return true;
+    if (d.streamUrl && this.isDeleted(d.streamUrl)) return true;
+    if (d.serverUrl && this.isDeleted(d.serverUrl)) return true;
+    return false;
   },
 
-  async markDeleted(id: string): Promise<void> {
-    if (!id) return;
-    const cleanId = String(id).trim();
+  markDeletedSync(idOrDoc: string | any): Set<string> {
     const deletedIdSet = this.getDeletedIds();
-    deletedIdSet.add(cleanId);
-    deletedIdSet.add(cleanId.replace(/[^a-zA-Z0-9_-]/g, '_'));
+    const addKey = (val: string | undefined | null) => {
+      if (!val) return;
+      const clean = String(val).trim();
+      if (!clean) return;
+      deletedIdSet.add(clean);
+      deletedIdSet.add(clean.toLowerCase());
+      deletedIdSet.add(clean.replace(/[^a-zA-Z0-9_-]/g, '_'));
+      const withoutExt = clean.replace(/\.pdf$/i, '').trim();
+      if (withoutExt) {
+        deletedIdSet.add(withoutExt);
+        deletedIdSet.add(withoutExt.toLowerCase());
+      }
+    };
+
+    if (typeof idOrDoc === 'string') {
+      addKey(idOrDoc);
+    } else if (idOrDoc && typeof idOrDoc === 'object') {
+      addKey(idOrDoc.id);
+      addKey(idOrDoc.name);
+      addKey(idOrDoc.originalName);
+      addKey(idOrDoc.streamUrl);
+      addKey(idOrDoc.serverUrl);
+    }
+
     try {
       localStorage.setItem(DELETED_DOCS_KEY, JSON.stringify(Array.from(deletedIdSet)));
     } catch {}
+    return deletedIdSet;
+  },
+
+  async markDeleted(idOrDoc: string | any): Promise<void> {
+    if (!idOrDoc) return;
+    this.markDeletedSync(idOrDoc);
+    const id = typeof idOrDoc === 'string' ? idOrDoc : idOrDoc.id;
+    if (!id) return;
+    const cleanId = String(id).trim();
 
     try {
       await ensureFirebaseAuth();
@@ -730,24 +773,19 @@ export const firebaseDeletedDocs = {
     }
   },
 
-  async markPurged(ids: string[]): Promise<void> {
-    if (!Array.isArray(ids) || ids.length === 0) return;
-    const deletedIdSet = this.getDeletedIds();
-    ids.forEach((id) => {
-      const clean = String(id).trim();
-      deletedIdSet.add(clean);
-      deletedIdSet.add(clean.replace(/[^a-zA-Z0-9_-]/g, '_'));
-    });
-    try {
-      localStorage.setItem(DELETED_DOCS_KEY, JSON.stringify(Array.from(deletedIdSet)));
-    } catch {}
+  async markPurged(idsOrDocs: (string | any)[]): Promise<void> {
+    if (!Array.isArray(idsOrDocs) || idsOrDocs.length === 0) return;
+    idsOrDocs.forEach((item) => this.markDeletedSync(item));
 
     try {
       await ensureFirebaseAuth();
       const updates: Record<string, any> = {};
-      ids.forEach((id) => {
-        const rtdbKey = String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-        updates[`deleted_documents/${rtdbKey}`] = { id, deletedAt: new Date().toISOString() };
+      idsOrDocs.forEach((item) => {
+        const id = typeof item === 'string' ? item : item?.id;
+        if (id) {
+          const rtdbKey = String(id).trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+          updates[`deleted_documents/${rtdbKey}`] = { id, deletedAt: new Date().toISOString() };
+        }
       });
       await set(ref(rtdb, 'deleted_documents'), updates);
     } catch {}
@@ -786,12 +824,11 @@ export const firebaseDocuments = {
       rtdbRef,
       (snap) => {
         const val = snap.val();
-        const deletedSet = firebaseDeletedDocs.getDeletedIds();
         if (val && typeof val === 'object') {
           const list: any[] = (Array.isArray(val)
             ? val.filter(Boolean)
             : Object.keys(val).map((k) => ({ id: k, ...val[k] }))
-          ).filter((d) => d && d.id && !deletedSet.has(d.id) && !deletedSet.has(String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_')));
+          ).filter((d) => d && d.id && !firebaseDeletedDocs.isDeleted(d));
 
           list.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
           callback(list);
@@ -812,7 +849,7 @@ export const firebaseDocuments = {
   },
 
   async fetch(): Promise<any[]> {
-    const deletedSet = await firebaseDeletedDocs.syncDeletedFromCloud();
+    await firebaseDeletedDocs.syncDeletedFromCloud();
     const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 2000));
     const workPromise = (async () => {
       try {
@@ -830,7 +867,7 @@ export const firebaseDocuments = {
             const list: any[] = (Array.isArray(val)
               ? val.filter(Boolean)
               : Object.keys(val).map((k) => ({ id: k, ...val[k] }))
-            ).filter((d) => d && d.id && !deletedSet.has(d.id) && !deletedSet.has(String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_')));
+            ).filter((d) => d && d.id && !firebaseDeletedDocs.isDeleted(d));
 
             list.sort((a, b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
             return list;
@@ -850,7 +887,7 @@ export const firebaseDocuments = {
           const data = snap.data();
           if (Array.isArray(data?.documents) && data.documents.length > 0) {
             return data.documents.filter(
-              (d: any) => d && d.id && !deletedSet.has(d.id) && !deletedSet.has(String(d.id).replace(/[^a-zA-Z0-9_-]/g, '_'))
+              (d: any) => d && d.id && !firebaseDeletedDocs.isDeleted(d)
             );
           }
         }

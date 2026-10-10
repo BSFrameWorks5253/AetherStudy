@@ -4,7 +4,7 @@ import { api, ServerDocument } from '../../services/api';
 import { getUserStorageItem, setUserStorageItem } from '../../utils/userStorage';
 import { TestPaper } from '../../types/testPaper';
 import { uploadDirectToGoogleDrive, deleteFromGoogleDrive } from '../../services/clientGoogleDrive';
-import { firebaseDocuments } from '../../services/firebase';
+import { firebaseDocuments, firebaseDeletedDocs } from '../../services/firebase';
 import { BulkUploaderModal } from '../common/BulkUploaderModal';
 import { CardSkeleton } from '../common/LoadingSkeleton';
 import { UniversalPdfViewer } from '../common/UniversalPdfViewer';
@@ -699,15 +699,20 @@ export const SubjectRooms: React.FC = () => {
   useEffect(() => {
     const unsubscribe = firebaseDocuments.subscribe((cloudDocs) => {
       if (Array.isArray(cloudDocs) && cloudDocs.length > 0) {
+        const deletedIds = firebaseDeletedDocs.getDeletedIds();
         setDocuments((prev) => {
           const docMap = new Map<string, ServerDocument>();
-          // Cloud documents take precedence
+          // Cloud documents take precedence (strictly filtering out deleted documents)
           cloudDocs.forEach((d) => {
-            if (d && d.id) docMap.set(d.id, d);
+            if (d && d.id && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d.id)) {
+              docMap.set(d.id, d);
+            }
           });
-          // Preserve local documents not yet in cloud
+          // Preserve local documents not yet in cloud (strictly filtering out deleted documents)
           prev.forEach((d) => {
-            if (d && d.id && !docMap.has(d.id)) docMap.set(d.id, d);
+            if (d && d.id && !docMap.has(d.id) && !deletedIds.has(d.id) && !firebaseDeletedDocs.isDeleted(d.id)) {
+              docMap.set(d.id, d);
+            }
           });
           const merged = Array.from(docMap.values());
           api.saveLocalDocuments(merged);
@@ -1258,22 +1263,61 @@ export const SubjectRooms: React.FC = () => {
     return doc.serverUrl || doc.streamUrl || '';
   };
 
-  // Delete Document Handler
-  const handleDeleteDocument = async (id: string, e: React.MouseEvent) => {
+  // Delete Document Handler (Synchronous Optimistic UI Removal + Permanent Tombstone)
+  const handleDeleteDocument = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm('Are you sure you want to remove this study document? It will also be deleted from Google Drive.')) return;
 
-    try {
-      const docToDelete = documents.find((d) => d.id === id);
-      if (docToDelete) {
-        deleteFromGoogleDrive(docToDelete).catch((err) => console.warn('[Drive delete notice]:', err));
-      }
-      await api.deleteDocument(id, currentUser?.email, docToDelete);
-      setDocuments((prev) => prev.filter((d) => d.id !== id));
-      if (readingDoc?.id === id) handleCloseReader();
-    } catch (err: any) {
-      alert(err.message || 'Failed to remove document.');
+    const docToDelete = documents.find((d) => d.id === id);
+
+    // 1. Instant Optimistic UI removal: Card disappears immediately without waiting for any network
+    setDocuments((prev) =>
+      prev.filter((d) => {
+        if (d.id === id) return false;
+        if (docToDelete) {
+          if (docToDelete.name && d.name === docToDelete.name) return false;
+          if (docToDelete.originalName && d.originalName === docToDelete.originalName) return false;
+          if (docToDelete.streamUrl && d.streamUrl === docToDelete.streamUrl) return false;
+        }
+        return true;
+      })
+    );
+
+    // 2. Immediately close PDF reader if this document is open
+    if (readingDoc?.id === id || (docToDelete && readingDoc?.name === docToDelete.name)) {
+      handleCloseReader();
     }
+
+    // 3. Synchronously record tombstone into localStorage and memory so it never revives
+    firebaseDeletedDocs.markDeletedSync(docToDelete || id);
+
+    // 4. Synchronously purge from local cache
+    try {
+      const currentLocal = api.getLocalDocuments();
+      api.saveLocalDocuments(
+        currentLocal.filter((d) => {
+          if (d.id === id) return false;
+          if (docToDelete) {
+            if (docToDelete.name && d.name === docToDelete.name) return false;
+            if (docToDelete.originalName && d.originalName === docToDelete.originalName) return false;
+            if (docToDelete.streamUrl && d.streamUrl === docToDelete.streamUrl) return false;
+          }
+          return true;
+        })
+      );
+    } catch {}
+
+    // 5. Fire background asynchronous deletion tasks (Google Drive, Firebase, Backend)
+    (async () => {
+      try {
+        if (docToDelete) {
+          deleteFromGoogleDrive(docToDelete).catch((err) => console.warn('[Drive delete notice]:', err));
+        }
+        await api.deleteDocument(id, currentUser?.email, docToDelete);
+      } catch (err: any) {
+        console.warn('[Background document deletion]:', err);
+      }
+    })();
   };
 
   // Purge All Study Notes (Super Admin only - preserves PYQs)
@@ -1287,11 +1331,13 @@ export const SubjectRooms: React.FC = () => {
     );
     if (!confirmed) return;
 
+    // Instant optimistic UI purge
+    setDocuments((prev) => prev.filter((d) => d.category === 'textbook'));
+    localStorage.removeItem('aether_cached_documents');
+
     try {
       setIsPurgingNotes(true);
       await api.purgeAllDocuments();
-      setDocuments((prev) => prev.filter((d) => d.category === 'textbook'));
-      localStorage.removeItem('aether_cached_documents');
       alert('All study notes have been wiped cleanly. All PYQ exam papers remain intact.');
     } catch (err: any) {
       alert(err.message || 'Failed to purge documents.');
