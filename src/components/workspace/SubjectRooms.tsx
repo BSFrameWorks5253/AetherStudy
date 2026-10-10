@@ -1505,6 +1505,19 @@ export const SubjectRooms: React.FC = () => {
         return merged;
       });
 
+      // Automatically switch to the uploaded subject room and category tab so user immediately sees their file
+      if (newlyUploaded.length > 0) {
+        const first = newlyUploaded[0];
+        if (first.subject) {
+          setActiveRoom(first.subject);
+        }
+        if (first.category === 'textbook') {
+          setActiveCategoryTab('textbooks');
+        } else {
+          setActiveCategoryTab('notes');
+        }
+      }
+
       setUploadSuccess(true);
       setSelectedFiles([]);
       setSelectedFile(null);
@@ -1514,7 +1527,7 @@ export const SubjectRooms: React.FC = () => {
       setTimeout(() => {
         setUploadSuccess(false);
         setIsUploadPage(false);
-      }, 1500);
+      }, 1200);
     } catch (err: any) {
       setUploadError(err.message || 'Upload operation failed. Please check network.');
     } finally {
@@ -2122,51 +2135,52 @@ export const SubjectRooms: React.FC = () => {
         })()
       ) : activeRoom ? (
         /* ========================================================
+        /* ========================================================
             VIEW 3: INSIDE A SPECIFIC SUBJECT ROOM
         ======================================================== */
-        <div className="flex flex-col h-full w-full overflow-y-auto animate-fade-in p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col h-full w-full overflow-y-auto animate-fade-in p-3 sm:p-5 md:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6">
           {/* Room Header Banner */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative shrink-0 min-h-fit">
-            <div className="flex items-center space-x-3.5 sm:space-x-4 min-w-0 flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative shrink-0">
+            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
               <button
                 onClick={handleBackToOverview}
-                className="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0"
+                className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0 cursor-pointer active:scale-95"
                 title="Back to all subjects"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
                 {currentRoomMeta ? (
-                  <currentRoomMeta.icon className="w-6 h-6" />
+                  <currentRoomMeta.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                 ) : (
-                  <BookOpen className="w-6 h-6" />
+                  <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
                 )}
               </div>
 
-              <div className="min-w-0 flex-1 py-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-normal">
+              <div className="min-w-0 flex-1 py-0.5">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight">
                     {activeRoom}
                   </h2>
-                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-brand-500/10 dark:bg-brand-400/15 text-brand-700 dark:text-brand-300 border border-brand-500/20 dark:border-brand-400/25 ml-1">
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    <span>Class 12 HSC Board</span>
+                  <div className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-500/10 dark:bg-brand-400/15 text-brand-700 dark:text-brand-300 border border-brand-500/20 dark:border-brand-400/25">
+                    <GraduationCap className="w-3 h-3" />
+                    <span>Class 12 HSC</span>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 leading-normal">
                   {currentRoomMeta?.description || 'Dedicated Subject Room • Textbooks & Study Materials'}
                 </p>
               </div>
             </div>
 
             {/* Quick Room Actions */}
-            <div className="flex items-center space-x-2 shrink-0 self-start md:self-center">
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/80">
               {canUpload && (
                 <>
                   <button
                     onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
-                    className="px-3.5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all cursor-pointer"
+                    className="flex-1 sm:flex-none justify-center px-3.5 py-2 sm:py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Upload PDF</span>
@@ -2175,7 +2189,7 @@ export const SubjectRooms: React.FC = () => {
                     onClick={() => {
                       setShowBulkModal(true);
                     }}
-                    className="px-3.5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-500/25 flex items-center space-x-1.5 transition-all"
+                    className="flex-1 sm:flex-none justify-center px-3.5 py-2 sm:py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-500/25 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
                     title="Upload complete folder of study notes or test papers"
                   >
                     <FolderUp className="w-4 h-4" />
@@ -2186,18 +2200,19 @@ export const SubjectRooms: React.FC = () => {
             </div>
           </div>
 
-          {/* Subject Room Sub-Navigation Tabs */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 shrink-0">
+          {/* Subject Room Sub-Navigation Tabs (Horizontal Smooth Touch-Scroll on Mobile) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-2 pt-0.5 -mx-3 px-3 sm:mx-0 sm:px-0 border-b border-slate-200 dark:border-slate-800 shrink-0">
             <button
               onClick={() => setActiveCategoryTab('syllabus')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`whitespace-nowrap shrink-0 flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
                 activeCategoryTab === 'syllabus'
-                  ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25'
+                  ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25 ring-2 ring-brand-600/30'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
               }`}
             >
-              <ListChecks className="w-4 h-4" />
-              <span>Official Chapter Syllabus</span>
+              <ListChecks className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="sm:hidden">Syllabus</span>
+              <span className="hidden sm:inline">Chapter Syllabus</span>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
                   activeCategoryTab === 'syllabus'
@@ -2205,20 +2220,21 @@ export const SubjectRooms: React.FC = () => {
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}
               >
-                {activeRoomChapters.length > 0 ? `${chaptersMasteredCount}/${activeRoomChapters.length}` : 'Chapters'}
+                {activeRoomChapters.length > 0 ? `${chaptersMasteredCount}/${activeRoomChapters.length}` : '0'}
               </span>
             </button>
 
             <button
               onClick={() => setActiveCategoryTab('textbooks')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`whitespace-nowrap shrink-0 flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
                 activeCategoryTab === 'textbooks'
-                  ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25'
+                  ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25 ring-2 ring-brand-600/30'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
               }`}
             >
-              <BookOpen className="w-4 h-4" />
-              <span>Textbook PDFs</span>
+              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="sm:hidden">Textbooks</span>
+              <span className="hidden sm:inline">Textbook PDFs</span>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
                   activeCategoryTab === 'textbooks'
@@ -2232,14 +2248,15 @@ export const SubjectRooms: React.FC = () => {
 
             <button
               onClick={() => setActiveCategoryTab('notes')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`whitespace-nowrap shrink-0 flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
                 activeCategoryTab === 'notes'
-                  ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25'
+                  ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/25 ring-2 ring-brand-600/30'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
               }`}
             >
-              <FileText className="w-4 h-4" />
-              <span>Study Notes & Lecture Materials</span>
+              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="sm:hidden">Study Notes</span>
+              <span className="hidden sm:inline">Study Notes & Materials</span>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
                   activeCategoryTab === 'notes'
@@ -2253,14 +2270,15 @@ export const SubjectRooms: React.FC = () => {
 
             <button
               onClick={() => setActiveCategoryTab('pyq')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`whitespace-nowrap shrink-0 flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
                 activeCategoryTab === 'pyq'
-                  ? 'bg-purple-600 text-white shadow-sm shadow-purple-500/25'
+                  ? 'bg-purple-600 text-white shadow-sm shadow-purple-500/25 ring-2 ring-purple-600/30'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
               }`}
             >
-              <GraduationCap className="w-4 h-4" />
-              <span>Board Exam Papers (PYQ)</span>
+              <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="sm:hidden">Board PYQs</span>
+              <span className="hidden sm:inline">Board Papers (PYQ)</span>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
                   activeCategoryTab === 'pyq'
@@ -2705,13 +2723,13 @@ export const SubjectRooms: React.FC = () => {
               ) : (
                 <div className="space-y-5">
                   {/* Notes Control Bar: View Switcher, Search, and Quick Actions */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-                    {/* View Switcher: By Chapter vs All Notes Grid */}
-                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                    {/* View Switcher: Segmented Controller on mobile */}
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto shrink-0">
                       <button
                         type="button"
                         onClick={() => setNotesViewMode('chapter')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           notesViewMode === 'chapter'
                             ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -2723,32 +2741,32 @@ export const SubjectRooms: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setNotesViewMode('grid')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                           notesViewMode === 'grid'
                             ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         <Grid className="w-3.5 h-3.5" />
-                        <span>All Notes Grid ({filteredNotesDocs.length})</span>
+                        <span>All Notes ({filteredNotesDocs.length})</span>
                       </button>
                     </div>
 
                     {/* Search and Action Buttons */}
-                    <div className="flex items-center gap-2 flex-1 justify-end flex-wrap">
-                      <div className="relative min-w-[180px] max-w-xs flex-1">
+                    <div className="flex items-center gap-2 w-full sm:w-auto flex-1 justify-end">
+                      <div className="relative flex-1 sm:max-w-xs min-w-0">
                         <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                           type="text"
                           value={noteSearchQuery}
                           onChange={(e) => setNoteSearchQuery(e.target.value)}
                           placeholder="Search notes or topics..."
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs pl-8 pr-7 py-1.5 rounded-xl outline-none focus:ring-2 focus:ring-brand-500"
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs pl-8 pr-7 py-2 rounded-xl outline-none focus:ring-2 focus:ring-brand-500"
                         />
                         {noteSearchQuery && (
                           <button
                             onClick={() => setNoteSearchQuery('')}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
                           >
                             ✕
                           </button>
@@ -2760,11 +2778,11 @@ export const SubjectRooms: React.FC = () => {
                           type="button"
                           onClick={handlePurgeAllNotes}
                           disabled={isPurgingNotes}
-                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                          className="px-2.5 sm:px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
                           title="Reset entire notes database cleanly so you can reupload fresh files"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>{isPurgingNotes ? 'Resetting DB...' : 'Reset Notes DB'}</span>
+                          <span className="hidden sm:inline">{isPurgingNotes ? 'Resetting...' : 'Reset DB'}</span>
                         </button>
                       )}
 
@@ -2772,17 +2790,17 @@ export const SubjectRooms: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
-                          className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                          className="px-3 sm:px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>Upload PDF</span>
+                          <span>Upload</span>
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* Custom Filter Pills Bar */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+                  {/* Custom Filter Pills Bar (Edge-to-Edge Touch Scroll on Mobile) */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1 shrink-0">
                       <Tag className="w-3 h-3" />
                       <span>Tag:</span>
@@ -3538,7 +3556,20 @@ export const SubjectRooms: React.FC = () => {
           isOpen={showBulkModal}
           onClose={() => setShowBulkModal(false)}
           defaultCategory="notes"
-          onUploadSuccess={loadContent}
+          onUploadSuccess={() => {
+            // Instantly sync local documents and test papers into state
+            const freshDocs = api.getLocalDocuments();
+            if (freshDocs.length > 0) {
+              setDocuments(freshDocs);
+            }
+            try {
+              const cachedPapers = localStorage.getItem('aether_cached_test_papers');
+              if (cachedPapers) {
+                setTestPapers(JSON.parse(cachedPapers));
+              }
+            } catch {}
+            loadContent();
+          }}
         />
       )}
     </div>

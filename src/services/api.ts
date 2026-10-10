@@ -662,6 +662,9 @@ export const api = {
       uploadCount: 1,
     };
 
+    // Ensure newly uploaded document and filename are not suppressed by old tombstones
+    firebaseDeletedDocs.unmarkDeleted(docId, file.name);
+
     // Save locally immediately
     const local = api.getLocalDocuments();
     api.saveLocalDocuments([newDoc, ...local.filter((d) => d.id !== newDoc.id)]);

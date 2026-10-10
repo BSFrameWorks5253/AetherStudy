@@ -699,49 +699,44 @@ export const firebaseDeletedDocs = {
   isDeleted(idOrDoc?: string | any | null): boolean {
     if (!idOrDoc) return false;
     const set = this.getDeletedIds();
-    if (typeof idOrDoc === 'string') {
-      const clean = idOrDoc.trim();
-      if (!clean) return false;
-      return (
-        set.has(clean) ||
-        set.has(clean.toLowerCase()) ||
-        set.has(clean.replace(/[^a-zA-Z0-9_-]/g, '_')) ||
-        set.has(clean.replace(/\.pdf$/i, '').trim().toLowerCase())
-      );
+    const id = typeof idOrDoc === 'string' ? idOrDoc : idOrDoc.id;
+    if (!id) return false;
+    const clean = String(id).trim();
+    if (!clean) return false;
+    return (
+      set.has(clean) ||
+      set.has(clean.toLowerCase()) ||
+      set.has(clean.replace(/[^a-zA-Z0-9_-]/g, '_'))
+    );
+  },
+
+  unmarkDeleted(id: string, name?: string): void {
+    if (!id) return;
+    const set = this.getDeletedIds();
+    const cleanId = String(id).trim();
+    set.delete(cleanId);
+    set.delete(cleanId.toLowerCase());
+    set.delete(cleanId.replace(/[^a-zA-Z0-9_-]/g, '_'));
+    if (name) {
+      const cleanName = String(name).trim();
+      set.delete(cleanName);
+      set.delete(cleanName.toLowerCase());
+      set.delete(cleanName.replace(/\.pdf$/i, '').trim().toLowerCase());
     }
-    const d = idOrDoc;
-    if (d.id && this.isDeleted(d.id)) return true;
-    if (d.name && this.isDeleted(d.name)) return true;
-    if (d.originalName && this.isDeleted(d.originalName)) return true;
-    if (d.streamUrl && this.isDeleted(d.streamUrl)) return true;
-    if (d.serverUrl && this.isDeleted(d.serverUrl)) return true;
-    return false;
+    try {
+      localStorage.setItem(DELETED_DOCS_KEY, JSON.stringify(Array.from(set)));
+      remove(ref(rtdb, `deleted_documents/${cleanId.replace(/[^a-zA-Z0-9_-]/g, '_')}`)).catch(() => {});
+    } catch {}
   },
 
   markDeletedSync(idOrDoc: string | any): Set<string> {
     const deletedIdSet = this.getDeletedIds();
-    const addKey = (val: string | undefined | null) => {
-      if (!val) return;
-      const clean = String(val).trim();
-      if (!clean) return;
+    const id = typeof idOrDoc === 'string' ? idOrDoc : idOrDoc?.id;
+    if (id) {
+      const clean = String(id).trim();
       deletedIdSet.add(clean);
       deletedIdSet.add(clean.toLowerCase());
       deletedIdSet.add(clean.replace(/[^a-zA-Z0-9_-]/g, '_'));
-      const withoutExt = clean.replace(/\.pdf$/i, '').trim();
-      if (withoutExt) {
-        deletedIdSet.add(withoutExt);
-        deletedIdSet.add(withoutExt.toLowerCase());
-      }
-    };
-
-    if (typeof idOrDoc === 'string') {
-      addKey(idOrDoc);
-    } else if (idOrDoc && typeof idOrDoc === 'object') {
-      addKey(idOrDoc.id);
-      addKey(idOrDoc.name);
-      addKey(idOrDoc.originalName);
-      addKey(idOrDoc.streamUrl);
-      addKey(idOrDoc.serverUrl);
     }
 
     try {
@@ -809,9 +804,10 @@ export const firebaseDeletedDocs = {
     return deletedIdSet;
   },
 
-  clearAllTombstones(): void {
+  async clearAllTombstones(): Promise<void> {
     try {
       localStorage.removeItem(DELETED_DOCS_KEY);
+      await remove(ref(rtdb, 'deleted_documents')).catch(() => {});
     } catch {}
   },
 };
