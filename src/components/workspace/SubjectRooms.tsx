@@ -41,6 +41,8 @@ import {
   Edit3,
   ChevronDown,
   ChevronUp,
+  MoreVertical,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey } from '../../services/readingMemory';
 
@@ -694,6 +696,24 @@ export const SubjectRooms: React.FC = () => {
   const [assignSelectedDocIds, setAssignSelectedDocIds] = useState<string[]>([]);
   const [assignSearchFilter, setAssignSearchFilter] = useState<string>('');
 
+  // Tag Management, Rename & Options State
+  const [showManageTagsModal, setShowManageTagsModal] = useState<boolean>(false);
+  const [activeTagMenu, setActiveTagMenu] = useState<string | null>(null);
+  const [tagToRename, setTagToRename] = useState<string | null>(null);
+  const [renameInputValue, setRenameInputValue] = useState<string>('');
+  const [newTagInputInModal, setNewTagInputInModal] = useState<string>('');
+
+  // Close tag options dropdown menu on outside click
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setActiveTagMenu(null);
+    };
+    if (activeTagMenu) {
+      window.addEventListener('click', handleOutsideClick);
+      return () => window.removeEventListener('click', handleOutsideClick);
+    }
+  }, [activeTagMenu]);
+
   // Quick Single Document Tag/Chapter Editor State
   const [editingDoc, setEditingDoc] = useState<ServerDocument | null>(null);
   const [editDocChapter, setEditDocChapter] = useState<string>('');
@@ -1235,6 +1255,31 @@ export const SubjectRooms: React.FC = () => {
     return Array.from(set);
   }, [customFiltersList, notesDocs]);
 
+  // Strictly only show tags that have at least 1 document in this room (Hides empty tags!)
+  const visibleCustomFilters = useMemo(() => {
+    return availableCustomFilters.filter((filter) => {
+      const filterLower = filter.toLowerCase();
+      return notesDocs.some((d) => {
+        if (d.customFilter && d.customFilter.toLowerCase() === filterLower) return true;
+        if (d.tags && d.tags.some((t) => t.toLowerCase() === filterLower)) return true;
+        const dName = (d.originalName || d.name || '').toLowerCase();
+        return dName.includes(filterLower);
+      });
+    });
+  }, [availableCustomFilters, notesDocs]);
+
+  // Auto-reset selected custom filter to 'All' if the selected tag has 0 documents in this room
+  useEffect(() => {
+    if (selectedCustomFilter !== 'All') {
+      const exists = visibleCustomFilters.some(
+        (f) => f.toLowerCase() === selectedCustomFilter.toLowerCase()
+      );
+      if (!exists) {
+        setSelectedCustomFilter('All');
+      }
+    }
+  }, [visibleCustomFilters, selectedCustomFilter]);
+
   // Selected Chapter filter for Notes and Textbooks tabs
   const [selectedChapterFilter, setSelectedChapterFilter] = useState<string>('All');
 
@@ -1584,6 +1629,132 @@ export const SubjectRooms: React.FC = () => {
     setSelectedCustomFilter(trimmedTag);
     setActiveCategoryTab('notes');
     setShowTagAssignModal(false);
+  };
+
+  // Delete a tag from customFiltersList and remove it from all matching documents
+  const handleDeleteTag = async (tagToDelete: string) => {
+    const trimmed = tagToDelete.trim();
+    if (!trimmed) return;
+
+    if (!window.confirm(`Are you sure you want to delete the tag "${trimmed}"? It will be removed from all documents.`)) {
+      return;
+    }
+
+    // 1. Remove from customFiltersList
+    const nextList = customFiltersList.filter(
+      (t) => t.toLowerCase() !== trimmed.toLowerCase()
+    );
+    setCustomFiltersList(nextList);
+    try {
+      localStorage.setItem('aether_custom_filters', JSON.stringify(nextList));
+    } catch {}
+
+    // 2. Clear from documents
+    const affectedDocs = documents.filter((d) => {
+      const matchesFilter = d.customFilter && d.customFilter.toLowerCase() === trimmed.toLowerCase();
+      const matchesTags = d.tags && d.tags.some((t) => t.toLowerCase() === trimmed.toLowerCase());
+      return matchesFilter || matchesTags;
+    });
+
+    if (affectedDocs.length > 0) {
+      const updates = affectedDocs.map((d) => {
+        const nextFilter = (d.customFilter && d.customFilter.toLowerCase() === trimmed.toLowerCase()) ? '' : (d.customFilter || '');
+        const nextTags = (d.tags || []).filter((t) => t.toLowerCase() !== trimmed.toLowerCase());
+        return {
+          id: d.id,
+          changes: {
+            customFilter: nextFilter,
+            tags: nextTags,
+          },
+        };
+      });
+
+      const updatedDocs = await api.batchUpdateDocuments(updates);
+      if (updatedDocs.length > 0) {
+        setDocuments((prev) => {
+          const map = new Map(updatedDocs.map((u) => [u.id, u]));
+          return prev.map((d) => map.get(d.id) || d);
+        });
+      }
+    }
+
+    if (selectedCustomFilter.toLowerCase() === trimmed.toLowerCase()) {
+      setSelectedCustomFilter('All');
+    }
+    setActiveTagMenu(null);
+  };
+
+  // Rename a tag across customFiltersList and all matching documents
+  const handleRenameTag = async (oldTag: string, newTag: string) => {
+    const trimmedOld = oldTag.trim();
+    const trimmedNew = newTag.trim();
+    if (!trimmedOld || !trimmedNew || trimmedOld.toLowerCase() === trimmedNew.toLowerCase()) return;
+
+    // 1. Update customFiltersList
+    const nextList = customFiltersList.map((t) =>
+      t.toLowerCase() === trimmedOld.toLowerCase() ? trimmedNew : t
+    );
+    if (!nextList.some((t) => t.toLowerCase() === trimmedNew.toLowerCase())) {
+      nextList.push(trimmedNew);
+    }
+    setCustomFiltersList(nextList);
+    try {
+      localStorage.setItem('aether_custom_filters', JSON.stringify(nextList));
+    } catch {}
+
+    // 2. Update affected documents
+    const affectedDocs = documents.filter((d) => {
+      const matchesFilter = d.customFilter && d.customFilter.toLowerCase() === trimmedOld.toLowerCase();
+      const matchesTags = d.tags && d.tags.some((t) => t.toLowerCase() === trimmedOld.toLowerCase());
+      return matchesFilter || matchesTags;
+    });
+
+    if (affectedDocs.length > 0) {
+      const updates = affectedDocs.map((d) => {
+        const nextFilter = (d.customFilter && d.customFilter.toLowerCase() === trimmedOld.toLowerCase()) ? trimmedNew : (d.customFilter || '');
+        const nextTags = (d.tags || []).map((t) => (t.toLowerCase() === trimmedOld.toLowerCase() ? trimmedNew : t));
+        if (!nextTags.includes(trimmedNew)) nextTags.push(trimmedNew);
+        return {
+          id: d.id,
+          changes: {
+            customFilter: nextFilter,
+            tags: nextTags,
+          },
+        };
+      });
+
+      const updatedDocs = await api.batchUpdateDocuments(updates);
+      if (updatedDocs.length > 0) {
+        setDocuments((prev) => {
+          const map = new Map(updatedDocs.map((u) => [u.id, u]));
+          return prev.map((d) => map.get(d.id) || d);
+        });
+      }
+    }
+
+    if (selectedCustomFilter.toLowerCase() === trimmedOld.toLowerCase()) {
+      setSelectedCustomFilter(trimmedNew);
+    }
+    setActiveTagMenu(null);
+  };
+
+  // Open Tag Assignment Modal for a specific tag
+  const handleOpenAssignTagModal = (tagName: string) => {
+    setAssignTagName(tagName);
+    const lower = tagName.toLowerCase();
+    const matchingDocIds = roomDocuments
+      .filter((d) => {
+        const matchesFilter = d.customFilter && d.customFilter.toLowerCase() === lower;
+        const matchesTags = d.tags && d.tags.some((t) => t.toLowerCase() === lower);
+        const matchesName = (d.originalName || d.name || '').toLowerCase().includes(lower);
+        return matchesFilter || matchesTags || matchesName;
+      })
+      .map((d) => d.id);
+    setAssignSelectedDocIds(matchingDocIds);
+    setAssignSelectedChapters([]);
+    setAssignSearchFilter('');
+    setShowTagAssignModal(true);
+    setActiveTagMenu(null);
   };
 
   // Save Single Document Edit (Chapter & Tag)
@@ -2400,61 +2571,61 @@ export const SubjectRooms: React.FC = () => {
             VIEW 3: INSIDE A SPECIFIC SUBJECT ROOM
         ======================================================== */
         <div className="flex flex-col h-full w-full overflow-y-auto animate-fade-in p-3 sm:p-5 md:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6">
-          {/* Room Header Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative shrink-0">
-            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+          {/* Room Header Banner (Mobile Optimized) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 p-3 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs relative shrink-0">
+            <div className="flex items-center space-x-2.5 sm:space-x-4 min-w-0 flex-1">
               <button
                 onClick={handleBackToOverview}
-                className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0 cursor-pointer active:scale-95"
+                className="p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0 cursor-pointer active:scale-95"
                 title="Back to all subjects"
               >
                 <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
                 {currentRoomMeta ? (
-                  <currentRoomMeta.icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <currentRoomMeta.icon className="w-4 h-4 sm:w-6 sm:h-6" />
                 ) : (
-                  <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <BookOpen className="w-4 h-4 sm:w-6 sm:h-6" />
                 )}
               </div>
 
               <div className="min-w-0 flex-1 py-0.5">
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight">
+                  <h2 className="text-sm sm:text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight truncate">
                     {activeRoom}
                   </h2>
-                  <div className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-500/10 dark:bg-brand-400/15 text-brand-700 dark:text-brand-300 border border-brand-500/20 dark:border-brand-400/25">
+                  <div className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-brand-500/10 dark:bg-brand-400/15 text-brand-700 dark:text-brand-300 border border-brand-500/20 dark:border-brand-400/25 shrink-0">
                     <GraduationCap className="w-3 h-3" />
                     <span>Class 12 HSC</span>
                   </div>
                 </div>
-                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 leading-normal">
+                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 leading-normal hidden sm:block">
                   {currentRoomMeta?.description || 'Dedicated Subject Room • Textbooks & Study Materials'}
                 </p>
               </div>
             </div>
 
-            {/* Quick Room Actions */}
-            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/80">
+            {/* Quick Room Actions (Compact and cleanly aligned on mobile) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 self-end sm:self-center">
               {canUpload && (
                 <>
                   <button
                     onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
-                    className="flex-1 sm:flex-none justify-center px-3.5 py-2 sm:py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
+                    className="px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1 sm:space-x-1.5 transition-all cursor-pointer active:scale-95"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>Upload PDF</span>
                   </button>
                   <button
                     onClick={() => {
                       setShowBulkModal(true);
                     }}
-                    className="flex-1 sm:flex-none justify-center px-3.5 py-2 sm:py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-500/25 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
+                    className="p-1.5 sm:px-3.5 sm:py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1 sm:space-x-1.5 transition-all cursor-pointer active:scale-95"
                     title="Upload complete folder of study notes or test papers"
                   >
-                    <FolderUp className="w-4 h-4" />
-                    <span>Upload Folder</span>
+                    <FolderUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Upload Folder</span>
                   </button>
                 </>
               )}
@@ -3066,34 +3237,48 @@ export const SubjectRooms: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-5">
-                  {/* Notes Control Bar: View Switcher, Search, and Quick Actions */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-                    {/* View Switcher: Segmented Controller on mobile */}
-                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setNotesViewMode('chapter')}
-                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          notesViewMode === 'chapter'
-                            ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <List className="w-3.5 h-3.5" />
-                        <span>By Chapter</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNotesViewMode('grid')}
-                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          notesViewMode === 'grid'
-                            ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <Grid className="w-3.5 h-3.5" />
-                        <span>All Notes ({filteredNotesDocs.length})</span>
-                      </button>
+                  {/* Notes Control Bar: View Switcher, Search, and Quick Actions (Mobile Optimized) */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 p-2.5 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                    {/* View Switcher: Segmented Controller */}
+                    <div className="flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto shrink-0">
+                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-1 sm:flex-none">
+                        <button
+                          type="button"
+                          onClick={() => setNotesViewMode('chapter')}
+                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            notesViewMode === 'chapter'
+                              ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          <List className="w-3.5 h-3.5" />
+                          <span>By Chapter</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNotesViewMode('grid')}
+                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            notesViewMode === 'grid'
+                              ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          <Grid className="w-3.5 h-3.5" />
+                          <span>All Notes ({filteredNotesDocs.length})</span>
+                        </button>
+                      </div>
+
+                      {canUpload && (
+                        <button
+                          type="button"
+                          onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
+                          className="sm:hidden px-2.5 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 active:scale-95"
+                          title="Upload note"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Upload</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Search and Action Buttons */}
@@ -3122,8 +3307,8 @@ export const SubjectRooms: React.FC = () => {
                           type="button"
                           onClick={handlePurgeAllNotes}
                           disabled={isPurgingNotes}
-                          className="px-2.5 sm:px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
-                          title="Reset entire notes database cleanly so you can reupload fresh files"
+                          className="p-2 sm:px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-900 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+                          title="Reset entire notes database cleanly"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span className="hidden sm:inline">{isPurgingNotes ? 'Resetting...' : 'Reset DB'}</span>
@@ -3134,7 +3319,7 @@ export const SubjectRooms: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
-                          className="px-3 sm:px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+                          className="hidden sm:flex px-3 sm:px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>Upload</span>
@@ -3143,8 +3328,8 @@ export const SubjectRooms: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Custom Filter Pills Bar (Edge-to-Edge Touch Scroll on Mobile) */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
+                  {/* Custom Filter Pills Bar (Edge-to-Edge Touch Scroll on Mobile, Hides Empty Tags) */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 text-xs no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1 shrink-0">
                       <Tag className="w-3 h-3" />
                       <span>Tag:</span>
@@ -3162,7 +3347,8 @@ export const SubjectRooms: React.FC = () => {
                       All ({notesDocs.length})
                     </button>
 
-                    {availableCustomFilters.map((filter) => {
+                    {/* Render ONLY tags that have at least 1 document (Empty tags hidden!) */}
+                    {visibleCustomFilters.map((filter) => {
                       const count = notesDocs.filter((d) => {
                         const filterLower = filter.toLowerCase();
                         if (d.customFilter && d.customFilter.toLowerCase() === filterLower) return true;
@@ -3171,28 +3357,85 @@ export const SubjectRooms: React.FC = () => {
                         return dName.includes(filterLower);
                       }).length;
 
+                      const isSelected = selectedCustomFilter === filter;
+                      const isMenuOpen = activeTagMenu === filter;
+
                       return (
-                        <button
-                          key={filter}
-                          type="button"
-                          onClick={() => setSelectedCustomFilter(filter)}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                            selectedCustomFilter === filter
-                              ? 'bg-amber-600 text-white shadow-xs'
-                              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
-                          }`}
-                        >
-                          <span>{filter}</span>
-                          <span
-                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                              selectedCustomFilter === filter
-                                ? 'bg-white/20 text-white'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                        <div key={filter} className="relative inline-flex items-center shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCustomFilter(filter)}
+                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-amber-600 text-white shadow-xs'
+                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
                             }`}
                           >
-                            {count}
-                          </span>
-                        </button>
+                            <span>{filter}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                isSelected
+                                  ? 'bg-white/20 text-white'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                              }`}
+                            >
+                              {count}
+                            </span>
+                            {/* Tag Options Trigger */}
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTagMenu(isMenuOpen ? null : filter);
+                              }}
+                              className={`ml-0.5 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer ${
+                                isSelected ? 'text-white' : 'text-slate-400 hover:text-slate-600'
+                              }`}
+                              title={`Options for "${filter}" tag`}
+                            >
+                              <MoreVertical className="w-3 h-3" />
+                            </span>
+                          </button>
+
+                          {/* Tag Options Menu */}
+                          {isMenuOpen && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute top-full left-0 mt-1.5 z-40 w-44 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 text-xs animate-scale-up"
+                            >
+                              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1">
+                                Tag Options
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTagToRename(filter);
+                                  setRenameInputValue(filter);
+                                  setActiveTagMenu(null);
+                                }}
+                                className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-amber-500" />
+                                <span>Rename Tag</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAssignTagModal(filter)}
+                                className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                              >
+                                <Check className="w-3.5 h-3.5 text-brand-500" />
+                                <span>Assign / Edit PDFs</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTag(filter)}
+                                className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Delete Tag</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
 
@@ -3200,11 +3443,22 @@ export const SubjectRooms: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenCreateTagModal()}
-                      className="px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-brand-600 hover:from-amber-500 hover:to-brand-500 shadow-xs transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      className="px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r from-amber-600 to-brand-600 hover:from-amber-500 hover:to-brand-500 shadow-xs transition-all shrink-0 cursor-pointer flex items-center gap-1 active:scale-95"
                       title="Create a new tag and select which chapters & PDFs belong to it"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>+ Create & Assign Tag</span>
+                      <span>New Tag</span>
+                    </button>
+
+                    {/* Manage All Tags Options Button */}
+                    <button
+                      type="button"
+                      onClick={() => setShowManageTagsModal(true)}
+                      className="px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all shrink-0 cursor-pointer flex items-center gap-1 active:scale-95"
+                      title="Manage all tags, rename or remove tags"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      <span>Manage Tags</span>
                     </button>
                   </div>
 
@@ -4264,9 +4518,9 @@ export const SubjectRooms: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Filter Tag
                 </label>
-                {/* Suggestions */}
+                {/* Suggestions from user created tags */}
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {availableCustomFilters.slice(0, 6).map((t) => (
+                  {customFiltersList.slice(0, 8).map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -4280,6 +4534,15 @@ export const SubjectRooms: React.FC = () => {
                       {t}
                     </button>
                   ))}
+                  {editDocTag && (
+                    <button
+                      type="button"
+                      onClick={() => setEditDocTag('')}
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-md text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                    >
+                      Clear Tag
+                    </button>
+                  )}
                 </div>
                 <input
                   type="text"
@@ -4305,6 +4568,263 @@ export const SubjectRooms: React.FC = () => {
                 className="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-xs transition-all cursor-pointer"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🏷️ Dedicated Manage Tags & Categories Modal */}
+      {showManageTagsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden animate-scale-up">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-slate-50/70 dark:bg-slate-900/70">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center border border-brand-500/20">
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+                    Manage Tags & Categories
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Create, rename, assign, or delete tags for your study materials
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManageTagsModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+              {/* Quick Add Tag Input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Create New Tag
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newTagInputInModal}
+                    onChange={(e) => setNewTagInputInModal(e.target.value)}
+                    placeholder="e.g. Important Numericals, Question Bank..."
+                    className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newTagInputInModal.trim()) {
+                        const t = newTagInputInModal.trim();
+                        if (!customFiltersList.includes(t)) {
+                          const next = [...customFiltersList, t];
+                          setCustomFiltersList(next);
+                          try {
+                            localStorage.setItem('aether_custom_filters', JSON.stringify(next));
+                          } catch {}
+                        }
+                        setNewTagInputInModal('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={!newTagInputInModal.trim()}
+                    onClick={() => {
+                      const t = newTagInputInModal.trim();
+                      if (!customFiltersList.includes(t)) {
+                        const next = [...customFiltersList, t];
+                        setCustomFiltersList(next);
+                        try {
+                          localStorage.setItem('aether_custom_filters', JSON.stringify(next));
+                        } catch {}
+                      }
+                      setNewTagInputInModal('');
+                    }}
+                    className="px-3.5 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Existing Tags List */}
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400">
+                  <span>All Tags ({customFiltersList.length})</span>
+                  <span className="text-[11px] font-normal">Actions</span>
+                </div>
+
+                <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+                  {customFiltersList.map((tagItem) => {
+                    const countInRoom = notesDocs.filter((d) => {
+                      const lower = tagItem.toLowerCase();
+                      return (
+                        (d.customFilter && d.customFilter.toLowerCase() === lower) ||
+                        (d.tags && d.tags.some((t) => t.toLowerCase() === lower)) ||
+                        (d.originalName || d.name || '').toLowerCase().includes(lower)
+                      );
+                    }).length;
+
+                    const isRenamingThis = tagToRename === tagItem;
+
+                    return (
+                      <div
+                        key={tagItem}
+                        className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-2.5 transition-all"
+                      >
+                        {isRenamingThis ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={renameInputValue}
+                              onChange={(e) => setRenameInputValue(e.target.value)}
+                              className="flex-1 bg-white dark:bg-slate-900 border border-brand-500 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleRenameTag(tagItem, renameInputValue);
+                                  setTagToRename(null);
+                                } else if (e.key === 'Escape') {
+                                  setTagToRename(null);
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleRenameTag(tagItem, renameInputValue);
+                                setTagToRename(null);
+                              }}
+                              className="px-2 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold cursor-pointer"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTagToRename(null)}
+                              className="px-2 py-1 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center space-x-2 min-w-0 flex-1">
+                              <Tag className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                                {tagItem}
+                              </span>
+                              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0 ${
+                                countInRoom > 0
+                                  ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300'
+                                  : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                              }`}>
+                                {countInRoom} {countInRoom === 1 ? 'doc' : 'docs'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center space-x-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTagToRename(tagItem);
+                                  setRenameInputValue(tagItem);
+                                }}
+                                className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                title="Rename tag"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowManageTagsModal(false);
+                                  handleOpenAssignTagModal(tagItem);
+                                }}
+                                className="p-1 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                title="Assign PDFs to this tag"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTag(tagItem)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                title="Delete tag"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowManageTagsModal(false)}
+                className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✏️ Direct Rename Tag Modal (When triggered from tag pill 3-dot dropdown) */}
+      {tagToRename && !showManageTagsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-sm w-full p-4 sm:p-5 space-y-4 animate-scale-up">
+            <div className="flex items-center space-x-2 text-slate-900 dark:text-white font-bold text-sm">
+              <Edit3 className="w-4 h-4 text-amber-500" />
+              <span>Rename Tag: "{tagToRename}"</span>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">New Tag Name</label>
+              <input
+                type="text"
+                value={renameInputValue}
+                onChange={(e) => setRenameInputValue(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleRenameTag(tagToRename, renameInputValue);
+                    setTagToRename(null);
+                  }
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setTagToRename(null)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!renameInputValue.trim() || renameInputValue.trim() === tagToRename}
+                onClick={() => {
+                  handleRenameTag(tagToRename, renameInputValue);
+                  setTagToRename(null);
+                }}
+                className="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-brand-600 hover:bg-brand-500 disabled:opacity-50 cursor-pointer"
+              >
+                Save
               </button>
             </div>
           </div>
