@@ -415,12 +415,21 @@ export const getDocsForChapter = (
 
     const dName = (d.originalName || d.name || '').toLowerCase();
 
-    // Prevent FYJC notes from ever attaching to HSC or vice versa
-    if (targetStandard === '12' && (dName.includes('fyjc') || dName.includes('std 11') || dName.includes('class 11'))) {
+    // Strict cross-standard segregation
+    if (targetStandard === '12' && (dName.includes('std 11') || dName.includes('class 11'))) {
       return false;
     }
-    if (targetStandard === '11' && (dName.includes('hsc') || dName.includes('std 12') || dName.includes('class 12'))) {
+    if (targetStandard === '11' && (dName.includes('std 12') || dName.includes('class 12'))) {
       return false;
+    }
+
+    // Section matching for English (Prose, Poetry, Writing Skills, Drama)
+    if (ch.section) {
+      const sLower = ch.section.toLowerCase();
+      if (sLower.includes('prose') && dName.includes('prose')) return true;
+      if (sLower.includes('poet') && (dName.includes('poem') || dName.includes('poet'))) return true;
+      if (sLower.includes('writing') && (dName.includes('writing') || dName.includes('skills'))) return true;
+      if (sLower.includes('novel') && (dName.includes('novel') || dName.includes('drama'))) return true;
     }
 
     // Check part discrimination for subjects with multiple parts (like Maths Part 1 & 2)

@@ -491,12 +491,9 @@ export const api = {
     try {
       const cached = localStorage.getItem('aether_cached_documents');
       const list: ServerDocument[] = cached ? JSON.parse(cached) : [];
-      // Strictly prune any deleted documents and Class 11/FYJC notes (Platform is 100% Class 12)
+      // Strictly prune any deleted documents
       return list.filter((d) => {
         if (!d || !d.id || firebaseDeletedDocs.isDeleted(d.id)) return false;
-        if (d.standard === '11') return false;
-        const name = ((d.name || '') + ' ' + (d.originalName || '')).toLowerCase();
-        if (name.includes('fyjc') || name.includes('class 11') || name.includes('std 11')) return false;
         return true;
       });
     } catch {
@@ -574,12 +571,9 @@ export const api = {
       }
     });
 
-    // 5. Filter out ANY remaining deleted documents and Class 11 items
+    // 5. Filter out ANY remaining deleted documents
     const allDocs = Array.from(docMap.values()).filter((d) => {
       if (!d || !d.id || firebaseDeletedDocs.isDeleted(d.id)) return false;
-      if (d.standard === '11') return false;
-      const name = ((d.name || '') + ' ' + (d.originalName || '')).toLowerCase();
-      if (name.includes('fyjc') || name.includes('class 11') || name.includes('std 11')) return false;
       return true;
     });
 
