@@ -359,6 +359,76 @@ const cleanInitSubjs = currentSubjs.filter(
 const mergedInitSubjs = Array.from(new Set([...DEFAULT_SUBJECTS, ...cleanInitSubjs]));
 writeJsonFile('subjects.json', mergedInitSubjs);
 
+/**
+ * Canonical Subject ID Resolver (Class 12 Maharashtra State Board Commerce)
+ * Strictly isolates documents by subject tokens - ZERO cross-subject data leakage.
+ */
+function resolveCanonicalSubjectId(subjectStr) {
+  if (!subjectStr || typeof subjectStr !== 'string') return 'sub_general';
+  const clean = subjectStr.trim().toLowerCase();
+
+  // 1. Direct ID or code matching
+  if (clean === 'sub_bk' || clean === 'bk' || clean === 'accounts' || clean === 'accountancy') return 'sub_bk';
+  if (clean === 'sub_ocm' || clean === 'ocm') return 'sub_ocm';
+  if (clean === 'sub_eco' || clean === 'eco' || clean === 'economics') return 'sub_eco';
+  if (clean === 'sub_maths' || clean === 'maths' || clean === 'math') return 'sub_maths';
+  if (clean === 'sub_it' || clean === 'it') return 'sub_it';
+  if (clean === 'sub_sp' || clean === 'sp') return 'sub_sp';
+  if (clean === 'sub_eng' || clean === 'eng' || clean === 'english') return 'sub_eng';
+  if (clean === 'sub_hindi' || clean === 'hindi' || clean === 'hin') return 'sub_hindi';
+  if (clean === 'sub_marathi' || clean === 'marathi' || clean === 'mar') return 'sub_marathi';
+
+  // 2. Strict token boundary matching with whole-word or hyphenated expressions
+  // Accounts / Book Keeping
+  if (/\b(book[-\s]?keeping|account(s|ancy|ing)?|b\.?k\.?|bk-xii)\b/i.test(clean)) {
+    return 'sub_bk';
+  }
+
+  // OCM - Organization of Commerce & Management
+  if (/\b(ocm|organi[sz]ation\s*(of)?\s*commerce|commerce\s*(&|and)\s*management|principles\s*of\s*management|ocm-xii)\b/i.test(clean)) {
+    return 'sub_ocm';
+  }
+
+  // Economics
+  if (/\b(economic(s)?|eco|microeconomics|macroeconomics|micro-economics|macro-economics|eco-xii)\b/i.test(clean)) {
+    return 'sub_eco';
+  }
+
+  // Mathematics & Statistics
+  if (/\b(math(s|ematic(s)?)?|statistic(s)?|calculus|math-xii)\b/i.test(clean)) {
+    return 'sub_maths';
+  }
+
+  // Information Technology (Strictly isolates IT, avoids 'audit', 'credit', etc.)
+  if (/\b(information\s+technology|info\s*tech(nology)?|i\.t\.|it-xii|\(it\))\b/i.test(clean) || clean === 'it') {
+    return 'sub_it';
+  }
+
+  // Secretarial Practice (Strictly isolates SP, avoids 'aspects', 'transport', etc.)
+  if (/\b(secretarial\s+practice|s\.p\.|sp-xii|\(sp\))\b/i.test(clean) || clean === 'sp') {
+    return 'sub_sp';
+  }
+
+  // English
+  if (/\b(english|yuvakbharati|eng-xii)\b/i.test(clean)) {
+    return 'sub_eng';
+  }
+
+  // Hindi
+  if (/\b(hindi|hin-xii)\b/i.test(clean)) {
+    return 'sub_hindi';
+  }
+
+  // Marathi (Never matches 'marketing' or 'march')
+  if (/\b(marathi|mar-xii)\b/i.test(clean)) {
+    return 'sub_marathi';
+  }
+
+  // 3. Fallback for custom user-created subjects
+  const slug = clean.replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
+  return slug ? `sub_${slug}` : 'sub_general';
+}
+
 // ---------------- SAMPLE TEST PAPER & ANSWER KEY SEEDING ----------------
 const sampleQPPath = path.join(UPLOADS_DIR, 'MIT_6_824_2024_Final_Exam_Questions.html');
 const sampleAKPath = path.join(UPLOADS_DIR, 'MIT_6_824_2024_Final_Exam_Solutions.html');
@@ -767,7 +837,14 @@ app.put('/api/auth/users/role', requireSuperAdmin, (req, res) => {
 
 // 2. TEST PAPERS & PYQ VAULT (Subject + Year + Question PDF + Answer Key PDF)
 app.get('/api/test-papers', (req, res) => {
-  const testPapers = readJsonFile('test-papers.json', []);
+  const { subject } = req.query;
+  let testPapers = readJsonFile('test-papers.json', []);
+  if (subject && subject !== 'ALL') {
+    const targetSubId = resolveCanonicalSubjectId(subject);
+    testPapers = testPapers.filter(
+      (p) => resolveCanonicalSubjectId(p.subject) === targetSubId || p.subject.trim().toLowerCase() === subject.trim().toLowerCase()
+    );
+  }
   res.json(testPapers);
 });
 
@@ -1149,6 +1226,15 @@ app.get('/api/documents', (req, res) => {
     );
   }
 
+  const { subject } = req.query;
+  if (subject && subject !== 'ALL') {
+    const targetSubId = resolveCanonicalSubjectId(subject);
+    docs = docs.filter((d) => {
+      if (!d.subject) return false;
+      return resolveCanonicalSubjectId(d.subject) === targetSubId || d.subject.trim().toLowerCase() === subject.trim().toLowerCase();
+    });
+  }
+
   res.json(docs);
 });
 
@@ -1179,6 +1265,38 @@ app.post('/api/documents/sync', (req, res) => {
 
     const merged = Array.from(docMap.values());
     writeJsonFile('documents.json', merged);
+
+    // Sync non-deleted documents to Cloudflare D1 Edge Database
+    try {
+      const { isConfigured, queryD1 } = require('./cloudflareD1');
+      if (isConfigured) {
+        for (const d of documents) {
+          if (!d || !d.id || deletedIds.has(d.id)) continue;
+          const subId = resolveCanonicalSubjectId(d.subject || 'General');
+          queryD1(
+            `INSERT OR IGNORE INTO subjects (id, code, name, short_name, category)
+             VALUES (?, ?, ?, ?, 'CORE_COMMERCE')`,
+            [subId, subId.replace('sub_', '').toUpperCase(), d.subject || 'General', d.subject || 'General']
+          ).catch(() => {});
+
+          queryD1(
+            `INSERT OR REPLACE INTO documents (id, title, subject_id, doc_type, standard, r2_key, r2_url, file_size_bytes, uploaded_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              d.id,
+              d.originalName || d.name,
+              subId,
+              d.category === 'textbook' ? 'TEXTBOOK' : 'NOTES',
+              '12',
+              d.name,
+              d.streamUrl || d.serverUrl || d.url,
+              d.sizeBytes || 0,
+              d.uploadedBy || 'Faculty',
+            ]
+          ).catch(() => {});
+        }
+      }
+    } catch {}
 
     return res.json({ success: true, count: merged.length, documents: merged });
   } catch (err) {
@@ -1221,8 +1339,8 @@ app.post('/api/documents/upload', requireAdmin, upload.single('file'), async (re
   let streamUrl = req.body.streamUrl || `/uploads/${req.file.filename}`;
   let driveId = null;
 
-  // Cloud Forward: Upload to Google Apps Script / Google Drive if available
-  const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyP7ulx0qKE5dL57j_In3D8MWXjMAdK6lYd2a0WTDo50f1Y6YscA6qCp2SEv9F_-b5Wmg/exec';
+  // Cloud Forward: Upload to Google Apps Script / Google Drive if explicitly configured in environment
+  const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_GOOGLE_APPS_SCRIPT_URL;
   if (!req.body.streamUrl && APPS_SCRIPT_URL && req.file.path && fs.existsSync(req.file.path)) {
     try {
       const fileBuf = fs.readFileSync(req.file.path);
@@ -1273,20 +1391,17 @@ app.post('/api/documents/upload', requireAdmin, upload.single('file'), async (re
   docs.unshift(newDoc);
   writeJsonFile('documents.json', docs);
 
-  // Sync uploaded document to Cloudflare D1 edge database
+  // Sync uploaded document to Cloudflare D1 edge database with strict canonical subject ID
   try {
     const { isConfigured, queryD1 } = require('./cloudflareD1');
     if (isConfigured) {
-      let subId = 'sub_bk';
-      const sLower = cleanSubject.toLowerCase();
-      if (sLower.includes('ocm')) subId = 'sub_ocm';
-      else if (sLower.includes('eco')) subId = 'sub_eco';
-      else if (sLower.includes('math')) subId = 'sub_maths';
-      else if (sLower.includes('it') || sLower.includes('information')) subId = 'sub_it';
-      else if (sLower.includes('sp') || sLower.includes('secretarial')) subId = 'sub_sp';
-      else if (sLower.includes('eng')) subId = 'sub_eng';
-      else if (sLower.includes('hin')) subId = 'sub_hindi';
-      else if (sLower.includes('mar')) subId = 'sub_marathi';
+      const subId = resolveCanonicalSubjectId(cleanSubject);
+
+      queryD1(
+        `INSERT OR IGNORE INTO subjects (id, code, name, short_name, category)
+         VALUES (?, ?, ?, ?, 'CORE_COMMERCE')`,
+        [subId, subId.replace('sub_', '').toUpperCase(), cleanSubject, cleanSubject]
+      ).catch(() => {});
 
       queryD1(
         `INSERT OR REPLACE INTO documents (id, title, subject_id, doc_type, standard, r2_key, r2_url, file_size_bytes, uploaded_by)
@@ -1343,7 +1458,7 @@ app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 3
     } catch {}
   }
 
-  const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyP7ulx0qKE5dL57j_In3D8MWXjMAdK6lYd2a0WTDo50f1Y6YscA6qCp2SEv9F_-b5Wmg/exec';
+  const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || process.env.VITE_GOOGLE_APPS_SCRIPT_URL;
 
   for (let i = 0; i < req.files.length; i++) {
     const file = req.files[i];
@@ -1418,6 +1533,38 @@ app.post('/api/documents/upload-multiple', requireAdmin, upload.array('files', 3
   }
 
   writeJsonFile('documents.json', docs);
+
+  // Sync batch uploaded documents to Cloudflare D1 edge database with strict canonical subject ID
+  try {
+    const { isConfigured, queryD1 } = require('./cloudflareD1');
+    if (isConfigured && createdDocs.length > 0) {
+      const subId = resolveCanonicalSubjectId(cleanSubject);
+      queryD1(
+        `INSERT OR IGNORE INTO subjects (id, code, name, short_name, category)
+         VALUES (?, ?, ?, ?, 'CORE_COMMERCE')`,
+        [subId, subId.replace('sub_', '').toUpperCase(), cleanSubject, cleanSubject]
+      ).catch(() => {});
+
+      for (const d of createdDocs) {
+        queryD1(
+          `INSERT OR REPLACE INTO documents (id, title, subject_id, doc_type, standard, r2_key, r2_url, file_size_bytes, uploaded_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            d.id,
+            d.originalName || d.name,
+            subId,
+            d.category === 'textbook' ? 'TEXTBOOK' : 'NOTES',
+            '12',
+            d.name,
+            d.streamUrl || d.url,
+            d.sizeBytes || 0,
+            d.uploadedBy || 'Faculty',
+          ]
+        ).catch(() => {});
+      }
+    }
+  } catch {}
+
   res.status(201).json({ documents: createdDocs, count: createdDocs.length });
 });
 

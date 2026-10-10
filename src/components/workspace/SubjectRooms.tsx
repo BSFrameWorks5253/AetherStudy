@@ -47,21 +47,34 @@ interface SubjectMeta {
   badgeColor: string;
 }
 
-// URL Slug Mapping Helpers
+// URL Slug Mapping Helpers with Strict Token Boundary Isolation (Zero Cross-Subject Contamination)
 export const getSubjectSlug = (name: string): string => {
   if (!name) return 'general';
-  const lower = name.toLowerCase();
-  if (lower.includes('hindi')) return 'hindi';
-  if (lower.includes('marathi')) return 'marathi';
-  if (lower.includes('english')) return 'english';
-  if (lower.includes('account') || lower.includes('bk')) return 'accounts';
-  if (lower.includes('ocm') || lower.includes('organization') || lower.includes('organisation')) return 'ocm';
-  if (lower.includes('eco')) return 'eco';
-  if (lower.includes('math')) return 'maths';
-  if (lower.includes('information') || lower.includes('it')) return 'it';
-  if (lower.includes('secretarial') || lower.includes('sp')) return 'sp';
-  if (lower.includes('yuvakbharati')) return 'english';
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const lower = name.toLowerCase().trim();
+
+  // 1. Direct canonical slug match
+  if (lower === 'accounts' || lower === 'bk') return 'accounts';
+  if (lower === 'ocm') return 'ocm';
+  if (lower === 'eco' || lower === 'economics') return 'eco';
+  if (lower === 'maths' || lower === 'math') return 'maths';
+  if (lower === 'english' || lower === 'eng') return 'english';
+  if (lower === 'it') return 'it';
+  if (lower === 'sp') return 'sp';
+  if (lower === 'hindi') return 'hindi';
+  if (lower === 'marathi') return 'marathi';
+
+  // 2. Strict word boundary isolation (never matches substrings like 'it' in 'unit/credit' or 'sp' in 'transport')
+  if (/\b(hindi|hin-xii)\b/i.test(lower)) return 'hindi';
+  if (/\b(marathi|mar-xii)\b/i.test(lower)) return 'marathi';
+  if (/\b(english|yuvakbharati|eng-xii)\b/i.test(lower)) return 'english';
+  if (/\b(book[-\s]?keeping|account(s|ancy|ing)?|b\.?k\.?|bk-xii)\b/i.test(lower)) return 'accounts';
+  if (/\b(ocm|organi[sz]ation\s*(of)?\s*commerce|commerce\s*(&|and)\s*management|principles\s*of\s*management|ocm-xii)\b/i.test(lower)) return 'ocm';
+  if (/\b(economic(s)?|eco|microeconomics|macroeconomics|micro-economics|macro-economics|eco-xii)\b/i.test(lower)) return 'eco';
+  if (/\b(math(s|ematic(s)?)?|statistic(s)?|calculus|math-xii)\b/i.test(lower)) return 'maths';
+  if (/\b(information\s+technology|info\s*tech(nology)?|i\.t\.|it-xii|\(it\))\b/i.test(lower) || lower === 'it') return 'it';
+  if (/\b(secretarial\s+practice|s\.p\.|sp-xii|\(sp\))\b/i.test(lower) || lower === 'sp') return 'sp';
+
+  return lower.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'general';
 };
 
 export const findSubjectBySlug = (slug: string, subjects: SubjectMeta[]): string | null => {
@@ -77,27 +90,27 @@ export const findSubjectBySlug = (slug: string, subjects: SubjectMeta[]): string
   return loose ? loose.name : null;
 };
 
+// Strict Subject Matching Engine (Completely prevents any subject leakage)
 export const matchSubjectDoc = (roomName: string, docSubject: string): boolean => {
   if (!roomName || !docSubject) return false;
   const rTrim = roomName.trim().toLowerCase();
   const dTrim = docSubject.trim().toLowerCase();
   if (rTrim === dTrim) return true;
 
-  // Strict language isolation: never cross-contaminate Hindi, English, or Marathi
-  const isRHindi = rTrim.includes('hindi');
-  const isDHindi = dTrim.includes('hindi');
-  if (isRHindi !== isDHindi) return false;
-
-  const isRMarathi = rTrim.includes('marathi');
-  const isDMarathi = dTrim.includes('marathi');
-  if (isRMarathi !== isDMarathi) return false;
-
-  const isREnglish = rTrim.includes('english');
-  const isDEnglish = dTrim.includes('english');
-  if (isREnglish !== isDEnglish) return false;
-
   const rSlug = getSubjectSlug(roomName);
   const dSlug = getSubjectSlug(docSubject);
+
+  // If either resolved to 'general', only match if raw strings are identical
+  if (rSlug === 'general' || dSlug === 'general') {
+    return rTrim === dTrim;
+  }
+
+  // Strict language isolation: never cross-contaminate Hindi, English, or Marathi
+  const languages = ['hindi', 'marathi', 'english'];
+  if (languages.includes(rSlug) || languages.includes(dSlug)) {
+    return rSlug === dSlug;
+  }
+
   return rSlug === dSlug;
 };
 

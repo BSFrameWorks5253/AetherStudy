@@ -36,39 +36,39 @@ export interface PairedPYQ {
 export const SUBJECT_PATTERNS: { name: string; pattern: RegExp }[] = [
   {
     name: 'Accounts',
-    pattern: /\b(book\s*keeping|account|accountancy|bk|accounts)\b/i,
+    pattern: /\b(book[-\s]?keeping|account(s|ancy|ing)?|bk|accounts|bk-xii)\b/i,
   },
   {
     name: 'Economics',
-    pattern: /\b(economics|eco|micro|macro)\b/i,
+    pattern: /\b(economic(s)?|eco|microeconomics|macroeconomics|micro-economics|macro-economics|eco-xii)\b/i,
   },
   {
     name: 'Mathematics',
-    pattern: /\b(mathematics|maths|math|statistics|stats|calculus)\b/i,
+    pattern: /\b(mathematics|maths|math|statistics|stats|calculus|math-xii)\b/i,
   },
   {
     name: 'OCM',
-    pattern: /\b(organisation\s*of\s*commerce|organization\s*of\s*commerce|ocm|commerce\s*and\s*management|principles\s*of\s*management)\b/i,
+    pattern: /\b(organisation\s*of\s*commerce|organization\s*of\s*commerce|ocm|commerce\s*and\s*management|principles\s*of\s*management|ocm-xii)\b/i,
   },
   {
     name: 'IT',
-    pattern: /\b(information\s*technology|info\s*technology|cyber\s*law|it|web\s*design|libre\s*office)\b/i,
+    pattern: /\b(information\s+technology|info\s*tech(nology)?|cyber\s*law|web\s*designing|libre\s*office|it-xii)\b/i,
   },
   {
     name: 'English',
-    pattern: /\b(english|yuvakbharati|grammar|prose|poem|poems|drama|novel|novels|writing\s*skills)\b/i,
+    pattern: /\b(english|yuvakbharati|writing\s*skills|eng-xii)\b/i,
   },
   {
     name: 'Hindi',
-    pattern: /\b(hindi)\b/i,
+    pattern: /\b(hindi|hin-xii)\b/i,
   },
   {
     name: 'Marathi',
-    pattern: /\b(marathi)\b/i,
+    pattern: /\b(marathi|mar-xii)\b/i,
   },
   {
     name: 'Secretarial Practice',
-    pattern: /\b(secretarial\s*practice|sp)\b/i,
+    pattern: /\b(secretarial\s*practice|sp-xii)\b/i,
   },
 ];
 
@@ -77,6 +77,13 @@ export const normalizeDetectionText = (text: string): string => {
 };
 
 export const detectSubject = (text: string): string => {
+  // Check exact subject acronym codes in original case first
+  if (/\bBK\b/.test(text)) return 'Accounts';
+  if (/\bOCM\b/.test(text)) return 'OCM';
+  if (/\bECO\b/.test(text)) return 'Economics';
+  if (/\bIT\b/.test(text)) return 'IT';
+  if (/\bSP\b/.test(text)) return 'Secretarial Practice';
+
   const normalized = normalizeDetectionText(text);
   for (const item of SUBJECT_PATTERNS) {
     if (item.pattern.test(normalized)) {
