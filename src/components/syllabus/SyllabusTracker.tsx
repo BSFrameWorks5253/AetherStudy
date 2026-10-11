@@ -423,20 +423,20 @@ export const SyllabusTracker: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-4 md:p-8 relative">
+    <div className="flex flex-col h-full overflow-y-auto p-3 sm:p-6 md:p-8 relative pb-28 md:pb-8">
       {/* Header and Summary stats */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 shrink-0">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 shrink-0">
         <div>
-          <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-wider mb-1">
-            <FolderTree className="w-4 h-4" />
+          <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1">
+            <FolderTree className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Curriculum Decomposition & Mastery</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
             Curriculum & Revision Tracker
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span>Track chapter completion, key concepts, and revision milestones.</span>
-            <span className="flex items-center gap-1 font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <span className="flex items-center gap-1 font-mono text-[10px] sm:text-[11px] px-2 sm:px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
               <Server className={`w-3 h-3 ${isConnected ? 'text-emerald-500' : 'text-amber-500'}`} />
               {isSaving ? 'Saving...' : isConnected ? 'Auto-Synced' : 'Saved Locally'}
             </span>
@@ -444,29 +444,35 @@ export const SyllabusTracker: React.FC = () => {
         </div>
 
         {/* Global Progress Metrics Card with Circular Meter */}
-        <div className="flex items-center ios-glass rounded-[28px] p-5 shadow-xs space-x-6 border border-black/[0.06] dark:border-white/[0.08] shrink-0">
+        <div className="flex flex-col xs:flex-row items-center ios-glass rounded-2xl sm:rounded-[28px] p-3.5 sm:p-5 shadow-xs gap-3.5 sm:space-x-6 border border-black/[0.06] dark:border-white/[0.08] shrink-0">
           <CircularProgress
             percentage={percentage}
-            size={130}
-            strokeWidth={10}
+            size={110}
+            strokeWidth={9}
             label="Revision"
             sublabel={`${completedChapters}/${totalChapters}`}
           />
 
-          <div className="flex flex-col space-y-2">
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="w-2.5 h-2.5 rounded-full bg-brand-500" />
-              <span className="text-slate-500 dark:text-slate-400">Total Subject Modules:</span>
+          <div className="flex flex-col space-y-1.5 sm:space-y-2 text-left w-full xs:w-auto">
+            <div className="flex items-center justify-between xs:justify-start space-x-2 text-xs">
+              <div className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-brand-500 shrink-0" />
+                <span className="text-slate-500 dark:text-slate-400">Total Modules:</span>
+              </div>
               <span className="font-bold text-slate-900 dark:text-white">{filteredTopics.length}</span>
             </div>
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <span className="text-slate-500 dark:text-slate-400">Completed Chapters:</span>
+            <div className="flex items-center justify-between xs:justify-start space-x-2 text-xs">
+              <div className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-slate-500 dark:text-slate-400">Completed:</span>
+              </div>
               <span className="font-bold text-emerald-600 dark:text-emerald-400">{completedChapters}</span>
             </div>
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              <span className="text-slate-500 dark:text-slate-400">Pending Revision:</span>
+            <div className="flex items-center justify-between xs:justify-start space-x-2 text-xs">
+              <div className="flex items-center space-x-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                <span className="text-slate-500 dark:text-slate-400">Pending:</span>
+              </div>
               <span className="font-bold text-amber-600 dark:text-amber-400">{totalChapters - completedChapters}</span>
             </div>
           </div>

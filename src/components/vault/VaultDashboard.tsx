@@ -236,7 +236,7 @@ export const VaultDashboard: React.FC<VaultDashboardProps> = ({
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans select-none pb-24 md:pb-12 transition-colors">
+    <div className="h-full w-full overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans select-none pb-28 md:pb-12 transition-colors">
       {/* ============================================================== */}
       {/* 1. HERO HEADER BLUEPRINT & UNIFIED TOP NAVIGATION              */}
       {/* ============================================================== */}

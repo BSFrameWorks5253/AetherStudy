@@ -127,11 +127,11 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
   return (
     <>
-      <header className="pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:h-16 px-4 md:px-7 ios-glass border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between select-none z-30 sticky top-0 transition-all">
+      <header className="pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:h-16 px-2.5 sm:px-4 md:px-7 ios-glass border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between select-none z-30 sticky top-0 transition-all">
         {/* Module Title with Apple SF Pro Hierarchy */}
-        <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-3">
+        <div className="flex items-center space-x-1.5 sm:space-x-2.5 min-w-0 flex-1 mr-1.5 sm:mr-3">
           <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(124,58,237,0.6)] shrink-0 hidden sm:block" />
-          <span className="text-xs sm:text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate sm:hidden">
+          <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-900 dark:text-white truncate sm:hidden">
             {shortTitle}
           </span>
           <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate hidden sm:inline">
@@ -140,14 +140,14 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
         </div>
 
         {/* Header Right Actions - Apple Spatial Capsule Layout */}
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
           {/* Dedicated Class 12 HSC Commerce Board Pill */}
-          <div className="flex items-center space-x-2 bg-gradient-to-r from-brand-500/15 to-purple-500/15 border border-brand-500/25 dark:border-brand-400/30 rounded-full px-3 py-1.5 select-none shadow-xs">
+          <div className="hidden sm:flex items-center space-x-1.5 sm:space-x-2 bg-gradient-to-r from-brand-500/15 to-purple-500/15 border border-brand-500/25 dark:border-brand-400/30 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 select-none shadow-xs">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <GraduationCap className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+            <GraduationCap className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
             <span className="text-xs font-black tracking-tight text-brand-700 dark:text-brand-300">
               Class 12 HSC
             </span>
@@ -158,21 +158,21 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
           {/* User Profile Capsule */}
           {isAuthenticated ? (
-            <div className="flex items-center space-x-1.5">
+            <div className="flex items-center space-x-1 sm:space-x-1.5">
               <button
                 type="button"
                 onClick={openAuthModal}
-                className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.06] text-xs font-medium text-slate-800 dark:text-slate-200 transition-all ios-pill"
+                className="flex items-center space-x-1.5 p-1 sm:px-3 sm:py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.06] text-xs font-medium text-slate-800 dark:text-slate-200 transition-all ios-pill cursor-pointer"
                 title="Account Settings"
               >
-                <div className="w-5 h-5 rounded-full bg-brand-500/15 dark:bg-brand-400/20 text-brand-600 dark:text-brand-300 flex items-center justify-center font-bold text-[10px]">
+                <div className="w-6 h-6 sm:w-5 sm:h-5 rounded-full bg-brand-500/15 dark:bg-brand-400/20 text-brand-600 dark:text-brand-300 flex items-center justify-center font-bold text-[11px] sm:text-[10px] shrink-0">
                   {currentUser?.email.charAt(0).toUpperCase()}
                 </div>
-                <span className="hidden sm:inline max-w-[110px] truncate text-xs font-medium">
+                <span className="hidden md:inline max-w-[110px] truncate text-xs font-medium">
                   {currentUser?.email.split('@')[0]}
                 </span>
                 <span
-                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  className={`hidden sm:inline text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                     isSuperAdmin
                       ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
                       : currentUser?.role === 'ADMIN'
@@ -201,27 +201,27 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             <button
               type="button"
               onClick={openAuthModal}
-              className="flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold tracking-tight shadow-sm transition-all ios-pill"
+              className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold tracking-tight shadow-sm transition-all ios-pill cursor-pointer active:scale-95"
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>Sign In</span>
+              <span className="hidden xs:inline">Sign In</span>
             </button>
           )}
 
           {/* Apple Dynamic Island Style Focus Timer */}
-          <div className="relative hidden sm:block">
+          <div className="relative">
             <button
               type="button"
               onClick={() => setShowTimerPopover(!showTimerPopover)}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-full border transition-all ios-pill ${
+              className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-full border transition-all ios-pill cursor-pointer active:scale-95 ${
                 isRunning
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
                   : 'bg-black/[0.04] dark:bg-white/[0.07] border-black/[0.04] dark:border-white/[0.06] text-slate-700 dark:text-slate-200'
               }`}
               title="Focus Timer"
             >
-              <Timer className={`w-3.5 h-3.5 ${isRunning ? 'animate-spin' : ''}`} />
-              <span className="font-mono text-xs font-semibold tracking-tight">
+              <Timer className={`w-3.5 h-3.5 shrink-0 ${isRunning ? 'animate-spin' : ''}`} />
+              <span className="font-mono text-[11px] sm:text-xs font-semibold tracking-tight">
                 {formatSecondsToTime(timeLeft)}
               </span>
               {activeSubject && (
@@ -233,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
             {/* iOS Floating Island Popover */}
             {showTimerPopover && (
-              <div className="absolute top-full right-0 mt-3 w-72 ios-glass rounded-[24px] p-5 shadow-2xl z-50 animate-fade-in text-center border border-black/[0.08] dark:border-white/[0.1]">
+              <div className="fixed sm:absolute top-16 sm:top-full right-3 sm:right-0 mt-1 sm:mt-3 w-[calc(100vw-1.5rem)] sm:w-72 max-w-sm ios-glass rounded-[24px] p-5 shadow-2xl z-50 animate-fade-in text-center border border-black/[0.08] dark:border-white/[0.1]">
                 <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/[0.08] text-xs font-semibold text-slate-800 dark:text-slate-200">
                   <span>Focus Block Timer</span>
                   <span className="text-[10px] text-brand-600 dark:text-brand-400 font-mono">
@@ -280,7 +280,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
                   <button
                     type="button"
                     onClick={resetTimer}
-                    className="p-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] text-slate-600 dark:text-slate-300 transition-colors ios-pill"
+                    className="p-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] text-slate-600 dark:text-slate-300 transition-colors ios-pill cursor-pointer"
                     title="Reset"
                   >
                     <RotateCcw className="w-4 h-4" />
@@ -288,7 +288,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
                   <button
                     type="button"
                     onClick={isRunning ? pauseTimer : startTimer}
-                    className="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-full shadow-md flex items-center space-x-1.5 transition-all ios-pill"
+                    className="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-full shadow-md flex items-center space-x-1.5 transition-all ios-pill cursor-pointer"
                   >
                     {isRunning ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
                     <span>{isRunning ? 'Pause' : 'Start Focus'}</span>
@@ -296,7 +296,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
                   <button
                     type="button"
                     onClick={skipSession}
-                    className="p-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] text-slate-600 dark:text-slate-300 transition-colors ios-pill"
+                    className="p-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] text-slate-600 dark:text-slate-300 transition-colors ios-pill cursor-pointer"
                     title="Skip"
                   >
                     <SkipForward className="w-4 h-4" />
@@ -311,7 +311,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             <button
               type="button"
               onClick={handleHeaderInstall}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-300 hover:bg-brand-500/20 border border-brand-500/20 text-xs font-semibold transition-all ios-pill"
+              className="hidden xs:flex items-center space-x-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-300 hover:bg-brand-500/20 border border-brand-500/20 text-xs font-semibold transition-all ios-pill cursor-pointer active:scale-95"
               title="Install AetherStudy"
             >
               <Download className="w-3.5 h-3.5" />
@@ -323,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           <button
             type="button"
             onClick={() => setShowNotificationsModal(true)}
-            className="relative p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all ios-pill"
+            className="relative p-1.5 sm:p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
             title="Official Announcements"
           >
             <Bell className="w-4 h-4" />
@@ -338,7 +338,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all ios-pill"
+            className="p-1.5 sm:p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {theme === 'dark' ? (
@@ -352,7 +352,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all hidden sm:flex ios-pill"
+            className="p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all hidden sm:flex ios-pill cursor-pointer"
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}

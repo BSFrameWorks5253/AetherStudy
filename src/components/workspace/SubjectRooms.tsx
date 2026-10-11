@@ -4127,17 +4127,17 @@ export const SubjectRooms: React.FC = () => {
                       </div>
 
                       {/* Fast Navigation Action Pills (High Contrast & Colorful) */}
-                      <div className="flex items-center gap-2 pt-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 sm:gap-2 pt-2 flex-wrap">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleSelectRoom(sub.name, 'textbooks');
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-blue-100 hover:bg-blue-200 dark:bg-blue-950/80 dark:hover:bg-blue-900 text-[11px] font-black text-blue-900 dark:text-blue-100 border border-blue-300 dark:border-blue-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer hover:scale-105"
+                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-blue-100 hover:bg-blue-200 dark:bg-blue-950/80 dark:hover:bg-blue-900 text-[10px] sm:text-[11px] font-black text-blue-900 dark:text-blue-100 border border-blue-300 dark:border-blue-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                           title="Open Official Textbooks"
                         >
-                          <BookOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-300" />
+                          <BookOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-300 shrink-0" />
                           <span>Textbooks ({tBooks})</span>
                         </button>
 
@@ -4147,10 +4147,10 @@ export const SubjectRooms: React.FC = () => {
                             e.stopPropagation();
                             handleSelectRoom(sub.name, 'notes');
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 text-[11px] font-black text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer hover:scale-105"
+                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 text-[10px] sm:text-[11px] font-black text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                           title="Open Chapter Notes"
                         >
-                          <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-300" />
+                          <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-300 shrink-0" />
                           <span>Notes ({nDocs})</span>
                         </button>
 
@@ -4161,10 +4161,10 @@ export const SubjectRooms: React.FC = () => {
                               e.stopPropagation();
                               handleSelectRoom(sub.name, 'pyq');
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900 text-[11px] font-black text-amber-950 dark:text-amber-100 border border-amber-300 dark:border-amber-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer hover:scale-105"
+                            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900 text-[10px] sm:text-[11px] font-black text-amber-950 dark:text-amber-100 border border-amber-300 dark:border-amber-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                             title="Open Board PYQ Papers"
                           >
-                            <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300" />
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300 shrink-0" />
                             <span>PYQs ({pCount})</span>
                           </button>
                         )}

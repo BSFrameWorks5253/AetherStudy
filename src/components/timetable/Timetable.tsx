@@ -244,44 +244,44 @@ export const Timetable: React.FC = () => {
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-4 md:p-8 relative">
+    <div className="flex flex-col h-full overflow-y-auto p-3 sm:p-6 md:p-8 relative pb-28 md:pb-8">
       {/* Top Banner and Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6 shrink-0">
         <div>
-          <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-[11px] font-bold uppercase tracking-wider mb-1">
+          <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider mb-1">
             <Calendar className="w-3.5 h-3.5" />
             <span>Academic Focus Schedule</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Study Timetable
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-            <span>Structured daily study blocks synchronized with Pomodoro focus timers.</span>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <span>Structured daily study blocks synchronized with focus timers.</span>
             <span
               title="Real-time cloud sync powered by Firebase"
-              className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+              className="inline-flex items-center gap-1 font-mono text-[10px] sm:text-[11px] px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>{isSaving ? 'Saving...' : firebaseStatus === 'connected' ? 'Cloud Synchronized' : 'Offline Safe'}</span>
+              <span>{isSaving ? 'Saving...' : firebaseStatus === 'connected' ? 'Cloud Synced' : 'Offline Safe'}</span>
             </span>
             <span
               title="Students preparing simultaneously"
-              className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border border-black/[0.04] dark:border-white/[0.06]"
+              className="inline-flex items-center gap-1 font-mono text-[10px] sm:text-[11px] px-2 sm:px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border border-black/[0.04] dark:border-white/[0.06]"
             >
               <Users className="w-3 h-3 text-brand-500" />
-              <span>{activeStudents} Studying Online</span>
+              <span>{activeStudents} Online</span>
             </span>
           </p>
         </div>
 
-        <div className="flex items-center space-x-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:space-x-2.5 shrink-0 pt-1 sm:pt-0">
           <select
             value={selectedSubjectFilter}
             onChange={(e) => setSelectedSubjectFilter(e.target.value)}
-            className="ios-glass text-xs text-slate-700 dark:text-slate-200 rounded-full px-3.5 py-2 focus:outline-none font-medium border border-black/[0.06] dark:border-white/[0.08]"
+            className="flex-1 sm:flex-none ios-glass text-xs text-slate-700 dark:text-slate-200 rounded-full px-3 py-1.5 sm:px-3.5 sm:py-2 focus:outline-none font-medium border border-black/[0.06] dark:border-white/[0.08]"
           >
             <option value="All">All Subjects ({allSubjects.length})</option>
             {allSubjects.map((sub) => (
@@ -297,7 +297,7 @@ export const Timetable: React.FC = () => {
               setNewDay(activeDay);
               setShowAddModal(true);
             }}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-full shadow-md shadow-brand-500/25 transition-all ios-pill cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3.5 sm:px-4 py-1.5 sm:py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-full shadow-md shadow-brand-500/25 transition-all ios-pill cursor-pointer active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Study Block</span>
@@ -306,7 +306,7 @@ export const Timetable: React.FC = () => {
       </div>
 
       {/* Apple Segmented Weekday Switcher */}
-      <div className="grid grid-cols-7 gap-1 sm:gap-2 p-1.5 ios-glass rounded-[22px] mb-6 shadow-sm select-none shrink-0 border border-black/[0.06] dark:border-white/[0.08]">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 p-1 sm:p-1.5 ios-glass rounded-[22px] mb-4 sm:mb-6 shadow-sm select-none shrink-0 border border-black/[0.06] dark:border-white/[0.08]">
         {DAYS.map((day) => {
           const count = schedule.filter((s) => s.day === day).length;
           const isSelected = activeDay === day;
@@ -315,7 +315,7 @@ export const Timetable: React.FC = () => {
               key={day}
               type="button"
               onClick={() => setActiveDay(day)}
-              className={`py-2 px-1 sm:px-3 rounded-2xl text-xs font-semibold transition-all ios-pill flex flex-col sm:flex-row items-center justify-center sm:justify-between cursor-pointer ${
+              className={`py-1.5 sm:py-2 px-0.5 sm:px-3 rounded-xl sm:rounded-2xl text-xs font-semibold transition-all ios-pill flex flex-col sm:flex-row items-center justify-center sm:justify-between cursor-pointer active:scale-95 ${
                 isSelected
                   ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.05]'
@@ -324,7 +324,7 @@ export const Timetable: React.FC = () => {
               <span className="hidden sm:inline">{day.slice(0, 3)}</span>
               <span className="sm:hidden text-[10px] font-bold tracking-tight">{day.slice(0, 3)}</span>
               <span
-                className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full mt-0.5 sm:mt-0 ${
+                className={`text-[9px] sm:text-[10px] px-1 sm:px-2 py-0.2 sm:py-0.5 rounded-full mt-0.5 sm:mt-0 ${
                   isSelected ? 'bg-white/20 text-white' : 'bg-black/5 dark:bg-white/10 text-slate-500 dark:text-slate-400'
                 }`}
               >

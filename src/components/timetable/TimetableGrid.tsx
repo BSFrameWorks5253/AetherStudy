@@ -9,29 +9,29 @@ export const TimetableGrid: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
       {/* Tab Switcher Header */}
-      <div className="flex items-center justify-between px-6 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-20 shrink-0">
-        <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+      <div className="flex items-center justify-between px-3 sm:px-6 py-2 sm:py-2.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 z-20 shrink-0">
+        <div className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl w-full sm:w-auto">
           <button
             onClick={() => setActiveSubTab('schedule')}
-            className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
               activeSubTab === 'schedule'
                 ? 'bg-brand-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Weekly Study Timetable</span>
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Weekly Timetable</span>
           </button>
           <button
             onClick={() => setActiveSubTab('focus')}
-            className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
               activeSubTab === 'focus'
                 ? 'bg-brand-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Pomodoro Focus Timer</span>
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Focus Timer</span>
           </button>
         </div>
       </div>

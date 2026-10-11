@@ -283,20 +283,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={item.id}
               type="button"
               onClick={() => onTabChange(item.id)}
-              className={`flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all ios-pill ${
+              className={`flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all ios-pill cursor-pointer active:scale-95 min-h-[48px] ${
                 isActive
                   ? 'text-brand-600 dark:text-brand-400'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
               }`}
             >
               <div
-                className={`p-1.5 rounded-2xl transition-all ${
-                  isActive ? 'bg-brand-500/15 text-brand-600 dark:text-brand-400 scale-105' : ''
+                className={`p-1.5 rounded-2xl transition-all relative ${
+                  isActive ? 'bg-brand-500/15 text-brand-600 dark:text-brand-400 scale-105 shadow-xs' : ''
                 }`}
               >
                 <Icon className="w-5 h-5" />
+                {isActive && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-brand-500 shadow-[0_0_6px_rgba(124,58,237,0.8)]" />
+                )}
               </div>
-              <span className={`text-[10px] mt-0.5 tracking-tight flex items-center justify-center gap-0.5 ${isActive ? 'font-bold' : 'font-medium'}`}>
+              <span className={`text-[10px] mt-0.5 tracking-tight flex items-center justify-center gap-0.5 ${isActive ? 'font-black' : 'font-medium'}`}>
                 <span>{item.mobileLabel}</span>
                 {(item.id === 'timetable' || item.id === 'syllabus') && !isAuthenticated && (
                   <Lock className="w-2.5 h-2.5 text-amber-500" />
