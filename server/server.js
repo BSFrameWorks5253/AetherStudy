@@ -1027,6 +1027,25 @@ app.post('/api/paper-requests', async (req, res) => {
     requests.unshift(newRequest);
     writeJsonFile('paper-requests.json', requests);
 
+    // 1b. Inject In-App Alert for Admins into notifications.json
+    try {
+      const initialNotifs = typeof initialNotifications !== 'undefined' ? initialNotifications : [];
+      const notifs = readJsonFile('notifications.json', initialNotifs);
+      notifs.unshift({
+        id: 'notif-req-' + Date.now(),
+        title: `📚 New Paper Request: ${subject} (${year})`,
+        message: `Student (${email}) requested past paper or solutions for ${subject} (${year}). Notes: ${notes || 'None'}`,
+        standard: 'ALL',
+        priority: 'urgent',
+        createdAt: new Date().toISOString(),
+        senderEmail: email,
+        senderName: 'Student PYQ Request',
+      });
+      writeJsonFile('notifications.json', notifs);
+    } catch (notifErr) {
+      console.warn('[Paper Request In-App Alert Warning]:', notifErr.message);
+    }
+
     // 2. Dispatch Email to Super Admin
     const targetAdmin = SUPER_ADMIN_EMAIL || 'bs.framework5253@gmail.com';
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || 'bs.framework5253@gmail.com';
@@ -1131,6 +1150,38 @@ app.post('/api/paper-requests', async (req, res) => {
     console.error('[Paper Request Handler Failure]:', err);
     return res.status(500).json({ error: 'Failed to record paper request.' });
   }
+});
+
+// Update Paper Request Status (Admin)
+app.patch('/api/paper-requests/:id', optionalUser, (req, res) => {
+  const reqId = req.params.id;
+  const { status, adminNotes } = req.body || {};
+  const requests = readJsonFile('paper-requests.json', []);
+  const index = requests.findIndex((r) => r.id === reqId);
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Paper request not found' });
+  }
+
+  const updatedReq = {
+    ...requests[index],
+    ...(status ? { status } : {}),
+    ...(adminNotes !== undefined ? { adminNotes } : {}),
+    updatedAt: new Date().toISOString(),
+  };
+
+  requests[index] = updatedReq;
+  writeJsonFile('paper-requests.json', requests);
+  res.json({ success: true, request: updatedReq });
+});
+
+// Delete Paper Request (Admin)
+app.delete('/api/paper-requests/:id', optionalUser, (req, res) => {
+  const reqId = req.params.id;
+  const requests = readJsonFile('paper-requests.json', []);
+  const filtered = requests.filter((r) => r.id !== reqId);
+  writeJsonFile('paper-requests.json', filtered);
+  res.json({ success: true, remaining: filtered.length });
 });
 
 // Reading Progress & Bookmarks Cloud Sync
@@ -1414,10 +1465,16 @@ app.post('/api/documents/upload', optionalUser, upload.single('file'), async (re
   const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
   const streamUrl = `/api/documents/${docId}/pdf`;
 
+  const requestedName = (req.body.name || '').trim();
+  const chTitle = (chapterTitle || '').trim();
+  const chNum = (chapterNumber || '').trim();
+  const autoChapterName = chTitle ? `${chNum ? `${chNum} - ` : ''}${chTitle}.pdf` : '';
+  const finalDocName = requestedName || autoChapterName || req.file.originalname || req.file.filename;
+
   const newDoc = {
     id: docId,
-    name: req.file.filename || req.file.originalname,
-    originalName: req.file.originalname,
+    name: finalDocName,
+    originalName: finalDocName,
     serverUrl: streamUrl,
     streamUrl: streamUrl,
     url: streamUrl,
@@ -1694,10 +1751,14 @@ app.post('/api/documents/upload-multiple', optionalUser, upload.array('files', 3
     const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
     const streamUrl = `/api/documents/${docId}/pdf`;
 
+    const requestedName = (fileMeta.name || '').trim();
+    const autoChapterName = fileChapterTitle ? `${fileChapterNumber ? `${fileChapterNumber} - ` : ''}${fileChapterTitle}.pdf` : '';
+    const finalDocName = requestedName || autoChapterName || file.originalname || file.filename;
+
     const newDoc = {
       id: docId,
-      name: file.filename || file.originalname,
-      originalName: file.originalname,
+      name: finalDocName,
+      originalName: finalDocName,
       serverUrl: streamUrl,
       streamUrl: streamUrl,
       url: streamUrl,
@@ -1840,6 +1901,49 @@ async function deleteFromDriveServer(fileId) {
 
   return deleted;
 }
+
+// Update / Rename Single Document
+app.patch('/api/documents/:id', optionalUser, async (req, res) => {
+  const docId = req.params.id;
+  const updates = req.body || {};
+  const docs = readJsonFile('documents.json', []);
+  const docIndex = docs.findIndex((d) => d.id === docId);
+
+  if (docIndex === -1) {
+    return res.status(404).json({ error: 'Document not found' });
+  }
+
+  const existing = docs[docIndex];
+  const updatedDoc = {
+    ...existing,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // If renaming, ensure both name and originalName are kept in sync if requested
+  if (updates.name) {
+    updatedDoc.name = updates.name;
+    if (!updates.originalName) {
+      updatedDoc.originalName = updates.name;
+    }
+  }
+
+  docs[docIndex] = updatedDoc;
+  writeJsonFile('documents.json', docs);
+
+  // Sync to Cloudflare D1 if configured
+  try {
+    const { isConfigured, queryD1 } = require('./cloudflareD1');
+    if (isConfigured) {
+      queryD1(
+        'UPDATE documents SET name = ?, chapter_number = ?, chapter_title = ?, updated_at = ? WHERE id = ?',
+        [updatedDoc.name, updatedDoc.chapterNumber || null, updatedDoc.chapterTitle || null, updatedDoc.updatedAt, docId]
+      ).catch((e) => console.warn('[D1 Update Document Notice]:', e.message));
+    }
+  } catch {}
+
+  res.json({ success: true, document: updatedDoc });
+});
 
 // Delete Single Document (from database, Google Drive, and local storage)
 app.delete('/api/documents/:id', optionalUser, async (req, res) => {

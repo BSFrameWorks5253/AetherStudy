@@ -613,9 +613,30 @@ export const SubjectRooms: React.FC = () => {
   const { currentUser, isSuperAdmin, isAdmin, canUpload, activeStandard } = useAuth();
 
   // Navigation & Room State
-  const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const [activeRoom, setActiveRoom] = useState<string | null>(() => {
+    try {
+      const initial = sessionStorage.getItem('aether_initial_room');
+      if (initial) {
+        sessionStorage.removeItem('aether_initial_room');
+        return initial;
+      }
+    } catch {}
+    return null;
+  });
   const [activeCategoryTab, setActiveCategoryTab] = useState<'syllabus' | 'textbooks' | 'notes' | 'pyq'>('syllabus');
   const [readingDoc, setReadingDoc] = useState<ServerDocument | null>(null);
+
+  // Listen for direct room jump from Home Screen
+  useEffect(() => {
+    const handleSwitch = (e: any) => {
+      if (e?.detail?.subject) {
+        setActiveRoom(e.detail.subject);
+        setReadingDoc(null);
+      }
+    };
+    window.addEventListener('aether_switch_room', handleSwitch);
+    return () => window.removeEventListener('aether_switch_room', handleSwitch);
+  }, []);
 
   // Chapter syllabus mastery tracking (strictly isolated per student account)
   const [completedChapters, setCompletedChapters] = useState<Record<string, boolean>>(() => {
@@ -663,9 +684,11 @@ export const SubjectRooms: React.FC = () => {
   const [uploadCustomFilter, setUploadCustomFilter] = useState<string>('Theory Notes');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadDocName, setUploadDocName] = useState<string>('');
   const [fileConfigs, setFileConfigs] = useState<Array<{
     id: string;
     file: File;
+    name: string;
     chapterNumber: string;
     customChapter: string;
     category: 'textbook' | 'notes';
@@ -714,10 +737,18 @@ export const SubjectRooms: React.FC = () => {
     }
   }, [activeTagMenu]);
 
-  // Quick Single Document Tag/Chapter Editor State
+  // Quick Single Document Tag/Chapter/Rename Editor State
   const [editingDoc, setEditingDoc] = useState<ServerDocument | null>(null);
+  const [editDocName, setEditDocName] = useState<string>('');
   const [editDocChapter, setEditDocChapter] = useState<string>('');
   const [editDocTag, setEditDocTag] = useState<string>('');
+
+  const openDocEditor = (doc: ServerDocument, fallbackChNum: string = 'All') => {
+    setEditingDoc(doc);
+    setEditDocName(doc.name || doc.originalName || '');
+    setEditDocChapter(doc.chapterNumber || fallbackChNum);
+    setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+  };
 
   // Section collapse/visibility toggles for empty chapters (keeps chapters with files UP at top)
   const [showEmptyChaptersSyllabus, setShowEmptyChaptersSyllabus] = useState<boolean>(true);
@@ -932,9 +963,12 @@ export const SubjectRooms: React.FC = () => {
 
     const newConfigs = newFileList.map((file) => {
       const detected = detectChapterForFile(file.name, targetChapters, uploadChapterNumber);
+      const matched = targetChapters.find((c: any) => c.number === detected.chapterNumber);
+      const autoName = matched ? `Chapter ${matched.number} - ${matched.title}.pdf` : file.name;
       return {
         id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         file,
+        name: autoName,
         chapterNumber: detected.chapterNumber,
         customChapter: detected.customChapter,
         category: uploadCategory,
@@ -943,6 +977,9 @@ export const SubjectRooms: React.FC = () => {
     });
 
     setFileConfigs((prev) => [...prev, ...newConfigs]);
+    if (!uploadDocName && newConfigs[0]) {
+      setUploadDocName(newConfigs[0].name);
+    }
     setSelectedFiles((prev) => [...prev, ...newFileList]);
     setSelectedFile(null);
   };
@@ -1777,7 +1814,7 @@ export const SubjectRooms: React.FC = () => {
     setActiveTagMenu(null);
   };
 
-  // Save Single Document Edit (Chapter & Tag) (Admin only)
+  // Save Single Document Edit (Chapter, Rename & Tag) (Admin only)
   const handleSaveSingleDocEdit = async () => {
     if (!editingDoc) return;
     if (!isAdmin) {
@@ -1796,7 +1833,20 @@ export const SubjectRooms: React.FC = () => {
       if (foundCh) chTitle = foundCh.title;
     }
 
+    let nextName = editDocName.trim();
+    if (!nextName && chTitle) {
+      nextName = `${editDocChapter && editDocChapter !== 'All' ? `Chapter ${editDocChapter} - ` : ''}${chTitle}.pdf`;
+    }
+    if (!nextName) {
+      nextName = editingDoc.name || editingDoc.originalName || 'Document.pdf';
+    }
+    if (!nextName.endsWith('.pdf')) {
+      nextName = `${nextName}.pdf`;
+    }
+
     const updated = await api.updateDocument(editingDoc.id, {
+      name: nextName,
+      originalName: nextName,
       chapterNumber: editDocChapter,
       chapterTitle: chTitle,
       customFilter: trimmedTag,
@@ -1854,7 +1904,7 @@ export const SubjectRooms: React.FC = () => {
         } catch {}
       }
 
-      // Prepare custom metadata for each individual PDF
+      // Prepare custom metadata for each individual PDF (respects custom rename or chapter auto-naming)
       const itemsMeta = filesToUpload.map((file, idx) => {
         const cfg = fileConfigs[idx] || fileConfigs.find((c) => c.file === file);
         const chNum = cfg
@@ -1864,8 +1914,14 @@ export const SubjectRooms: React.FC = () => {
         const chTitle = matched?.title || (cfg?.chapterNumber === 'custom' ? cfg.customChapter.trim() : finalChapterTitle);
         const cat = cfg?.category || uploadCategory;
         const filt = (cfg?.customFilter || finalFilter).trim();
+        const customFileName = (cfg?.name || (filesToUpload.length === 1 ? uploadDocName : '') || '').trim();
+        const autoName = chTitle
+          ? `${chNum ? `Chapter ${chNum} - ` : ''}${chTitle}.pdf`
+          : file.name;
+        const finalDocName = customFileName || autoName;
+
         return {
-          name: file.name,
+          name: finalDocName,
           chapterNumber: chNum,
           chapterTitle: chTitle,
           category: cat,
@@ -1885,6 +1941,7 @@ export const SubjectRooms: React.FC = () => {
         const cat = meta.category || uploadCategory;
         const filt = meta.customFilter || finalFilter;
         const tags = meta.tags || (filt ? [filt] : []);
+        const docName = meta.name || file.name;
 
         let uploadedRecord: ServerDocument | null = null;
 
@@ -1899,22 +1956,23 @@ export const SubjectRooms: React.FC = () => {
             chNum,
             chTitle,
             filt,
-            tags
+            tags,
+            docName
           );
         } catch (err: any) {
           console.warn(`[Vault Direct Upload Fallback for ${file.name}]:`, err);
           const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
           let vaultUrl = '';
           try {
-            vaultUrl = await pdfVault.store(docId, file, file.name);
+            vaultUrl = await pdfVault.store(docId, file, docName);
           } catch {
             vaultUrl = URL.createObjectURL(file);
           }
 
           uploadedRecord = {
             id: docId,
-            name: file.name,
-            originalName: file.name,
+            name: docName,
+            originalName: docName,
             streamUrl: vaultUrl,
             serverUrl: vaultUrl,
             url: vaultUrl,
@@ -1929,12 +1987,11 @@ export const SubjectRooms: React.FC = () => {
             chapterNumber: chNum,
             chapterTitle: chTitle,
             customFilter: filt,
-            tags: tags,
+            tags,
             uploadCount: 1,
           };
 
-          const local = api.getLocalDocuments();
-          api.saveLocalDocuments([uploadedRecord, ...local]);
+          api.saveLocalDocuments([uploadedRecord, ...documents]);
         }
 
         if (uploadedRecord) {
@@ -2465,8 +2522,10 @@ export const SubjectRooms: React.FC = () => {
                                   value={item.chapterNumber}
                                   onChange={(e) => {
                                     const val = e.target.value;
+                                    const foundCh = studioChapters.find((c) => c.number === val);
+                                    const autoName = foundCh ? `Chapter ${foundCh.number} - ${foundCh.title}.pdf` : item.file.name;
                                     setFileConfigs((prev) =>
-                                      prev.map((c, i) => (i === idx ? { ...c, chapterNumber: val } : c))
+                                      prev.map((c, i) => (i === idx ? { ...c, chapterNumber: val, name: autoName } : c))
                                     );
                                   }}
                                   className="w-full bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
@@ -2528,6 +2587,45 @@ export const SubjectRooms: React.FC = () => {
                                   />
                                 </div>
                               </div>
+                            </div>
+
+                            {/* Editable PDF Document Title for this file */}
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                                  PDF Document Name (Editable):
+                                </label>
+                                {item.chapterNumber !== 'All' && item.chapterNumber !== 'custom' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const foundCh = studioChapters.find((c) => c.number === item.chapterNumber);
+                                      if (foundCh) {
+                                        const autoName = `Chapter ${foundCh.number} - ${foundCh.title}.pdf`;
+                                        setFileConfigs((prev) =>
+                                          prev.map((c, i) => (i === idx ? { ...c, name: autoName } : c))
+                                        );
+                                      }
+                                    }}
+                                    className="text-[9px] font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer flex items-center gap-1"
+                                  >
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                    <span>Set to Chapter Name</span>
+                                  </button>
+                                )}
+                              </div>
+                              <input
+                                type="text"
+                                value={item.name ?? item.file.name}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setFileConfigs((prev) =>
+                                    prev.map((c, i) => (i === idx ? { ...c, name: val } : c))
+                                  );
+                                }}
+                                placeholder="Enter PDF name..."
+                                className="w-full bg-white dark:bg-slate-900 rounded-xl px-2.5 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                              />
                             </div>
                           </div>
                         ))}
@@ -3191,12 +3289,10 @@ export const SubjectRooms: React.FC = () => {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setEditingDoc(doc);
-                                    setEditDocChapter(doc.chapterNumber || matchedCh?.number || 'All');
-                                    setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                    openDocEditor(doc, matchedCh?.number || 'All');
                                   }}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                  title="Edit Chapter & Tag (Admin only)"
+                                  title="Rename PDF, Edit Chapter & Tag (Admin only)"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
@@ -3588,12 +3684,10 @@ export const SubjectRooms: React.FC = () => {
                                                   <button
                                                     onClick={(e) => {
                                                       e.stopPropagation();
-                                                      setEditingDoc(doc);
-                                                      setEditDocChapter(doc.chapterNumber || ch.number || 'All');
-                                                      setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                                      openDocEditor(doc, ch.number || 'All');
                                                     }}
                                                     className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                                    title="Edit Chapter & Tag (Admin only)"
+                                                    title="Rename PDF, Edit Chapter & Tag (Admin only)"
                                                   >
                                                     <Edit3 className="w-3.5 h-3.5" />
                                                   </button>
@@ -3716,12 +3810,10 @@ export const SubjectRooms: React.FC = () => {
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            setEditingDoc(doc);
-                                            setEditDocChapter(doc.chapterNumber || 'All');
-                                            setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                            openDocEditor(doc, 'All');
                                           }}
                                           className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                          title="Edit Chapter & Tag (Admin only)"
+                                          title="Rename PDF, Edit Chapter & Tag (Admin only)"
                                         >
                                           <Edit3 className="w-3.5 h-3.5" />
                                         </button>
@@ -3887,12 +3979,10 @@ export const SubjectRooms: React.FC = () => {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setEditingDoc(doc);
-                                      setEditDocChapter(doc.chapterNumber || matchedCh?.number || 'All');
-                                      setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
+                                      openDocEditor(doc, matchedCh?.number || 'All');
                                     }}
                                     className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                    title="Edit Chapter & Tag (Admin only)"
+                                    title="Rename PDF, Edit Chapter & Tag (Admin only)"
                                   >
                                     <Edit3 className="w-3.5 h-3.5" />
                                   </button>
@@ -4477,7 +4567,7 @@ export const SubjectRooms: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <Edit3 className="w-4 h-4 text-brand-500" />
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Edit PDF Chapter & Tag
+                  Rename PDF, Chapter & Tag
                 </h3>
               </div>
               <button
@@ -4490,11 +4580,35 @@ export const SubjectRooms: React.FC = () => {
             </div>
 
             <div className="p-5 space-y-4">
+              {/* PDF Document Name / Custom Rename Field */}
               <div>
-                <p className="text-xs font-bold text-slate-500 mb-1">Document:</p>
-                <p className="text-xs font-extrabold text-slate-900 dark:text-white line-clamp-2">
-                  {editingDoc.name || editingDoc.originalName}
-                </p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    PDF Document Name
+                  </label>
+                  {editDocChapter && editDocChapter !== 'All' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const foundCh = activeRoomChapters.find((c) => c.number === editDocChapter);
+                        if (foundCh) {
+                          setEditDocName(`Chapter ${foundCh.number} - ${foundCh.title}.pdf`);
+                        }
+                      }}
+                      className="text-[10px] font-bold text-brand-600 dark:text-brand-400 hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Set to Chapter Name</span>
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={editDocName}
+                  onChange={(e) => setEditDocName(e.target.value)}
+                  placeholder="e.g. Chapter 1 - Partnership Final Accounts.pdf"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
+                />
               </div>
 
               <div>
@@ -4503,7 +4617,16 @@ export const SubjectRooms: React.FC = () => {
                 </label>
                 <select
                   value={editDocChapter}
-                  onChange={(e) => setEditDocChapter(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditDocChapter(val);
+                    if (val && val !== 'All') {
+                      const foundCh = activeRoomChapters.find((c) => c.number === val);
+                      if (foundCh) {
+                        setEditDocName(`Chapter ${foundCh.number} - ${foundCh.title}.pdf`);
+                      }
+                    }
+                  }}
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
                 >
                   <option value="All">General / All Chapters</option>

@@ -16,6 +16,7 @@ import {
   ref,
   set,
   get,
+  update,
   onValue,
   push,
   remove,
@@ -448,6 +449,34 @@ export const firebasePaperRequests = {
         unsubscribeRtdb();
       } catch {}
     };
+  },
+
+  /**
+   * Update request status (e.g. fulfilled or dismissed)
+   */
+  async updateStatus(id: string, status: string): Promise<boolean> {
+    try {
+      const rtdbTargetRef = ref(rtdb, `paper_requests/${id}`);
+      await update(rtdbTargetRef, { status, updatedAt: new Date().toISOString() });
+      return true;
+    } catch (err) {
+      console.warn('[Firebase RTDB Paper Request Status Update Warning]:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Delete request from RTDB
+   */
+  async delete(id: string): Promise<boolean> {
+    try {
+      const rtdbTargetRef = ref(rtdb, `paper_requests/${id}`);
+      await remove(rtdbTargetRef);
+      return true;
+    } catch (err) {
+      console.warn('[Firebase RTDB Paper Request Delete Warning]:', err);
+      return false;
+    }
   },
 };
 

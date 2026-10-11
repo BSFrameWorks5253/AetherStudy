@@ -28,6 +28,18 @@ export interface ServerDocument {
   updatedAt?: string;
 }
 
+export interface PaperRequest {
+  id: string;
+  email: string;
+  subject: string;
+  year: string;
+  notes?: string;
+  submittedAt: string;
+  status: 'pending' | 'fulfilled' | 'dismissed';
+  adminNotes?: string;
+  timestamp?: number;
+}
+
 export interface AdminNotification {
   id: string;
   title: string;
@@ -605,15 +617,21 @@ export const api = {
     chapterNumber?: string,
     chapterTitle?: string,
     customFilter?: string,
-    tags?: string[]
+    tags?: string[],
+    customDocName?: string
   ): Promise<ServerDocument> {
     const targetStandard = standard || '12';
     const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
 
+    // Compute effective name: custom name takes precedence, followed by chapter title, followed by file name
+    const effectiveName = customDocName?.trim()
+      ? (customDocName.trim().endsWith('.pdf') ? customDocName.trim() : `${customDocName.trim()}.pdf`)
+      : (chapterTitle ? `${chapterNumber ? `${chapterNumber} - ` : ''}${chapterTitle}.pdf` : file.name);
+
     // 1. Instantly store binary blob into local IndexedDB Vault (< 50ms) for instant local reading
     let localVaultUrl = '';
     try {
-      localVaultUrl = await pdfVault.store(docId, file, file.name);
+      localVaultUrl = await pdfVault.store(docId, file, effectiveName);
     } catch {
       localVaultUrl = URL.createObjectURL(file);
     }
@@ -621,8 +639,8 @@ export const api = {
     const defaultStreamUrl = `/api/documents/${docId}/pdf`;
     const newDoc: ServerDocument = {
       id: docId,
-      name: file.name,
-      originalName: file.name,
+      name: effectiveName,
+      originalName: effectiveName,
       streamUrl: localVaultUrl || defaultStreamUrl,
       serverUrl: defaultStreamUrl,
       url: localVaultUrl || defaultStreamUrl,
@@ -642,7 +660,7 @@ export const api = {
     };
 
     // Ensure newly uploaded document and filename are not suppressed by old tombstones
-    firebaseDeletedDocs.unmarkDeleted(docId, file.name);
+    firebaseDeletedDocs.unmarkDeleted(docId, effectiveName);
 
     // Save locally immediately
     const local = api.getLocalDocuments();
@@ -654,6 +672,7 @@ export const api = {
         // Direct single-request multipart upload for files < 3.5MB
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('name', effectiveName);
         formData.append('subject', subject);
         formData.append('uploadedBy', uploadedBy || 'Faculty');
         formData.append('standard', targetStandard);
@@ -707,8 +726,8 @@ export const api = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: docId,
-            name: file.name,
-            originalName: file.name,
+            name: effectiveName,
+            originalName: effectiveName,
             subject,
             standard: targetStandard,
             category: category || 'notes',
@@ -1072,6 +1091,81 @@ export const api = {
       emailSent: serverEmailSent || cloudSynced,
       message: 'Request safely recorded in Firebase cloud vault and dispatched to Super Admin.',
     };
+  },
+
+  async getPaperRequests(): Promise<PaperRequest[]> {
+    let requests: PaperRequest[] = [];
+
+    // 1. Fetch from server API if reachable
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/paper-requests`, {}, 2000);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          requests = data;
+        }
+      }
+    } catch (err) {
+      console.warn('[Server Paper Requests fetch warning]:', err);
+    }
+
+    // 2. Merge with locally cached requests
+    try {
+      const local = JSON.parse(localStorage.getItem('aetherstudy_paper_requests') || '[]');
+      if (Array.isArray(local) && local.length > 0) {
+        const idSet = new Set(requests.map((r) => r.id));
+        for (const item of local) {
+          if (!idSet.has(item.id)) {
+            requests.push(item);
+            idSet.add(item.id);
+          }
+        }
+      }
+    } catch {}
+
+    // Sort newest first
+    requests.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+    localStorage.setItem('aetherstudy_paper_requests', JSON.stringify(requests));
+    return requests;
+  },
+
+  async updatePaperRequestStatus(id: string, status: 'pending' | 'fulfilled' | 'dismissed', adminNotes?: string): Promise<boolean> {
+    // 1. Update in local storage
+    try {
+      const local: PaperRequest[] = JSON.parse(localStorage.getItem('aetherstudy_paper_requests') || '[]');
+      const updated = local.map((r) => (r.id === id ? { ...r, status, adminNotes } : r));
+      localStorage.setItem('aetherstudy_paper_requests', JSON.stringify(updated));
+    } catch {}
+
+    // 2. Update via server API
+    fetch(`${API_BASE}/paper-requests/${id}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(true),
+      body: JSON.stringify({ status, adminNotes }),
+    }).catch(() => {});
+
+    // 3. Update in Firebase
+    firebasePaperRequests.updateStatus(id, status).catch(() => {});
+    return true;
+  },
+
+  async deletePaperRequest(id: string): Promise<boolean> {
+    // 1. Delete from local storage
+    try {
+      const local: PaperRequest[] = JSON.parse(localStorage.getItem('aetherstudy_paper_requests') || '[]');
+      const updated = local.filter((r) => r.id !== id);
+      localStorage.setItem('aetherstudy_paper_requests', JSON.stringify(updated));
+    } catch {}
+
+    // 2. Delete via server API
+    fetch(`${API_BASE}/paper-requests/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(true),
+    }).catch(() => {});
+
+    // 3. Delete in Firebase
+    firebasePaperRequests.delete(id).catch(() => {});
+    return true;
   },
 
   // 7. Timetable Storage API (Powered by Firebase RTDB, Firestore & Offline Cache)

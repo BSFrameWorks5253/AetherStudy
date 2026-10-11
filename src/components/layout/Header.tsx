@@ -20,10 +20,12 @@ import {
   LogIn,
   Download,
   GraduationCap,
+  FileQuestion,
 } from 'lucide-react';
 import { triggerPWAInstall } from '../common/PWAInstallBanner';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { firebaseNotifications } from '../../services/firebase';
+import { PaperRequestsManagerModal } from '../vault/PaperRequestsManagerModal';
 
 interface HeaderProps {
   title: string;
@@ -48,7 +50,9 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
+  const [showPaperRequestsModal, setShowPaperRequestsModal] = useState<boolean>(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
+  const [pendingPaperReqsCount, setPendingPaperReqsCount] = useState<number>(0);
   const [canInstall, setCanInstall] = useState<boolean>(false);
 
   useEffect(() => {
@@ -76,6 +80,13 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
         setUnreadNotifsCount(unread);
       } catch {
         // silent
+      }
+
+      if (isSuperAdmin) {
+        try {
+          const reqs = await api.getPaperRequests();
+          setPendingPaperReqsCount(reqs.filter((r) => r.status === 'pending').length);
+        } catch {}
       }
     };
 
@@ -319,6 +330,23 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             </button>
           )}
 
+          {/* Admin Paper Requests Button */}
+          {isSuperAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowPaperRequestsModal(true)}
+              className="relative p-1.5 sm:p-2 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
+              title="Student Paper Requests Manager"
+            >
+              <FileQuestion className="w-4 h-4" />
+              {pendingPaperReqsCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-amber-500 text-black rounded-full text-[9px] font-black flex items-center justify-center animate-pulse">
+                  {pendingPaperReqsCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Announcements & Notifications Bell */}
           <button
             type="button"
@@ -366,6 +394,15 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           isOpen={showNotificationsModal}
           onClose={() => setShowNotificationsModal(false)}
           onNotificationsCountChange={(cnt) => setUnreadNotifsCount(cnt)}
+        />
+      )}
+
+      {/* Admin Student Paper Requests Manager Modal */}
+      {showPaperRequestsModal && (
+        <PaperRequestsManagerModal
+          isOpen={showPaperRequestsModal}
+          onClose={() => setShowPaperRequestsModal(false)}
+          onRequestCountChange={(cnt) => setPendingPaperReqsCount(cnt)}
         />
       )}
     </>

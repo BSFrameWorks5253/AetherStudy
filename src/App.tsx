@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar, ActiveTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { LiquidBackground } from './components/layout/LiquidBackground';
+import { HomeScreen } from './components/home/HomeScreen';
 import { SplitWorkspace } from './components/workspace/SplitWorkspace';
 import { TestPapers } from './components/tests/TestPapers';
 import { TimetableGrid } from './components/timetable/TimetableGrid';
@@ -16,7 +17,7 @@ import { InAppNotificationToast } from './components/notifications/InAppNotifica
 import { api } from './services/api';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('workspace');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const { theme } = useTheme();
   const { isAuthenticated } = useAuth();
@@ -31,11 +32,10 @@ export const App: React.FC = () => {
         setActiveTab('timetable');
       } else if (path.startsWith('/syllabus')) {
         setActiveTab('syllabus');
-      } else if (path.startsWith('/studyroom') || path === '/' || path === '') {
+      } else if (path.startsWith('/studyroom')) {
         setActiveTab('workspace');
-        if (path === '/' || path === '') {
-          window.history.replaceState(null, '', '/studyroom');
-        }
+      } else if (path.startsWith('/home') || path === '/' || path === '') {
+        setActiveTab('home');
       }
     };
 
@@ -49,9 +49,20 @@ export const App: React.FC = () => {
     api.syncLocalDocumentsToCloud().catch(() => {});
   }, []);
 
-  const handleTabChange = (tab: ActiveTab) => {
+  const handleTabChange = (tab: ActiveTab, subjectOverride?: string) => {
+    if (subjectOverride && tab === 'workspace') {
+      try {
+        sessionStorage.setItem('aether_initial_room', subjectOverride);
+        window.dispatchEvent(new CustomEvent('aether_switch_room', { detail: { subject: subjectOverride } }));
+      } catch {}
+    }
+
     setActiveTab(tab);
-    if (tab === 'workspace') {
+    if (tab === 'home') {
+      if (window.location.pathname !== '/' && window.location.pathname !== '/home') {
+        window.history.pushState(null, '', '/home');
+      }
+    } else if (tab === 'workspace') {
       if (!window.location.pathname.startsWith('/studyroom')) {
         window.history.pushState(null, '', '/studyroom');
       }
@@ -66,6 +77,8 @@ export const App: React.FC = () => {
 
   const getTitle = () => {
     switch (activeTab) {
+      case 'home':
+        return 'AetherStudy • HSC Class 12 Commerce Command Center';
       case 'workspace':
         return 'HSC Subject Rooms • Class 12 Commerce';
       case 'tests':
@@ -98,6 +111,7 @@ export const App: React.FC = () => {
         {/* Dynamic Active Module Container */}
         <PullToRefresh className="flex-1 relative min-h-0 h-full">
           <main className="h-full w-full">
+            {activeTab === 'home' && <HomeScreen onNavigate={handleTabChange} />}
             {activeTab === 'workspace' && <SplitWorkspace />}
             {activeTab === 'tests' && <TestPapers />}
             {activeTab === 'timetable' && (

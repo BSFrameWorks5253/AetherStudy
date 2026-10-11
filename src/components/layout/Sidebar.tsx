@@ -11,13 +11,14 @@ import {
   LogIn,
   Lock,
   Sparkles,
+  LayoutDashboard,
   Printer,
 } from 'lucide-react';
 import { AetherLogo } from '../common/AetherLogo';
 import { useAuth } from '../../context/AuthContext';
 import { RevisionExporterModal } from '../common/RevisionExporterModal';
 
-export type ActiveTab = 'workspace' | 'tests' | 'timetable' | 'syllabus';
+export type ActiveTab = 'home' | 'workspace' | 'tests' | 'timetable' | 'syllabus';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -37,6 +38,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isBoardExamGrade = activeStandard === '10' || activeStandard === '12' || activeStandard === 'ALL' || isSuperAdmin;
 
   const navItems = [
+    {
+      id: 'home' as ActiveTab,
+      label: 'Home Hub',
+      mobileLabel: 'Home',
+      description: 'Dashboard & Quick Launch',
+      icon: LayoutDashboard,
+    },
     {
       id: 'workspace' as ActiveTab,
       label: 'Study Desk',
@@ -272,7 +280,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Mobile Apple Floating Spatial Dock (< 768px viewports) */}
       <nav
-        className="md:hidden fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))] left-3 right-3 z-40 ios-glass rounded-[28px] border border-black/[0.08] dark:border-white/[0.1] px-2 py-1.5 flex justify-around items-center shadow-2xl transition-all"
+        className="md:hidden fixed bottom-[calc(0.5rem+env(safe-area-inset-bottom,0px))] left-2 right-2 sm:left-4 sm:right-4 z-40 ios-glass rounded-[26px] border border-black/[0.08] dark:border-white/[0.1] px-1 py-1 flex justify-around items-center shadow-2xl transition-all backdrop-blur-2xl"
       >
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -283,26 +291,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={item.id}
               type="button"
               onClick={() => onTabChange(item.id)}
-              className={`flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-2xl transition-all ios-pill cursor-pointer active:scale-95 min-h-[48px] ${
+              className={`flex-1 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all ios-pill cursor-pointer active:scale-95 min-h-[46px] ${
                 isActive
-                  ? 'text-brand-600 dark:text-brand-400'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                  ? 'text-brand-600 dark:text-brand-400 font-bold'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white font-medium'
               }`}
             >
               <div
-                className={`p-1.5 rounded-2xl transition-all relative ${
-                  isActive ? 'bg-brand-500/15 text-brand-600 dark:text-brand-400 scale-105 shadow-xs' : ''
+                className={`p-1.5 rounded-xl transition-all relative ${
+                  isActive ? 'bg-brand-500/15 text-brand-600 dark:text-brand-400 scale-105 shadow-2xs' : ''
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-4.5 h-4.5" />
                 {isActive && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-brand-500 shadow-[0_0_6px_rgba(124,58,237,0.8)]" />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-brand-500 shadow-[0_0_6px_rgba(124,58,237,0.8)]" />
                 )}
               </div>
-              <span className={`text-[10px] mt-0.5 tracking-tight flex items-center justify-center gap-0.5 ${isActive ? 'font-black' : 'font-medium'}`}>
-                <span>{item.mobileLabel}</span>
+              <span className="text-[10px] tracking-tight leading-none mt-1 flex items-center justify-center gap-0.5 truncate max-w-full">
+                <span className="truncate">{item.mobileLabel}</span>
                 {(item.id === 'timetable' || item.id === 'syllabus') && !isAuthenticated && (
-                  <Lock className="w-2.5 h-2.5 text-amber-500" />
+                  <Lock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
                 )}
               </span>
             </button>
