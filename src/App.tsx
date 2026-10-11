@@ -111,7 +111,14 @@ export const App: React.FC = () => {
         {/* Dynamic Active Module Container */}
         <PullToRefresh className="flex-1 relative min-h-0 h-full">
           <main className="h-full w-full">
-            {activeTab === 'home' && <HomeScreen onNavigate={handleTabChange} />}
+            {activeTab === 'home' && (
+              <HomeScreen
+                onNavigate={handleTabChange}
+                onOpenPaperRequestModal={() => {
+                  window.dispatchEvent(new CustomEvent('aether_open_paper_request'));
+                }}
+              />
+            )}
             {activeTab === 'workspace' && <SplitWorkspace />}
             {activeTab === 'tests' && <TestPapers />}
             {activeTab === 'timetable' && (

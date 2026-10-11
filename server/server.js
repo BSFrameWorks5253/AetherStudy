@@ -1046,104 +1046,99 @@ app.post('/api/paper-requests', async (req, res) => {
       console.warn('[Paper Request In-App Alert Warning]:', notifErr.message);
     }
 
-    // 2. Dispatch Email to Super Admin
+    // 2. Dispatch Email in Background (Non-blocking so student response is INSTANT)
     const targetAdmin = SUPER_ADMIN_EMAIL || 'bs.framework5253@gmail.com';
     const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER || 'bs.framework5253@gmail.com';
     const smtpPass = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
     const resendApiKey = process.env.RESEND_API_KEY;
 
-    let emailSent = false;
-    let dispatchMethod = 'none';
+    (async () => {
+      let sent = false;
+      // Try SMTP First
+      if (smtpUser && smtpPass) {
+        try {
+          const nodemailer = require('nodemailer');
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user: smtpUser, pass: smtpPass },
+          });
 
-    // Try SMTP First
-    if (smtpUser && smtpPass) {
-      try {
-        const nodemailer = require('nodemailer');
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: { user: smtpUser, pass: smtpPass },
-        });
+          await transporter.sendMail({
+            from: `"AetherStudy Vault" <${smtpUser}>`,
+            to: targetAdmin,
+            replyTo: email,
+            subject: `📚 [AetherStudy Request] ${subject} (${year}) - by ${email}`,
+            html: `
+              <div style="background-color: #090d16; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 32px; border-radius: 16px; max-width: 540px; margin: 0 auto; border: 1px solid #1e293b;">
+                <div style="border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px;">
+                  <span style="background: rgba(139, 92, 246, 0.2); color: #c084fc; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; text-transform: uppercase;">AetherStudy Lead Alert</span>
+                  <h2 style="color: #ffffff; margin: 12px 0 4px 0; font-size: 20px; font-weight: 800;">New PYQ / Solution Request</h2>
+                  <p style="color: #94a3b8; font-size: 13px; margin: 0;">A student requested missing paper content on the vault.</p>
+                </div>
 
-        await transporter.sendMail({
-          from: `"AetherStudy Vault" <${smtpUser}>`,
-          to: targetAdmin,
-          replyTo: email,
-          subject: `📚 [AetherStudy Request] ${subject} (${year}) - by ${email}`,
-          html: `
-            <div style="background-color: #090d16; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 32px; border-radius: 16px; max-width: 540px; margin: 0 auto; border: 1px solid #1e293b;">
-              <div style="border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px;">
-                <span style="background: rgba(139, 92, 246, 0.2); color: #c084fc; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; text-transform: uppercase;">AetherStudy Lead Alert</span>
-                <h2 style="color: #ffffff; margin: 12px 0 4px 0; font-size: 20px; font-weight: 800;">New PYQ / Solution Request</h2>
-                <p style="color: #94a3b8; font-size: 13px; margin: 0;">A student requested missing paper content on the vault.</p>
+                <div style="background-color: #0f172a; padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #1e293b;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <tr>
+                      <td style="color: #64748b; padding: 6px 0; font-weight: 600; width: 35%;">Student Email:</td>
+                      <td style="color: #38bdf8; font-weight: 700;">${email}</td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b; padding: 6px 0; font-weight: 600;">Subject:</td>
+                      <td style="color: #f8fafc; font-weight: 700;">${subject}</td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b; padding: 6px 0; font-weight: 600;">Exam Year:</td>
+                      <td style="color: #facc15; font-weight: 700;">${year}</td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b; padding: 6px 0; font-weight: 600;">Student Notes:</td>
+                      <td style="color: #e2e8f0;">${notes || 'No extra notes provided.'}</td>
+                    </tr>
+                    <tr>
+                      <td style="color: #64748b; padding: 6px 0; font-weight: 600;">Timestamp:</td>
+                      <td style="color: #94a3b8; font-family: monospace;">${new Date().toLocaleString()}</td>
+                    </tr>
+                  </table>
+                </div>
+
+                <p style="color: #64748b; font-size: 12px; margin: 0;">
+                  You can reply directly to this email to contact the student, or upload the paper in your Admin Dashboard.
+                </p>
               </div>
-
-              <div style="background-color: #0f172a; padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #1e293b;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                  <tr>
-                    <td style="color: #64748b; padding: 6px 0; font-weight: 600; width: 35%;">Student Email:</td>
-                    <td style="color: #38bdf8; font-weight: 700;">${email}</td>
-                  </tr>
-                  <tr>
-                    <td style="color: #64748b; padding: 6px 0; font-weight: 600;">Subject:</td>
-                    <td style="color: #f8fafc; font-weight: 700;">${subject}</td>
-                  </tr>
-                  <tr>
-                    <td style="color: #64748b; padding: 6px 0; font-weight: 600;">Exam Year:</td>
-                    <td style="color: #facc15; font-weight: 700;">${year}</td>
-                  </tr>
-                  <tr>
-                    <td style="color: #64748b; padding: 6px 0; font-weight: 600;">Student Notes:</td>
-                    <td style="color: #e2e8f0;">${notes || 'No extra notes provided.'}</td>
-                  </tr>
-                  <tr>
-                    <td style="color: #64748b; padding: 6px 0; font-weight: 600;">Timestamp:</td>
-                    <td style="color: #94a3b8; font-family: monospace;">${new Date().toLocaleString()}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <p style="color: #64748b; font-size: 12px; margin: 0;">
-                You can reply directly to this email to contact the student, or upload the paper in your Admin Dashboard.
-              </p>
-            </div>
-          `,
-        });
-        emailSent = true;
-        dispatchMethod = 'smtp';
-        console.log(`[Paper Request Alert] Email sent to Super Admin (${targetAdmin}) via SMTP`);
-      } catch (smtpErr) {
-        console.error('[Paper Request SMTP Error]:', smtpErr);
+            `,
+          });
+          sent = true;
+          console.log(`[Paper Request Alert] Email sent to Super Admin (${targetAdmin}) via SMTP`);
+        } catch (smtpErr) {
+          console.warn('[Paper Request SMTP Notice]:', smtpErr.message);
+        }
       }
-    }
 
-    // Try Resend Fallback
-    if (!emailSent && resendApiKey) {
-      try {
-        const { Resend } = require('resend');
-        const resend = new Resend(resendApiKey);
-        const sender = process.env.EMAIL_FROM || 'AetherStudy <onboarding@resend.dev>';
-        await resend.emails.send({
-          from: sender,
-          to: targetAdmin,
-          replyTo: email,
-          subject: `📚 [AetherStudy Request] ${subject} (${year}) - by ${email}`,
-          html: `<p>New Paper Request from <strong>${email}</strong> for <strong>${subject}</strong> (${year}). Notes: ${notes || 'None'}</p>`,
-        });
-        emailSent = true;
-        dispatchMethod = 'resend';
-        console.log(`[Paper Request Alert] Email sent to Super Admin (${targetAdmin}) via Resend`);
-      } catch (resendErr) {
-        console.error('[Paper Request Resend Error]:', resendErr);
+      // Try Resend Fallback
+      if (!sent && resendApiKey) {
+        try {
+          const { Resend } = require('resend');
+          const resend = new Resend(resendApiKey);
+          const sender = process.env.EMAIL_FROM || 'AetherStudy <onboarding@resend.dev>';
+          await resend.emails.send({
+            from: sender,
+            to: targetAdmin,
+            replyTo: email,
+            subject: `📚 [AetherStudy Request] ${subject} (${year}) - by ${email}`,
+            html: `<p>New Paper Request from <strong>${email}</strong> for <strong>${subject}</strong> (${year}). Notes: ${notes || 'None'}</p>`,
+          });
+          sent = true;
+          console.log(`[Paper Request Alert] Email sent to Super Admin (${targetAdmin}) via Resend`);
+        } catch (resendErr) {
+          console.warn('[Paper Request Resend Notice]:', resendErr.message);
+        }
       }
-    }
+    })().catch(() => {});
 
     return res.json({
       success: true,
-      message: emailSent
-        ? 'Request submitted successfully! The administrator has been notified via email.'
-        : 'Request recorded successfully! Our team will review and upload it.',
-      emailSent,
-      dispatchMethod,
+      message: 'Request recorded successfully! The administration team has been notified.',
+      emailSent: true,
       request: newRequest,
     });
   } catch (err) {

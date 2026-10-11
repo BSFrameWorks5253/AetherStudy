@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { ActiveTab } from '../layout/Sidebar';
 import { PaperRequestsManagerModal } from '../vault/PaperRequestsManagerModal';
+import { StudentPaperRequestModal } from '../vault/StudentPaperRequestModal';
 import { RevisionExporterModal } from '../common/RevisionExporterModal';
 import { api } from '../../services/api';
 
@@ -32,6 +33,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const { currentUser, isSuperAdmin } = useAuth();
   const [showAdminRequestsModal, setShowAdminRequestsModal] = useState<boolean>(false);
+  const [showStudentRequestModal, setShowStudentRequestModal] = useState<boolean>(false);
   const [showDossierModal, setShowDossierModal] = useState<boolean>(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0);
   const [countdown, setCountdown] = useState<{ days: number; hours: number; mins: number }>({
@@ -446,7 +448,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 if (onOpenPaperRequestModal) {
                   onOpenPaperRequestModal();
                 } else {
-                  onNavigate('tests');
+                  setShowStudentRequestModal(true);
                 }
               }}
               className="w-full sm:w-auto px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -474,6 +476,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </section>
 
       {/* Modals */}
+      <StudentPaperRequestModal
+        isOpen={showStudentRequestModal}
+        onClose={() => setShowStudentRequestModal(false)}
+      />
+
       <PaperRequestsManagerModal
         isOpen={showAdminRequestsModal}
         onClose={() => setShowAdminRequestsModal(false)}

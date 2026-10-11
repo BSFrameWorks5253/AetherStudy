@@ -392,30 +392,37 @@ export const firebasePaperRequests = {
       localStorage.setItem('aetherstudy_paper_requests', JSON.stringify(stored));
     } catch {}
 
-    // 2. Write to Firestore Collection
+    // 2. Write to Realtime Database Feed (Fastest & direct)
     try {
-      await ensureFirebaseAuth();
-      const docRef = await addDoc(collection(db, 'paper_requests'), {
-        ...payload,
-        createdAt: firestoreServerTimestamp(),
-      });
-      generatedId = docRef.id;
-      cloudSuccess = true;
-    } catch (err) {
-      console.warn('[Firebase Firestore Paper Request Warning]:', err);
-    }
-
-    // 3. Write to Realtime Database Feed
-    try {
-      const rtdbFeedRef = ref(rtdb, 'paper_requests');
-      await push(rtdbFeedRef, {
-        ...payload,
-        id: generatedId,
-        serverTime: rtdbServerTimestamp(),
-      });
+      const rtdbTargetRef = ref(rtdb, `paper_requests/${generatedId}`);
+      await Promise.race([
+        set(rtdbTargetRef, {
+          ...payload,
+          id: generatedId,
+          serverTime: rtdbServerTimestamp(),
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('RTDB write timeout')), 2500)),
+      ]);
       cloudSuccess = true;
     } catch (err) {
       console.warn('[Firebase RTDB Paper Request Warning]:', err);
+    }
+
+    // 3. Backup to Firestore Collection (asynchronous best effort)
+    try {
+      Promise.race([
+        (async () => {
+          await ensureFirebaseAuth();
+          await addDoc(collection(db, 'paper_requests'), {
+            ...payload,
+            id: generatedId,
+            createdAt: firestoreServerTimestamp(),
+          });
+        })(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore write timeout')), 2500)),
+      ]).catch((err) => console.warn('[Firebase Firestore Paper Request Warning]:', err));
+    } catch (err) {
+      console.warn('[Firebase Firestore Paper Request Warning]:', err);
     }
 
     return { success: true, cloud: cloudSuccess, id: generatedId };
@@ -432,7 +439,7 @@ export const firebasePaperRequests = {
         const val = snapshot.val();
         if (val && typeof val === 'object') {
           const list = Object.keys(val).map((k) => ({
-            id: k,
+            id: val[k]?.id || k,
             ...val[k],
           }));
           list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));

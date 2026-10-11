@@ -26,6 +26,7 @@ import { triggerPWAInstall } from '../common/PWAInstallBanner';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { firebaseNotifications } from '../../services/firebase';
 import { PaperRequestsManagerModal } from '../vault/PaperRequestsManagerModal';
+import { StudentPaperRequestModal } from '../vault/StudentPaperRequestModal';
 
 interface HeaderProps {
   title: string;
@@ -51,6 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
   const [showPaperRequestsModal, setShowPaperRequestsModal] = useState<boolean>(false);
+  const [showStudentRequestModal, setShowStudentRequestModal] = useState<boolean>(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
   const [pendingPaperReqsCount, setPendingPaperReqsCount] = useState<number>(0);
   const [canInstall, setCanInstall] = useState<boolean>(false);
@@ -103,6 +105,17 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
     window.addEventListener('aetherstudy_announcements_read_change', handleReadChange);
     window.addEventListener('aether_open_notifications_modal', handleOpenModal);
 
+    const handleOpenStudentRequest = () => {
+      setShowStudentRequestModal(true);
+    };
+    const handlePaperRequestSubmitted = () => {
+      checkNotifs();
+      if (isSuperAdmin) setPendingPaperReqsCount((p) => p + 1);
+    };
+
+    window.addEventListener('aether_open_paper_request', handleOpenStudentRequest);
+    window.addEventListener('aether_paper_request_submitted', handlePaperRequestSubmitted);
+
     // Realtime notification sync & native phone notification tray alerts
     const unsubscribe = firebaseNotifications.subscribe((cloudNotifs) => {
       if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
@@ -121,6 +134,8 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
       clearInterval(interval);
       window.removeEventListener('aetherstudy_announcements_read_change', handleReadChange);
       window.removeEventListener('aether_open_notifications_modal', handleOpenModal);
+      window.removeEventListener('aether_open_paper_request', handleOpenStudentRequest);
+      window.removeEventListener('aether_paper_request_submitted', handlePaperRequestSubmitted);
       unsubscribe();
     };
   }, [activeStandard, isSuperAdmin]);
@@ -331,7 +346,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           )}
 
           {/* Admin Paper Requests Button */}
-          {isSuperAdmin && (
+          {isSuperAdmin ? (
             <button
               type="button"
               onClick={() => setShowPaperRequestsModal(true)}
@@ -344,6 +359,16 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
                   {pendingPaperReqsCount}
                 </span>
               )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowStudentRequestModal(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-xs font-bold transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
+              title="Request Missing Board Paper"
+            >
+              <FileQuestion className="w-3.5 h-3.5" />
+              <span>Request Paper</span>
             </button>
           )}
 
@@ -396,6 +421,12 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           onNotificationsCountChange={(cnt) => setUnreadNotifsCount(cnt)}
         />
       )}
+
+      {/* Student Paper Request Modal */}
+      <StudentPaperRequestModal
+        isOpen={showStudentRequestModal}
+        onClose={() => setShowStudentRequestModal(false)}
+      />
 
       {/* Admin Student Paper Requests Manager Modal */}
       {showPaperRequestsModal && (

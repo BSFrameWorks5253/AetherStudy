@@ -1052,44 +1052,68 @@ export const api = {
     year: string;
     notes: string;
   }): Promise<{ success: boolean; message: string; emailSent?: boolean; cloud?: boolean }> {
-    let cloudSynced = false;
+    const newReqItem: PaperRequest = {
+      id: 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      email: data.email.trim().toLowerCase(),
+      subject: data.subject,
+      year: data.year,
+      notes: data.notes,
+      submittedAt: new Date().toISOString(),
+      status: 'pending',
+    };
 
-    // 1. Immediately persist to Firebase Firestore and Realtime Database
-    try {
-      const fbRes = await firebasePaperRequests.submit(data);
-      cloudSynced = fbRes.cloud;
-    } catch (fbErr) {
-      console.warn('[Firebase Cloud Paper Request Warning]:', fbErr);
-    }
-
-    // 2. Also dispatch to backend server API if reachable
-    let serverEmailSent = false;
-    try {
-      const res = await fetch(`${API_BASE}/paper-requests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        serverEmailSent = Boolean(json.emailSent);
-      }
-    } catch (err) {
-      console.warn('[Paper Request API Error]:', err);
-    }
-
-    // 3. Fallback: persist in localStorage so requests are preserved offline
+    // 1. Immediately persist in localStorage so user's request is NEVER lost
     try {
       const stored = JSON.parse(localStorage.getItem('aetherstudy_paper_requests') || '[]');
-      stored.unshift({ ...data, submittedAt: new Date().toISOString() });
+      stored.unshift(newReqItem);
       localStorage.setItem('aetherstudy_paper_requests', JSON.stringify(stored));
     } catch {}
+
+    // 2. Concurrently dispatch to Backend Server API and Firebase Cloud
+    let serverEmailSent = false;
+    let cloudSynced = false;
+
+    const serverPromise = (async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(`${API_BASE}/paper-requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const json = await res.json();
+          serverEmailSent = Boolean(json.emailSent);
+          return true;
+        }
+      } catch (err) {
+        console.warn('[Paper Request Server Dispatch Notice]:', err);
+      }
+      return false;
+    })();
+
+    const firebasePromise = (async () => {
+      try {
+        const fbRes = await firebasePaperRequests.submit(data);
+        cloudSynced = Boolean(fbRes.cloud);
+        return true;
+      } catch (fbErr) {
+        console.warn('[Paper Request Firebase Cloud Notice]:', fbErr);
+      }
+      return false;
+    })();
+
+    // Await both with maximum 4 seconds total wait time
+    await Promise.allSettled([serverPromise, firebasePromise]);
 
     return {
       success: true,
       cloud: cloudSynced,
       emailSent: serverEmailSent || cloudSynced,
-      message: 'Request safely recorded in Firebase cloud vault and dispatched to Super Admin.',
+      message: 'Request safely recorded in academic vault and dispatched to Super Admin.',
     };
   },
 
