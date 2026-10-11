@@ -2591,38 +2591,37 @@ export const SubjectRooms: React.FC = () => {
         })()
       ) : activeRoom ? (
         /* ========================================================
-        /* ========================================================
-            VIEW 3: INSIDE A SPECIFIC SUBJECT ROOM
+            VIEW 2: DEDICATED SUBJECT ROOM VIEW
         ======================================================== */
-        <div className="flex flex-col h-full w-full overflow-y-auto animate-fade-in p-3 sm:p-5 md:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6">
-          {/* Room Header Banner (Mobile Optimized) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 p-3 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs relative shrink-0">
-            <div className="flex items-center space-x-2.5 sm:space-x-4 min-w-0 flex-1">
+        <div className="flex flex-col h-full w-full overflow-y-auto animate-fade-in p-3 sm:p-5 md:p-8 max-w-7xl mx-auto space-y-3 sm:space-y-6 pb-24 sm:pb-12">
+          {/* Room Header Banner (Streamlined & Mobile Optimized) */}
+          <div className="flex items-center justify-between gap-2 p-2.5 sm:p-4 md:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs shrink-0">
+            <div className="flex items-center space-x-2 sm:space-x-3.5 min-w-0 flex-1">
               <button
                 onClick={handleBackToOverview}
-                className="p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0 cursor-pointer active:scale-95"
+                className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors shrink-0 cursor-pointer active:scale-95"
                 title="Back to all subjects"
               >
                 <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
-              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
+              <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 shrink-0">
                 {currentRoomMeta ? (
-                  <currentRoomMeta.icon className="w-4 h-4 sm:w-6 sm:h-6" />
+                  <currentRoomMeta.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 ) : (
-                  <BookOpen className="w-4 h-4 sm:w-6 sm:h-6" />
+                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}
               </div>
 
-              <div className="min-w-0 flex-1 py-0.5">
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <h2 className="text-sm sm:text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight truncate">
                     {activeRoom}
                   </h2>
-                  <div className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-brand-500/10 dark:bg-brand-400/15 text-brand-700 dark:text-brand-300 border border-brand-500/20 dark:border-brand-400/25 shrink-0">
+                  <span className="hidden xs:inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-brand-500/10 dark:bg-brand-400/15 text-brand-700 dark:text-brand-300 border border-brand-500/20 dark:border-brand-400/25 shrink-0">
                     <GraduationCap className="w-3 h-3" />
-                    <span>Class 12 HSC</span>
-                  </div>
+                    <span>HSC 12</span>
+                  </span>
                 </div>
                 <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 leading-normal hidden sm:block">
                   {currentRoomMeta?.description || 'Dedicated Subject Room • Textbooks & Study Materials'}
@@ -2630,30 +2629,27 @@ export const SubjectRooms: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Room Actions (Compact and cleanly aligned on mobile) */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 self-end sm:self-center">
-              {canUpload && (
-                <>
-                  <button
-                    onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
-                    className="px-2.5 sm:px-3.5 py-1.5 sm:py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1 sm:space-x-1.5 transition-all cursor-pointer active:scale-95"
-                  >
-                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span>Upload PDF</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowBulkModal(true);
-                    }}
-                    className="p-1.5 sm:px-3.5 sm:py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1 sm:space-x-1.5 transition-all cursor-pointer active:scale-95"
-                    title="Upload complete folder of study notes or test papers"
-                  >
-                    <FolderUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Upload Folder</span>
-                  </button>
-                </>
-              )}
-            </div>
+            {/* Quick Room Actions (Admin only) */}
+            {isAdmin && (
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <button
+                  onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
+                  className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1 transition-all cursor-pointer active:scale-95"
+                  title="Upload PDF (Admin only)"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Upload PDF</span>
+                </button>
+                <button
+                  onClick={() => setShowBulkModal(true)}
+                  className="p-1.5 sm:px-3 sm:py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1 transition-all cursor-pointer active:scale-95"
+                  title="Upload complete folder of study notes or test papers (Admin only)"
+                >
+                  <FolderUp className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Folder</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Subject Room Sub-Navigation Tabs (Horizontal Smooth Touch-Scroll on Mobile) */}
@@ -3044,12 +3040,12 @@ export const SubjectRooms: React.FC = () => {
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                   </button>
-                                  {canUpload && (
+                                  {isAdmin && (
                                     <button
                                       type="button"
                                       onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
                                       className="px-2 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                                      title="Upload study note"
+                                      title="Upload study note (Admin only)"
                                     >
                                       <Plus className="w-3 h-3" />
                                       <span>Upload</span>
@@ -3070,7 +3066,7 @@ export const SubjectRooms: React.FC = () => {
               isLoading ? (
                 <CardSkeleton count={3} />
               ) : textbookDocs.length === 0 ? (
-                <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
+                <div className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
                   <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto border border-blue-100 dark:border-blue-900">
                     <BookOpen className="w-7 h-7" />
                   </div>
@@ -3091,7 +3087,7 @@ export const SubjectRooms: React.FC = () => {
                       </button>
                     </div>
                   )}
-                  {canUpload && (
+                  {isAdmin && (
                     <button
                       onClick={() => openUploadStudio({ subject: activeRoom, category: 'textbook' })}
                       className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
@@ -3142,12 +3138,12 @@ export const SubjectRooms: React.FC = () => {
                         <div
                           key={doc.id}
                           onClick={() => handleOpenDoc(doc)}
-                          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+                          className="p-3.5 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
                         >
                           <div>
-                            <div className="flex items-start justify-between gap-2 mb-3">
-                              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
-                                <BookOpen className="w-5 h-5" />
+                            <div className="flex items-start justify-between gap-2 mb-2.5">
+                              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
+                                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
                               </div>
 
                               <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -3169,20 +3165,20 @@ export const SubjectRooms: React.FC = () => {
                               </div>
                             </div>
 
-                            <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-2 leading-snug">
                               {doc.name || doc.originalName}
                             </h4>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
+                            <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-2">
                               <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
                               <span>•</span>
                               <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
                             {hasProgress ? (
                               <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                <Eye className="w-3.5 h-3.5" /> Resume Page {progress.currentPage}
+                                <Eye className="w-3.5 h-3.5" /> Resume p.{progress.currentPage}
                               </span>
                             ) : (
                               <span className="text-xs font-bold text-brand-600 dark:text-brand-400 flex items-center gap-1">
@@ -3191,7 +3187,7 @@ export const SubjectRooms: React.FC = () => {
                             )}
 
                             <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                              {canUpload && (
+                              {isAdmin && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -3200,7 +3196,7 @@ export const SubjectRooms: React.FC = () => {
                                     setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
                                   }}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                  title="Edit Chapter & Tag"
+                                  title="Edit Chapter & Tag (Admin only)"
                                 >
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
@@ -3215,11 +3211,11 @@ export const SubjectRooms: React.FC = () => {
                               >
                                 <Download className="w-3.5 h-3.5" />
                               </a>
-                              {canUpload && (
+                              {isAdmin && (
                                 <button
                                   onClick={(e) => handleDeleteDocument(doc.id, e)}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                                  title="Delete from room"
+                                  title="Delete from room (Admin only)"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -3247,11 +3243,11 @@ export const SubjectRooms: React.FC = () => {
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                     Official HSC Board revision summaries, chapter notes, and textbook guides for {activeRoom} will appear here.
                   </p>
-                  {canUpload && (
+                  {isAdmin && (
                     <div className="pt-2 flex items-center justify-center gap-2">
                       <button
                         onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
-                        className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                        className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                       >
                         <Plus className="w-4 h-4" />
                         <span>Upload Class {effectiveStandard} Notes</span>
@@ -3260,49 +3256,35 @@ export const SubjectRooms: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="space-y-5">
-                  {/* Notes Control Bar: View Switcher, Search, and Quick Actions (Mobile Optimized) */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 p-2.5 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                <div className="space-y-3 sm:space-y-4">
+                  {/* Notes Control Bar: View Switcher & Search (Clean & Mobile Optimized) */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-2 sm:p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
                     {/* View Switcher: Segmented Controller */}
-                    <div className="flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto shrink-0">
-                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-1 sm:flex-none">
-                        <button
-                          type="button"
-                          onClick={() => setNotesViewMode('chapter')}
-                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                            notesViewMode === 'chapter'
-                              ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                          }`}
-                        >
-                          <List className="w-3.5 h-3.5" />
-                          <span>By Chapter</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNotesViewMode('grid')}
-                          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                            notesViewMode === 'grid'
-                              ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                          }`}
-                        >
-                          <Grid className="w-3.5 h-3.5" />
-                          <span>All Notes ({filteredNotesDocs.length})</span>
-                        </button>
-                      </div>
-
-                      {canUpload && (
-                        <button
-                          type="button"
-                          onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
-                          className="sm:hidden px-2.5 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1 active:scale-95"
-                          title="Upload note"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Upload</span>
-                        </button>
-                      )}
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setNotesViewMode('chapter')}
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          notesViewMode === 'chapter'
+                            ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <List className="w-3.5 h-3.5" />
+                        <span>By Chapter</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotesViewMode('grid')}
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          notesViewMode === 'grid'
+                            ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Grid className="w-3.5 h-3.5" />
+                        <span>All Notes ({filteredNotesDocs.length})</span>
+                      </button>
                     </div>
 
                     {/* Search and Action Buttons */}
@@ -3336,17 +3318,6 @@ export const SubjectRooms: React.FC = () => {
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span className="hidden sm:inline">{isPurgingNotes ? 'Resetting...' : 'Reset DB'}</span>
-                        </button>
-                      )}
-
-                      {canUpload && (
-                        <button
-                          type="button"
-                          onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
-                          className="hidden sm:flex px-3 sm:px-3.5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Upload</span>
                         </button>
                       )}
                     </div>
@@ -3541,12 +3512,12 @@ export const SubjectRooms: React.FC = () => {
                                       {allChDocs.length} {allChDocs.length === 1 ? 'PDF' : 'PDFs'}
                                     </span>
 
-                                    {canUpload && (
+                                    {isAdmin && (
                                       <button
                                         type="button"
                                         onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
                                         className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95"
-                                        title={`Upload notes directly to ${ch.number}`}
+                                        title={`Upload notes directly to ${ch.number} (Admin only)`}
                                       >
                                         <Plus className="w-3.5 h-3.5" />
                                         <span>Add PDF</span>
@@ -3604,7 +3575,7 @@ export const SubjectRooms: React.FC = () => {
                                             <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/60">
                                               {hasProgress ? (
                                                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                                  <Eye className="w-3 h-3" /> Resume
+                                                  <Eye className="w-3 h-3" /> Resume p.{progress.currentPage}
                                                 </span>
                                               ) : (
                                                 <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
@@ -3613,7 +3584,7 @@ export const SubjectRooms: React.FC = () => {
                                               )}
 
                                               <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                                                {canUpload && (
+                                                {isAdmin && (
                                                   <button
                                                     onClick={(e) => {
                                                       e.stopPropagation();
@@ -3622,7 +3593,7 @@ export const SubjectRooms: React.FC = () => {
                                                       setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
                                                     }}
                                                     className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                                    title="Edit Chapter & Tag"
+                                                    title="Edit Chapter & Tag (Admin only)"
                                                   >
                                                     <Edit3 className="w-3.5 h-3.5" />
                                                   </button>
@@ -3637,11 +3608,11 @@ export const SubjectRooms: React.FC = () => {
                                                 >
                                                   <Download className="w-3.5 h-3.5" />
                                                 </a>
-                                                {canUpload && (
+                                                {isAdmin && (
                                                   <button
                                                     onClick={(e) => handleDeleteDocument(doc.id, e)}
                                                     className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
-                                                    title="Delete document"
+                                                    title="Delete document (Admin only)"
                                                   >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                   </button>
@@ -3675,7 +3646,7 @@ export const SubjectRooms: React.FC = () => {
                           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                             Add study material PDFs or select an empty chapter below to attach notes.
                           </p>
-                          {canUpload && (
+                          {isAdmin && (
                             <button
                               type="button"
                               onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
@@ -3741,7 +3712,7 @@ export const SubjectRooms: React.FC = () => {
                                       <Eye className="w-3 h-3" /> Read PDF
                                     </span>
                                     <div className="flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
-                                      {canUpload && (
+                                      {isAdmin && (
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -3750,7 +3721,7 @@ export const SubjectRooms: React.FC = () => {
                                             setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
                                           }}
                                           className="p-1 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                                          title="Edit Chapter & Tag"
+                                          title="Edit Chapter & Tag (Admin only)"
                                         >
                                           <Edit3 className="w-3.5 h-3.5" />
                                         </button>
@@ -3764,10 +3735,11 @@ export const SubjectRooms: React.FC = () => {
                                       >
                                         <Download className="w-3.5 h-3.5" />
                                       </a>
-                                      {canUpload && (
+                                      {isAdmin && (
                                         <button
                                           onClick={(e) => handleDeleteDocument(doc.id, e)}
                                           className="p-1 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                                          title="Delete document (Admin only)"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
@@ -3817,12 +3789,12 @@ export const SubjectRooms: React.FC = () => {
                                     </h4>
                                   </div>
 
-                                  {canUpload && (
+                                  {isAdmin && (
                                     <button
                                       type="button"
                                       onClick={() => openUploadStudio({ subject: activeRoom, chapterNumber: ch.number, chapterTitle: ch.title, category: 'notes' })}
                                       className="px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded-lg transition-colors flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
-                                      title={`Upload notes for ${ch.number}`}
+                                      title={`Upload notes for ${ch.number} (Admin only)`}
                                     >
                                       <Plus className="w-3 h-3" />
                                       <span>+ Upload</span>
@@ -3850,12 +3822,12 @@ export const SubjectRooms: React.FC = () => {
                           <div
                             key={doc.id}
                             onClick={() => handleOpenDoc(doc)}
-                            className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500/50 dark:hover:border-amber-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
+                            className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500/50 dark:hover:border-amber-500/50 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
                           >
                             <div>
-                              <div className="flex items-start justify-between gap-2 mb-3">
-                                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-100 dark:border-amber-900">
-                                  <FileText className="w-5 h-5" />
+                              <div className="flex items-start justify-between gap-2 mb-2.5">
+                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-100 dark:border-amber-900">
+                                  <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
 
                                 <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -3889,20 +3861,20 @@ export const SubjectRooms: React.FC = () => {
                                 </div>
                               </div>
 
-                              <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2 leading-snug">
                                 {doc.name || doc.originalName}
                               </h4>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
+                              <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-2">
                                 <span>{doc.size || `${((doc.sizeBytes || 0) / (1024 * 1024)).toFixed(2)} MB`}</span>
                                 <span>•</span>
                                 <span>Class {toRomanStandard(doc.standard || activeStandard)}</span>
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-slate-800">
                               {hasProgress ? (
                                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                  <Eye className="w-3.5 h-3.5" /> Resume Page {progress.currentPage}
+                                  <Eye className="w-3.5 h-3.5" /> Resume p.{progress.currentPage}
                                 </span>
                               ) : (
                                 <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
@@ -3935,11 +3907,11 @@ export const SubjectRooms: React.FC = () => {
                                 >
                                   <Download className="w-3.5 h-3.5" />
                                 </a>
-                                {canUpload && (
+                                {isAdmin && (
                                   <button
                                     onClick={(e) => handleDeleteDocument(doc.id, e)}
                                     className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                                    title="Delete from room"
+                                    title="Delete from room (Admin only)"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -3968,30 +3940,30 @@ export const SubjectRooms: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {roomPyqPapers.map((paper) => (
                       <div
                         key={paper.id}
-                        className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-500 transition-all flex flex-col justify-between"
+                        className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-500 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
                       >
-                        <div className="space-y-3">
+                        <div className="space-y-2.5 sm:space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                            <span className="text-[11px] sm:text-xs font-mono font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                               {paper.year} Board Exam
                             </span>
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                               {paper.examType || 'PYQ'}
                             </span>
                           </div>
-                          <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
                             {paper.title}
                           </h4>
-                          <p className="text-[11px] text-slate-500">
+                          <p className="text-[10px] sm:text-[11px] text-slate-500">
                             {paper.totalMarks || 80} Marks • {paper.durationMinutes || 180} Mins
                           </p>
                         </div>
 
-                        <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                        <div className="pt-3 sm:pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2">
                           <button
                             onClick={() => handleOpenDoc({
                               id: paper.id,
@@ -4005,7 +3977,7 @@ export const SubjectRooms: React.FC = () => {
                               uploadedBy: paper.uploadedBy,
                               uploadedAt: paper.uploadedAt,
                             })}
-                            className={`py-2 px-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all ${
+                            className={`py-2 px-3 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all ${
                               paper.answerKeyPdfUrl && paper.answerKeyPdfUrl.trim() !== '' && paper.answerKeyPdfUrl !== paper.questionPdfUrl
                                 ? 'flex-1'
                                 : 'w-full'
@@ -4028,7 +4000,7 @@ export const SubjectRooms: React.FC = () => {
                                 uploadedBy: paper.uploadedBy,
                                 uploadedAt: paper.uploadedAt,
                               })}
-                              className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all"
+                              className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>Model Solution</span>
@@ -4047,37 +4019,37 @@ export const SubjectRooms: React.FC = () => {
         /* ========================================================
             VIEW 3: SUBJECT ROOMS OVERVIEW GRID (DESK HOME)
         ======================================================== */
-        <div className="flex flex-col h-full w-full overflow-y-auto p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-          {/* Cinematic Heroic Banner for HSC Class 12 Commerce */}
-          <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-brand-900/15 via-purple-900/10 to-transparent dark:from-brand-950/50 dark:via-purple-950/30 dark:to-transparent border border-brand-500/20 dark:border-brand-400/25 shadow-2xl backdrop-blur-xl shrink-0">
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              <div className="space-y-3 max-w-2xl">
-                <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300 border border-brand-500/25 text-[11px] font-bold uppercase tracking-wider">
+        <div className="flex flex-col h-full w-full overflow-y-auto p-3 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6 pb-24 sm:pb-12">
+          {/* Cinematic Heroic Banner for HSC Class 12 Commerce (Mobile Optimized) */}
+          <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl p-4 sm:p-7 md:p-8 bg-gradient-to-br from-brand-900/15 via-purple-900/10 to-transparent dark:from-brand-950/50 dark:via-purple-950/30 dark:to-transparent border border-brand-500/20 dark:border-brand-400/25 shadow-xl backdrop-blur-xl shrink-0">
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
+              <div className="space-y-2 sm:space-y-3 max-w-2xl">
+                <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300 border border-brand-500/25 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider">
                   <Sparkles className="w-3.5 h-3.5 text-brand-500 animate-pulse" />
-                  <span>Maharashtra State Board • HSC Class 12 Commerce Edition</span>
+                  <span>Maharashtra State Board • HSC Class 12 Commerce</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
                   Academic Subject Rooms & Vault
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
                   Official Balbharati textbooks, handwritten toppers notes, solution keys, and past 10-year Maharashtra State Board examination papers.
                 </p>
                 {/* Feature highlight tags */}
-                <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  <span className="px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5 text-brand-500" /> 9 Board Subject Rooms
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1 text-[10px] sm:text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
+                    <BookOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand-500" /> 9 Board Rooms
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> 100% Maharashtra HSC Portion
+                  <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
+                    <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-500" /> 100% HSC Portion
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-sky-500" /> Continuous Scroll PDF Reader
+                  <span className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06] flex items-center gap-1.5">
+                    <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-500" /> Continuous Scroll Reader
                   </span>
                 </div>
               </div>
 
-              {canUpload && (
-                <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start lg:self-center">
+              {isAdmin && (
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 self-start lg:self-center">
                   <button
                     onClick={() => {
                       openUploadStudio({
@@ -4085,14 +4057,14 @@ export const SubjectRooms: React.FC = () => {
                         category: 'notes',
                       });
                     }}
-                    className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-500/25 flex items-center space-x-2 transition-all cursor-pointer hover:scale-[1.02]"
+                    className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-500/25 flex items-center space-x-1.5 transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Upload Notes / Textbook</span>
                   </button>
                   <button
                     onClick={() => setShowBulkModal(true)}
-                    className="px-4 py-2.5 bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl border border-black/[0.06] dark:border-white/[0.08] flex items-center space-x-2 transition-all cursor-pointer"
+                    className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl border border-black/[0.06] dark:border-white/[0.08] flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
                     title="Bulk upload and auto-segregate complete folders of study materials"
                   >
                     <FolderUp className="w-4 h-4" />
@@ -4115,7 +4087,7 @@ export const SubjectRooms: React.FC = () => {
               <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Subject rooms will appear here once loaded.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6">
               {filteredDeskSubjects.map((sub) => {
                 const Icon = sub.icon;
                 const metrics = subjectMetricsMap[sub.name] || { directDocsCount: 0, tBooks: 0, nDocs: 0, pCount: 0 };
@@ -4126,16 +4098,16 @@ export const SubjectRooms: React.FC = () => {
                 return (
                   <div
                     key={sub.name}
-                    className="p-6 rounded-[28px] bg-white/95 dark:bg-slate-900/95 border-2 border-slate-200 dark:border-slate-800/90 hover:border-indigo-500/60 dark:hover:border-indigo-400/60 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all group flex flex-col justify-between relative overflow-hidden"
+                    className="p-4 sm:p-6 rounded-2xl sm:rounded-[28px] bg-white/95 dark:bg-slate-900/95 border-2 border-slate-200 dark:border-slate-800/90 hover:border-indigo-500/60 dark:hover:border-indigo-400/60 shadow-md hover:shadow-2xl transition-all group flex flex-col justify-between relative overflow-hidden"
                   >
                     {/* Top vibrant gradient highlight strip */}
-                    <div className={`absolute top-0 left-0 right-0 h-2 bg-gradient-to-r ${sub.colorGradient}`} />
+                    <div className={`absolute top-0 left-0 right-0 h-1.5 sm:h-2 bg-gradient-to-r ${sub.colorGradient}`} />
 
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <div className="flex items-center justify-between">
                         <div
                           onClick={() => handleSelectRoom(sub.name)}
-                          className={`w-13 h-13 rounded-2xl bg-gradient-to-br ${sub.colorGradient} flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-110 group-hover:rotate-1 transition-all cursor-pointer`}
+                          className={`w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-gradient-to-br ${sub.colorGradient} flex items-center justify-center text-white shadow-md sm:shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-all cursor-pointer`}
                         >
                           <Icon className="w-7 h-7" />
                         </div>
