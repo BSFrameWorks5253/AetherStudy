@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePomodoro } from '../../context/PomodoroContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +21,8 @@ import {
   Download,
   GraduationCap,
   FileQuestion,
+  User,
+  ChevronDown,
 } from 'lucide-react';
 import { triggerPWAInstall } from '../common/PWAInstallBanner';
 import { nativeNotifications } from '../../services/nativeNotifications';
@@ -50,12 +52,16 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
+  const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
   const [showPaperRequestsModal, setShowPaperRequestsModal] = useState<boolean>(false);
   const [showStudentRequestModal, setShowStudentRequestModal] = useState<boolean>(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
   const [pendingPaperReqsCount, setPendingPaperReqsCount] = useState<number>(0);
   const [canInstall, setCanInstall] = useState<boolean>(false);
+
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const timerMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const isStandaloneMode =
@@ -65,7 +71,22 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
     setCanInstall(!isStandaloneMode);
   }, []);
 
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+      if (timerMenuRef.current && !timerMenuRef.current.contains(event.target as Node)) {
+        setShowTimerPopover(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleHeaderInstall = async () => {
+    setShowProfileMenu(false);
     const res = await triggerPWAInstall();
     if (res === 'ios') {
       alert('To install on iPhone/iPad:\n1. Tap the Share button [⎋] in Safari\n2. Select "Add to Home Screen" [+]\n3. Tap "Add" in top-right corner.');
@@ -121,7 +142,6 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
       if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
         const unread = nativeNotifications.getUnreadCount(cloudNotifs);
         setUnreadNotifsCount(unread);
-        // Process up to 3 recent notifications
         cloudNotifs.slice(0, 3).forEach((n) => {
           if (n) {
             nativeNotifications.notifyIfNew(n);
@@ -141,6 +161,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   }, [activeStandard, isSuperAdmin]);
 
   const toggleFullscreen = () => {
+    setShowProfileMenu(false);
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
     } else {
@@ -149,15 +170,15 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   };
 
   // Split title into short mobile header vs full desktop title
-  const [shortTitle] = title.includes('•') ? title.split('•').map(s => s.trim()) : [title];
+  const [shortTitle] = title.includes('•') ? title.split('•').map((s) => s.trim()) : [title];
 
   return (
     <>
-      <header className="pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:h-16 px-2.5 sm:px-4 md:px-7 ios-glass border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between select-none z-30 sticky top-0 transition-all">
+      <header className="pt-[env(safe-area-inset-top,0px)] h-[calc(3.5rem+env(safe-area-inset-top,0px))] md:h-16 px-3 sm:px-5 md:px-7 ios-glass border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between select-none z-30 sticky top-0 transition-all">
         {/* Module Title with Apple SF Pro Hierarchy */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2.5 min-w-0 flex-1 mr-1.5 sm:mr-3">
-          <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(124,58,237,0.6)] shrink-0 hidden sm:block" />
-          <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-900 dark:text-white truncate sm:hidden">
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 mr-2 sm:mr-4">
+          <div className="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_8px_rgba(124,58,237,0.5)] shrink-0 hidden sm:block" />
+          <span className="text-xs sm:text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate sm:hidden">
             {shortTitle}
           </span>
           <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate hidden sm:inline">
@@ -165,93 +186,40 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           </span>
         </div>
 
-        {/* Header Right Actions - Apple Spatial Capsule Layout */}
-        <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
-          {/* Dedicated Class 12 HSC Commerce Board Pill */}
-          <div className="hidden sm:flex items-center space-x-1.5 sm:space-x-2 bg-gradient-to-r from-brand-500/15 to-purple-500/15 border border-brand-500/25 dark:border-brand-400/30 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 select-none shadow-xs">
+        {/* Header Right Actions - Clean, Executive Layout */}
+        <div className="flex items-center space-x-1.5 sm:space-x-2.5 shrink-0">
+          {/* Subtle Board Pill */}
+          <div className="hidden xl:flex items-center space-x-2 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-full px-3 py-1 select-none">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <GraduationCap className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
-            <span className="text-xs font-black tracking-tight text-brand-700 dark:text-brand-300">
+            <span className="text-xs font-semibold tracking-tight text-slate-700 dark:text-slate-200">
               Class 12 HSC
             </span>
-            <span className="hidden lg:inline text-[10px] font-semibold text-slate-500 dark:text-slate-400 border-l border-brand-500/20 pl-2">
-              MSBSHSE Commerce
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 border-l border-slate-200 dark:border-slate-700 pl-2">
+              Commerce
             </span>
           </div>
 
-          {/* User Profile Capsule */}
-          {isAuthenticated ? (
-            <div className="flex items-center space-x-1 sm:space-x-1.5">
-              <button
-                type="button"
-                onClick={openAuthModal}
-                className="flex items-center space-x-1.5 p-1 sm:px-3 sm:py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] border border-black/[0.04] dark:border-white/[0.06] text-xs font-medium text-slate-800 dark:text-slate-200 transition-all ios-pill cursor-pointer"
-                title="Account Settings"
-              >
-                <div className="w-6 h-6 sm:w-5 sm:h-5 rounded-full bg-brand-500/15 dark:bg-brand-400/20 text-brand-600 dark:text-brand-300 flex items-center justify-center font-bold text-[11px] sm:text-[10px] shrink-0">
-                  {currentUser?.email.charAt(0).toUpperCase()}
-                </div>
-                <span className="hidden md:inline max-w-[110px] truncate text-xs font-medium">
-                  {currentUser?.email.split('@')[0]}
-                </span>
-                <span
-                  className={`hidden sm:inline text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    isSuperAdmin
-                      ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
-                      : currentUser?.role === 'ADMIN'
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                      : 'bg-black/[0.05] dark:bg-white/[0.08] text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  {isSuperAdmin ? 'Admin' : currentUser?.role === 'ADMIN' ? 'Faculty' : 'Student'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Log out of AetherStudy? You can return anytime.')) {
-                    logout();
-                  }
-                }}
-                className="hidden md:flex p-2 rounded-full hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition-colors"
-                title="Log Out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={openAuthModal}
-              className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold tracking-tight shadow-sm transition-all ios-pill cursor-pointer active:scale-95"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Sign In</span>
-            </button>
-          )}
-
           {/* Apple Dynamic Island Style Focus Timer */}
-          <div className="relative">
+          <div className="relative" ref={timerMenuRef}>
             <button
               type="button"
               onClick={() => setShowTimerPopover(!showTimerPopover)}
-              className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-full border transition-all ios-pill cursor-pointer active:scale-95 ${
+              className={`flex items-center space-x-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full border transition-all ios-pill cursor-pointer active:scale-95 ${
                 isRunning
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
-                  : 'bg-black/[0.04] dark:bg-white/[0.07] border-black/[0.04] dark:border-white/[0.06] text-slate-700 dark:text-slate-200'
+                  : 'bg-black/[0.03] dark:bg-white/[0.06] border-black/[0.04] dark:border-white/[0.07] text-slate-700 dark:text-slate-200 hover:bg-black/[0.06] dark:hover:bg-white/[0.1]'
               }`}
               title="Focus Timer"
             >
               <Timer className={`w-3.5 h-3.5 shrink-0 ${isRunning ? 'animate-spin' : ''}`} />
-              <span className="font-mono text-[11px] sm:text-xs font-semibold tracking-tight">
+              <span className="font-mono text-xs font-semibold tracking-tight">
                 {formatSecondsToTime(timeLeft)}
               </span>
               {activeSubject && (
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 border-l border-slate-300 dark:border-slate-700 pl-2 max-w-[80px] truncate hidden md:inline">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 border-l border-slate-300 dark:border-slate-700 pl-1.5 max-w-[70px] truncate hidden md:inline">
                   {activeSubject}
                 </span>
               )}
@@ -259,10 +227,10 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
             {/* iOS Floating Island Popover */}
             {showTimerPopover && (
-              <div className="fixed sm:absolute top-16 sm:top-full right-3 sm:right-0 mt-1 sm:mt-3 w-[calc(100vw-1.5rem)] sm:w-72 max-w-sm ios-glass rounded-[24px] p-5 shadow-2xl z-50 animate-fade-in text-center border border-black/[0.08] dark:border-white/[0.1]">
+              <div className="fixed sm:absolute top-16 sm:top-full right-3 sm:right-0 mt-2 w-[calc(100vw-1.5rem)] sm:w-72 max-w-sm ios-glass rounded-[24px] p-5 shadow-2xl z-50 animate-fade-in text-center border border-black/[0.08] dark:border-white/[0.1]">
                 <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/[0.08] text-xs font-semibold text-slate-800 dark:text-slate-200">
                   <span>Focus Block Timer</span>
-                  <span className="text-[10px] text-brand-600 dark:text-brand-400 font-mono">
+                  <span className="text-[11px] text-brand-600 dark:text-brand-400 font-mono font-semibold">
                     {mode === 'work' ? 'Study' : 'Rest'}
                   </span>
                 </div>
@@ -332,30 +300,17 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             )}
           </div>
 
-          {/* Install App Capsule */}
-          {canInstall && (
-            <button
-              type="button"
-              onClick={handleHeaderInstall}
-              className="hidden xs:flex items-center space-x-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-300 hover:bg-brand-500/20 border border-brand-500/20 text-xs font-semibold transition-all ios-pill cursor-pointer active:scale-95"
-              title="Install AetherStudy"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Install</span>
-            </button>
-          )}
-
-          {/* Admin Paper Requests Button */}
+          {/* Paper Request Action */}
           {isSuperAdmin ? (
             <button
               type="button"
               onClick={() => setShowPaperRequestsModal(true)}
-              className="relative p-1.5 sm:p-2 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
+              className="relative p-2 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
               title="Student Paper Requests Manager"
             >
               <FileQuestion className="w-4 h-4" />
               {pendingPaperReqsCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-amber-500 text-black rounded-full text-[9px] font-black flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-amber-500 text-black rounded-full text-[9px] font-bold flex items-center justify-center animate-pulse">
                   {pendingPaperReqsCount}
                 </span>
               )}
@@ -364,10 +319,10 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             <button
               type="button"
               onClick={() => setShowStudentRequestModal(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/20 text-xs font-bold transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
-              title="Request Missing Board Paper"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.07] text-xs font-medium transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
+              title="Request Missing Board Paper or Solution"
             >
-              <FileQuestion className="w-3.5 h-3.5" />
+              <FileQuestion className="w-3.5 h-3.5 text-amber-500" />
               <span>Request Paper</span>
             </button>
           )}
@@ -376,7 +331,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           <button
             type="button"
             onClick={() => setShowNotificationsModal(true)}
-            className="relative p-1.5 sm:p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
+            className="relative p-2 rounded-full bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.07] transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
             title="Official Announcements"
           >
             <Bell className="w-4 h-4" />
@@ -387,11 +342,11 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             )}
           </button>
 
-          {/* Theme Toggle Capsule */}
+          {/* Theme Toggle */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-1.5 sm:p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
+            className="p-2 rounded-full bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.07] transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {theme === 'dark' ? (
@@ -401,15 +356,151 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             )}
           </button>
 
-          {/* Fullscreen Toggle */}
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="p-2 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-slate-700 dark:text-slate-200 border border-black/[0.04] dark:border-white/[0.06] transition-all hidden sm:flex ios-pill cursor-pointer"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
+          {/* Consolidated Executive User Profile Menu */}
+          <div className="relative" ref={profileMenuRef}>
+            {isAuthenticated ? (
+              <button
+                type="button"
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center space-x-1.5 p-1 pl-1.5 pr-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border border-black/[0.05] dark:border-white/[0.08] text-xs font-medium text-slate-800 dark:text-slate-200 transition-all ios-pill cursor-pointer active:scale-95"
+                title="Account Menu"
+              >
+                <div className="w-6 h-6 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-[11px] shrink-0 shadow-xs">
+                  {currentUser?.email.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden md:inline max-w-[95px] truncate text-xs font-medium">
+                  {currentUser?.email.split('@')[0]}
+                </span>
+                <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openAuthModal}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold tracking-tight shadow-sm transition-all ios-pill cursor-pointer active:scale-95"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+            )}
+
+            {/* Apple Spatial Profile Menu Popover */}
+            {showProfileMenu && isAuthenticated && (
+              <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl ios-glass border border-black/[0.08] dark:border-white/[0.1] shadow-2xl p-2 z-50 animate-fade-in text-left">
+                {/* User Identity Header */}
+                <div className="p-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.04] dark:border-white/[0.06] mb-1.5">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                      {currentUser?.email.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                        {currentUser?.email.split('@')[0]}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {currentUser?.email}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        isSuperAdmin
+                          ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
+                          : currentUser?.role === 'ADMIN'
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-black/[0.05] dark:bg-white/[0.08] text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {isSuperAdmin ? 'Administrator' : currentUser?.role === 'ADMIN' ? 'Faculty Admin' : 'Class 12 Student'}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">Class XII</span>
+                  </div>
+                </div>
+
+                {/* Menu Action Items */}
+                <div className="space-y-0.5 py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      openAuthModal();
+                    }}
+                    className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                  >
+                    <User className="w-4 h-4 text-slate-400" />
+                    <span>Account Profile</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={toggleFullscreen}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-2.5">
+                      {isFullscreen ? (
+                        <Minimize2 className="w-4 h-4 text-slate-400" />
+                      ) : (
+                        <Maximize2 className="w-4 h-4 text-slate-400" />
+                      )}
+                      <span>{isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-400">F11</span>
+                  </button>
+
+                  {canInstall && (
+                    <button
+                      type="button"
+                      onClick={handleHeaderInstall}
+                      className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-500/10 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-4 h-4 text-brand-500" />
+                      <span>Install Web App</span>
+                    </button>
+                  )}
+
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        setShowPaperRequestsModal(true);
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <FileQuestion className="w-4 h-4 text-amber-500" />
+                        <span>Paper Requests Manager</span>
+                      </div>
+                      {pendingPaperReqsCount > 0 && (
+                        <span className="px-1.5 py-0.2 bg-amber-500 text-black rounded-full text-[10px] font-bold">
+                          {pendingPaperReqsCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Sign Out Divider */}
+                <div className="pt-1 mt-1 border-t border-black/[0.06] dark:border-white/[0.08]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      if (window.confirm('Sign out of AetherStudy? You can sign back in anytime.')) {
+                        logout();
+                      }
+                    }}
+                    className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -440,3 +531,4 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   );
 };
 export default Header;
+

@@ -4188,46 +4188,46 @@ export const SubjectRooms: React.FC = () => {
                 return (
                   <div
                     key={sub.name}
-                    className="p-4 sm:p-6 rounded-2xl sm:rounded-[28px] bg-white/95 dark:bg-slate-900/95 border-2 border-slate-200 dark:border-slate-800/90 hover:border-indigo-500/60 dark:hover:border-indigo-400/60 shadow-md hover:shadow-2xl transition-all group flex flex-col justify-between relative overflow-hidden"
+                    className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 hover:border-brand-500/40 dark:hover:border-brand-400/40 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between relative overflow-hidden backdrop-blur-md"
                   >
-                    {/* Top vibrant gradient highlight strip */}
-                    <div className={`absolute top-0 left-0 right-0 h-1.5 sm:h-2 bg-gradient-to-r ${sub.colorGradient}`} />
+                    {/* Top ambient color accent hairline */}
+                    <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${sub.colorGradient} opacity-80 group-hover:opacity-100 transition-opacity`} />
 
                     <div className="space-y-3 sm:space-y-4">
                       <div className="flex items-center justify-between">
                         <div
                           onClick={() => handleSelectRoom(sub.name)}
-                          className={`w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-gradient-to-br ${sub.colorGradient} flex items-center justify-center text-white shadow-md sm:shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-all cursor-pointer`}
+                          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${sub.colorGradient} flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-all cursor-pointer`}
                         >
-                          <Icon className="w-7 h-7" />
+                          <Icon className="w-6 h-6" />
                         </div>
 
-                        <span className={`text-[11px] font-black px-3 py-1 rounded-full border shadow-xs ${sub.badgeColor}`}>
+                        <span className={`text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${sub.badgeColor}`}>
                           {sub.code}
                         </span>
                       </div>
 
                       <div onClick={() => handleSelectRoom(sub.name)} className="cursor-pointer space-y-1">
-                        <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors tracking-tight">
                           {sub.name}
                         </h3>
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 line-clamp-2 leading-relaxed">
+                        <p className="text-xs font-normal text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
                           {sub.description}
                         </p>
                       </div>
 
-                      {/* Fast Navigation Action Pills (High Contrast & Colorful) */}
-                      <div className="flex items-center gap-1.5 sm:gap-2 pt-2 flex-wrap">
+                      {/* Fast Navigation Action Pills (Modern Muted SaaS Chips) */}
+                      <div className="flex items-center gap-1.5 sm:gap-2 pt-1 flex-wrap">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleSelectRoom(sub.name, 'textbooks');
                           }}
-                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-blue-100 hover:bg-blue-200 dark:bg-blue-950/80 dark:hover:bg-blue-900 text-[10px] sm:text-[11px] font-black text-blue-900 dark:text-blue-100 border border-blue-300 dark:border-blue-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-[11px] font-medium text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/70 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                           title="Open Official Textbooks"
                         >
-                          <BookOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-300 shrink-0" />
+                          <BookOpen className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                           <span>Textbooks ({tBooks})</span>
                         </button>
 
@@ -4237,10 +4237,10 @@ export const SubjectRooms: React.FC = () => {
                             e.stopPropagation();
                             handleSelectRoom(sub.name, 'notes');
                           }}
-                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 text-[10px] sm:text-[11px] font-black text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-[11px] font-medium text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/70 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                           title="Open Chapter Notes"
                         >
-                          <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-300 shrink-0" />
+                          <FileText className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                           <span>Notes ({nDocs})</span>
                         </button>
 
@@ -4251,10 +4251,10 @@ export const SubjectRooms: React.FC = () => {
                               e.stopPropagation();
                               handleSelectRoom(sub.name, 'pyq');
                             }}
-                            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900 text-[10px] sm:text-[11px] font-black text-amber-950 dark:text-amber-100 border border-amber-300 dark:border-amber-700/80 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-950/40 text-[11px] font-medium text-amber-700 dark:text-amber-300 border border-amber-500/20 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                             title="Open Board PYQ Papers"
                           >
-                            <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300 shrink-0" />
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                             <span>PYQs ({pCount})</span>
                           </button>
                         )}
@@ -4263,14 +4263,14 @@ export const SubjectRooms: React.FC = () => {
 
                     <div
                       onClick={() => handleSelectRoom(sub.name)}
-                      className="pt-4 mt-4 border-t-2 border-slate-100 dark:border-slate-800/80 flex items-center justify-between cursor-pointer"
+                      className="pt-3.5 mt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between cursor-pointer"
                     >
-                      <div className="text-[11px] text-slate-700 dark:text-slate-300 font-extrabold flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                        <span>Class 12 HSC Board Portion</span>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                        <span>HSC Syllabus</span>
                       </div>
 
-                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1.5 transition-transform flex items-center space-x-1">
+                      <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 group-hover:translate-x-1 transition-transform flex items-center space-x-1">
                         <span>Enter Room</span>
                         <span>→</span>
                       </span>
