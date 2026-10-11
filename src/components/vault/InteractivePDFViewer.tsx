@@ -128,11 +128,14 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
   const [loadingDoc, setLoadingDoc] = useState<boolean>(!urlBundle.isDrive);
   const [scale, setScale] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      if (window.innerWidth < 640) return 0.95;
-      if (window.innerWidth < 1024) return 1.2;
-      return 1.4;
+      const screenW = window.innerWidth;
+      if (screenW < 640) {
+        return Math.min(Math.max(Number(((screenW - 24) / 595.28).toFixed(2)), 0.45), 1.15);
+      }
+      if (screenW < 1024) return 1.15;
+      return 1.35;
     }
-    return 1.4;
+    return 1.35;
   });
 
   // 2. State-Saving Debouncer Hook (500ms sync)
@@ -189,6 +192,16 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
         setPdfDoc(loadedDoc);
         setNumPages(loadedDoc.numPages);
         setLoadingDoc(false);
+
+        // Auto-fit to container width
+        loadedDoc.getPage(1).then((p: any) => {
+          if (isCancelled) return;
+          const vp = p.getViewport({ scale: 1 });
+          const containerW = containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800);
+          const pad = containerW < 640 ? 16 : 48;
+          const fit = Math.min(Math.max((containerW - pad) / vp.width, 0.45), 2.2);
+          setScale(Number(fit.toFixed(2)));
+        }).catch(() => {});
       })
       .catch((err: any) => {
         if (isCancelled) return;
@@ -345,15 +358,37 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
 
   const handleZoomIn = useCallback(() => setScale((prev) => Math.min(prev + 0.2, 3.0)), []);
   const handleZoomOut = useCallback(() => setScale((prev) => Math.max(prev - 0.2, 0.5)), []);
-  const handleFitPage = useCallback(() => {
+  const handleFitWidth = useCallback(() => {
     if (!containerRef.current || !pdfDoc) return;
     pdfDoc.getPage(displayPage).then((page: any) => {
       const defaultViewport = page.getViewport({ scale: 1 });
-      const availableHeight = (containerRef.current?.clientHeight || window.innerHeight) - 96;
-      const targetScale = Math.max(Math.min(availableHeight / defaultViewport.height, 2.0), 0.5);
+      const containerW = containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800);
+      const pad = containerW < 640 ? 16 : 48;
+      const targetScale = Math.max(Math.min((containerW - pad) / defaultViewport.width, 2.5), 0.45);
       setScale(Number(targetScale.toFixed(2)));
-    });
+    }).catch(() => {});
   }, [pdfDoc, displayPage]);
+
+  // Dynamic auto-refit on orientation change / window resize
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let timer: any;
+    const handleResize = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (window.innerWidth < 768) {
+          handleFitWidth();
+        }
+      }, 150);
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      clearTimeout(timer);
+    };
+  }, [handleFitWidth]);
 
   // Hydration guard
   if (!isMounted) {
@@ -447,29 +482,29 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
 
         {/* Right: Actions, Bookmarks, Engine & Complete */}
         <div className="flex items-center space-x-1.5 sm:space-x-2">
-          {/* Zoom In / Out (in canvas mode) */}
+          {/* Zoom In / Out / Fit (in canvas mode) */}
           {engineMode === 'canvas' && (
-            <div className="hidden sm:flex items-center space-x-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-1 border border-slate-200 dark:border-slate-700/60">
+            <div className="flex items-center space-x-0.5 sm:space-x-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl p-0.5 sm:p-1 border border-slate-200 dark:border-slate-700/60">
               <button
                 onClick={handleZoomOut}
-                className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                className="p-1 sm:p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
                 title="Zoom Out"
               >
-                <ZoomOut className="w-4 h-4" />
+                <ZoomOut className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
               </button>
               <button
-                onClick={handleFitPage}
-                className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
-                title="Fit Page to Screen (Full Height)"
+                onClick={handleFitWidth}
+                className="px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                title="Fit Page Width"
               >
                 Fit
               </button>
               <button
                 onClick={handleZoomIn}
-                className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+                className="p-1 sm:p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
                 title="Zoom In"
               >
-                <ZoomIn className="w-4 h-4" />
+                <ZoomIn className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
               </button>
             </div>
           )}
@@ -632,8 +667,8 @@ export const InteractivePDFViewer: React.FC<InteractivePDFViewerProps> = ({
                 </div>
               )}
 
-              <div className="my-auto shadow-2xl rounded-xl sm:rounded-2xl bg-white shrink-0 overflow-visible">
-                <canvas ref={canvasRef} className="block" />
+              <div className="my-auto shadow-2xl rounded-xl sm:rounded-2xl bg-white shrink-0 max-w-full overflow-hidden mx-auto">
+                <canvas ref={canvasRef} className="block max-w-full h-auto rounded-lg sm:rounded-xl mx-auto" />
               </div>
             </div>
           )}

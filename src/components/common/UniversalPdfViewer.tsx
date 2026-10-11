@@ -61,13 +61,26 @@ const ContinuousPdfPage: React.FC<{
   scale: number;
   rotation: number;
   themeStyles: any;
+  aspectRatio?: number;
+  baseWidth?: number;
   onVisible?: (page: number) => void;
-}> = ({ pdfDoc, pageNumber, scale, rotation, themeStyles, onVisible }) => {
+}> = ({
+  pdfDoc,
+  pageNumber,
+  scale,
+  rotation,
+  themeStyles,
+  aspectRatio = 1.414,
+  baseWidth = 595,
+  onVisible,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [rendered, setRendered] = useState<boolean>(false);
   const [inView, setInView] = useState<boolean>(pageNumber <= 3); // Preload first 3 pages
   const renderTaskRef = useRef<any>(null);
+
+  const estimatedHeight = Math.floor(scale * baseWidth * (aspectRatio || 1.414));
 
   useEffect(() => {
     const el = containerRef.current;
@@ -137,18 +150,21 @@ const ContinuousPdfPage: React.FC<{
     <div
       ref={containerRef}
       id={`pdf-page-${pageNumber}`}
-      className={`relative my-3 sm:my-6 shadow-2xl rounded-xl sm:rounded-2xl transition-all overflow-hidden ${themeStyles.paperBg}`}
+      className={`relative my-2 sm:my-6 shadow-xl sm:shadow-2xl rounded-xl sm:rounded-2xl transition-all max-w-full overflow-hidden mx-auto ${themeStyles.paperBg}`}
       style={{
-        minHeight: rendered ? 'auto' : '450px',
+        minHeight: rendered ? 'auto' : `${estimatedHeight}px`,
         filter: themeStyles.canvasFilter,
       }}
     >
       <div className="absolute top-2.5 left-3 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-mono font-bold text-white z-10 opacity-70 hover:opacity-100 select-none pointer-events-none">
         Page {pageNumber}
       </div>
-      <canvas ref={canvasRef} className="block max-w-none rounded-xl" />
+      <canvas ref={canvasRef} className="block max-w-full h-auto rounded-lg sm:rounded-xl mx-auto" />
       {!rendered && inView && (
-        <div className="flex flex-col items-center justify-center py-24 text-xs font-semibold opacity-60">
+        <div
+          className="flex flex-col items-center justify-center text-xs font-semibold opacity-60"
+          style={{ height: `${estimatedHeight}px` }}
+        >
           <RefreshCw className="w-5 h-5 animate-spin mb-2 text-brand-500" />
           <span>Rendering Page {pageNumber}...</span>
         </div>
@@ -209,11 +225,15 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      if (window.innerWidth < 640) return 0.95;
-      if (window.innerWidth < 1024) return 1.2;
-      return 1.4;
+      const screenW = window.innerWidth;
+      if (screenW < 640) {
+        // Standard A4 width is 595.28px. Scale to fit screen with comfortable padding
+        return Math.min(Math.max(Number(((screenW - 20) / 595.28).toFixed(2)), 0.45), 1.15);
+      }
+      if (screenW < 1024) return 1.15;
+      return 1.35;
     }
-    return 1.3;
+    return 1.2;
   });
   const [rotation, setRotation] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -619,7 +639,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     const containerW = containerRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 800);
     const pad = containerW < 640 ? 16 : 48;
     const baseW = unscaledPageDimRef.current.width || 595;
-    const target = Math.min(Math.max((containerW - pad) / baseW, 0.55), 3.0);
+    const target = Math.min(Math.max((containerW - pad) / baseW, 0.45), 3.0);
     setScale(Number(target.toFixed(2)));
   }, []);
 
@@ -630,6 +650,27 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     const target = Math.min(Math.max((containerH - pad) / baseH, 0.45), 2.5);
     setScale(Number(target.toFixed(2)));
   }, []);
+
+  // Dynamic auto-refit on orientation change / window resize
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let timer: any;
+    const handleResize = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (window.innerWidth < 768) {
+          handleFitWidth();
+        }
+      }, 150);
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      clearTimeout(timer);
+    };
+  }, [handleFitWidth]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -697,16 +738,16 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       {/* 1. TOP FROSTED CONTROL BAR                                     */}
       {/* ============================================================== */}
       <header
-        className={`h-14 px-3 sm:px-5 border-b backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 ${
+        className={`h-13 sm:h-14 px-2.5 sm:px-5 border-b backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 ${
           zenMode ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         } ${themeStyles.toolbar}`}
       >
         {/* Left: Back / Title */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1 mr-2">
           {onClose && (
             <button
               onClick={onClose}
-              className="px-2.5 py-1.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 border border-black/5 dark:border-white/10 text-xs font-bold"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 border border-black/5 dark:border-white/10 text-xs font-bold"
               title={backLabel || 'Close Reader (Esc)'}
             >
               <ArrowLeft className="w-4 h-4 shrink-0" />
@@ -716,12 +757,12 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
           <div className="h-4 w-px bg-black/10 dark:bg-white/10 shrink-0 hidden sm:block" />
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 max-w-[140px] xs:max-w-[200px] sm:max-w-xs md:max-w-md">
             <h2 className="text-xs sm:text-sm font-bold truncate leading-tight tracking-tight">
               {title}
             </h2>
             {subtitle && (
-              <p className="text-[11px] opacity-70 truncate font-medium mt-0.5">
+              <p className="text-[10px] sm:text-[11px] opacity-70 truncate font-medium mt-0.5">
                 {subtitle}
               </p>
             )}
@@ -729,39 +770,72 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         </div>
 
         {/* Center/Right: Actions */}
-        <div className="flex items-center space-x-1.5 shrink-0">
+        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
           {/* Continuous vs Single Page Switcher */}
           {engineMode === 'canvas' && numPages > 1 && (
-            <div className="flex items-center bg-black/5 dark:bg-white/10 rounded-full p-0.5 border border-black/5 dark:border-white/5">
+            <>
+              {/* Mobile 1-Tap Toggle */}
               <button
-                onClick={() => handleToggleLayout('continuous')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                  layout === 'continuous'
-                    ? 'bg-brand-600 text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                }`}
-                title="Continuous Scroll Mode (Scroll freely up & down)"
+                onClick={() => handleToggleLayout(layout === 'continuous' ? 'single' : 'continuous')}
+                className="sm:hidden flex items-center gap-1 px-2 py-1 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-xs font-semibold cursor-pointer border border-black/5 dark:border-white/5"
+                title={`Layout: currently ${layout}. Tap to toggle.`}
               >
-                <ScrollText className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Scroll</span>
+                {layout === 'continuous' ? (
+                  <ScrollText className="w-3.5 h-3.5 text-brand-500" />
+                ) : (
+                  <FileText className="w-3.5 h-3.5 text-brand-500" />
+                )}
+                <span className="text-[10px] font-bold">
+                  {layout === 'continuous' ? 'Scroll' : 'Page'}
+                </span>
               </button>
-              <button
-                onClick={() => handleToggleLayout('single')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                  layout === 'single'
-                    ? 'bg-brand-600 text-white shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-                }`}
-                title="Single Page Mode (Swipe / Tap page flip)"
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Page</span>
-              </button>
-            </div>
+
+              {/* Desktop Segmented Toggle */}
+              <div className="hidden sm:flex items-center bg-black/5 dark:bg-white/10 rounded-full p-0.5 border border-black/5 dark:border-white/5">
+                <button
+                  onClick={() => handleToggleLayout('continuous')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    layout === 'continuous'
+                      ? 'bg-brand-600 text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                  }`}
+                  title="Continuous Scroll Mode"
+                >
+                  <ScrollText className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Scroll</span>
+                </button>
+                <button
+                  onClick={() => handleToggleLayout('single')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    layout === 'single'
+                      ? 'bg-brand-600 text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                  }`}
+                  title="Single Page Mode"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Page</span>
+                </button>
+              </div>
+            </>
           )}
 
-          {/* Theme Selector (Paper / Sepia / Night) */}
-          <div className="flex items-center bg-black/5 dark:bg-white/10 rounded-full p-0.5 border border-black/5 dark:border-white/5">
+          {/* Theme Selector: Mobile 1-Tap Cycler / Desktop 3-Button */}
+          <button
+            onClick={() => {
+              if (theme === 'light') handleSelectTheme('sepia');
+              else if (theme === 'sepia') handleSelectTheme('dark');
+              else handleSelectTheme('light');
+            }}
+            className="sm:hidden p-1.5 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-xs cursor-pointer border border-black/5 dark:border-white/5"
+            title={`Current theme: ${theme}. Tap to cycle Light / Sepia / Dark.`}
+          >
+            {theme === 'light' && <Sun className="w-3.5 h-3.5 text-amber-500" />}
+            {theme === 'sepia' && <Coffee className="w-3.5 h-3.5 text-amber-700" />}
+            {theme === 'dark' && <Moon className="w-3.5 h-3.5 text-indigo-400" />}
+          </button>
+
+          <div className="hidden sm:flex items-center bg-black/5 dark:bg-white/10 rounded-full p-0.5 border border-black/5 dark:border-white/5">
             <button
               onClick={() => handleSelectTheme('light')}
               className={`p-1.5 rounded-full transition-all cursor-pointer ${
@@ -794,34 +868,34 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           {/* Bookmark Button */}
           <button
             onClick={handleToggleBookmark}
-            className={`p-2 rounded-full transition-all cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-full transition-all cursor-pointer ${
               isCurrentPageBookmarked
                 ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/30'
                 : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100'
             }`}
             title={isCurrentPageBookmarked ? 'Page Bookmarked' : 'Bookmark this page'}
           >
-            <Bookmark className="w-4 h-4 fill-current" />
+            <Bookmark className="w-3.5 sm:w-4 h-3.5 sm:h-4 fill-current" />
           </button>
 
           {/* Page Grid Overview Sheet */}
           {numPages > 1 && (
             <button
               onClick={() => setShowPageGridModal(true)}
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
               title="Page Overview Grid"
             >
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
             </button>
           )}
 
           {/* Bookmarks Drawer */}
           <button
             onClick={() => setShowBookmarksDrawer(!showBookmarksDrawer)}
-            className="relative p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
+            className="relative p-1.5 sm:p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
             title="Saved Bookmarks"
           >
-            <List className="w-4 h-4" />
+            <List className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
             {bookmarks.length > 0 && (
               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 text-[9px] font-extrabold text-slate-950 flex items-center justify-center">
                 {bookmarks.length}
@@ -829,7 +903,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
             )}
           </button>
 
-          {/* Zoom Controls */}
+          {/* Desktop Zoom Controls */}
           {engineMode === 'canvas' && (
             <div className="hidden sm:flex items-center space-x-0.5">
               <button
@@ -873,7 +947,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           {/* Fullscreen */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
+            className="hidden sm:flex p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer"
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -884,7 +958,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
             href={directOpenUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all shrink-0 ml-1 ios-pill"
+            className="px-2.5 sm:px-3 py-1.5 rounded-full bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-all shrink-0 ml-0.5 sm:ml-1 ios-pill"
             title="Open Document in External App"
           >
             <ExternalLink className="w-3.5 h-3.5" />
@@ -992,6 +1066,12 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
                   scale={scale}
                   rotation={rotation}
                   themeStyles={themeStyles}
+                  aspectRatio={
+                    unscaledPageDimRef.current.width
+                      ? unscaledPageDimRef.current.height / unscaledPageDimRef.current.width
+                      : 1.414
+                  }
+                  baseWidth={unscaledPageDimRef.current.width || 595}
                   onVisible={(visiblePage) => {
                     setCurrentPage(visiblePage);
                   }}
@@ -1005,11 +1085,11 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
         {engineMode === 'canvas' && layout === 'single' && (
           <div
             ref={scrollContainerRef}
-            className="w-full h-full overflow-y-auto overflow-x-auto relative p-2 sm:p-6 pb-28 sm:pb-32 overscroll-contain"
+            className="w-full h-full overflow-y-auto overflow-x-auto relative p-2 sm:p-6 pb-28 sm:pb-32 overscroll-contain flex flex-col items-center justify-start"
           >
-            <div className="flex flex-col items-center justify-start min-w-full">
+            <div className="flex flex-col items-center justify-start max-w-full">
               <div
-                className={`shadow-2xl rounded-xl sm:rounded-2xl transition-all duration-200 shrink-0 overflow-visible max-w-none ${
+                className={`shadow-2xl rounded-xl sm:rounded-2xl transition-all duration-200 shrink-0 max-w-full overflow-hidden ${
                   themeStyles.paperBg
                 }`}
                 style={{
@@ -1018,7 +1098,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
               >
                 <canvas
                   ref={singleCanvasRef}
-                  className="block cursor-default transition-opacity duration-150 max-w-none rounded-xl sm:rounded-2xl"
+                  className="block cursor-default transition-opacity duration-150 max-w-full h-auto rounded-xl sm:rounded-2xl mx-auto"
                   style={{
                     opacity: isPageRendering ? 0.75 : 1,
                   }}
@@ -1071,7 +1151,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
       {/* ============================================================== */}
       {numPages > 1 && engineMode === 'canvas' && (
         <footer
-          className={`h-16 px-3 sm:px-8 border-t backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 ${
+          className={`h-14 sm:h-16 px-2.5 sm:px-8 border-t backdrop-blur-xl flex items-center justify-between shrink-0 z-30 transition-all duration-300 gap-1.5 sm:gap-4 ${
             zenMode ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
           } ${themeStyles.toolbar}`}
         >
@@ -1079,7 +1159,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           <button
             onClick={goToPrevPage}
             disabled={currentPage <= 1}
-            className="flex items-center gap-1 px-3 py-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0 text-xs font-bold"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0 text-xs font-bold"
             title="Previous Page (Swipe Down / Left)"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -1087,15 +1167,15 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           </button>
 
           {/* Smooth Scrubber Track & Page Badge */}
-          <div className="flex-1 max-w-md mx-3 sm:mx-8 flex flex-col items-center">
+          <div className="flex-1 max-w-md mx-1 sm:mx-6 flex flex-col items-center min-w-0">
             {/* Scrubber Badge */}
-            <div className="text-[11px] font-bold tracking-tight mb-1 flex items-center gap-2">
-              <span>
+            <div className="text-[11px] font-bold tracking-tight mb-1 flex items-center gap-1.5 sm:gap-2">
+              <span className="truncate">
                 Page <strong className="font-extrabold text-brand-600 dark:text-brand-400">{scrubberValue}</strong> of {numPages}
               </span>
-              <span className="opacity-40">•</span>
-              <span className="opacity-70 font-mono text-[10px]">
-                {Math.round((scrubberValue / numPages) * 100)}% read
+              <span className="opacity-40 hidden xs:inline">•</span>
+              <span className="opacity-70 font-mono text-[10px] hidden xs:inline">
+                {Math.round((scrubberValue / numPages) * 100)}%
               </span>
             </div>
 
@@ -1122,11 +1202,36 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
             />
           </div>
 
+          {/* Mobile & Desktop Quick Zoom / Fit Buttons */}
+          <div className="flex items-center space-x-1 shrink-0">
+            <button
+              onClick={handleZoomOut}
+              className="p-1.5 sm:p-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all cursor-pointer text-xs"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleFitWidth}
+              className="px-2 py-1 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-[10px] font-extrabold font-mono tracking-tight cursor-pointer"
+              title="Fit Screen Width"
+            >
+              Fit
+            </button>
+            <button
+              onClick={handleZoomIn}
+              className="p-1.5 sm:p-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all cursor-pointer text-xs"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Quick Next Button (Large & Mobile Friendly) */}
           <button
             onClick={goToNextPage}
             disabled={currentPage >= numPages}
-            className="flex items-center gap-1 px-3 py-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0 text-xs font-bold"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shrink-0 text-xs font-bold"
             title="Next Page (Swipe Up / Right)"
           >
             <span className="hidden sm:inline">Next</span>

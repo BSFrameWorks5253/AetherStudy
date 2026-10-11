@@ -6,9 +6,6 @@ import { firebaseDeletedDocs } from '../../services/firebase';
 import {
   Upload,
   FileText,
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
   RefreshCw,
   Server,
   Trash2,
@@ -30,8 +27,6 @@ export const DocumentViewer: React.FC = () => {
   const [activeDoc, setActiveDoc] = useState<ServerDocument | null>(null);
   
   // Viewer state
-  const [zoom, setZoom] = useState<number>(100);
-  const [rotation, setRotation] = useState<number>(0);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadSuccess, setUploadSuccess] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -134,8 +129,6 @@ export const DocumentViewer: React.FC = () => {
 
       setDocuments((prev) => [newDoc, ...prev]);
       setActiveDoc(newDoc);
-      setZoom(100);
-      setRotation(0);
       setUploadSuccess(true);
       setSelectedFile(null);
       setShowUploadModal(false);
@@ -199,10 +192,6 @@ export const DocumentViewer: React.FC = () => {
       setShowUploadModal(true);
     }
   };
-
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 15, 200));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 15, 50));
-  const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
 
   const getDownloadUrl = (doc: ServerDocument) => {
     if (doc.streamUrl && doc.streamUrl.includes('drive.google.com/file/d/')) {
@@ -337,36 +326,10 @@ export const DocumentViewer: React.FC = () => {
           </div>
         </div>
 
-        {/* Zoom & Action Controls */}
+        {/* Action Controls */}
         <div className="flex items-center space-x-1.5">
           {activeDoc && (
             <>
-              {/* Zoom Controls */}
-              <div className="flex items-center space-x-1 px-2 py-1 rounded-xl bg-white/40 dark:bg-slate-800/60 border border-white/50 dark:border-white/10 text-xs shadow-sm">
-                <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 px-1">{zoom}%</span>
-                <button
-                  onClick={handleZoomOut}
-                  className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
-                  title="Zoom Out"
-                >
-                  <ZoomOut className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={handleZoomIn}
-                  className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
-                  title="Zoom In"
-                >
-                  <ZoomIn className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={handleRotate}
-                  className="p-1 rounded-lg hover:bg-white/60 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
-                  title="Rotate 90°"
-                >
-                  <RotateCw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
               {/* Direct Download Button (Available for all students) */}
               <a
                 href={getDownloadUrl(activeDoc)}
@@ -448,13 +411,7 @@ export const DocumentViewer: React.FC = () => {
             )}
           </div>
         ) : (
-          <div
-            className="w-full h-full flex items-center justify-center overflow-auto transition-transform duration-150"
-            style={{
-              transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
-              transformOrigin: 'center center',
-            }}
-          >
+          <div className="w-full h-full flex items-center justify-center overflow-hidden">
             <UniversalPdfViewer
               url={activeDoc.streamUrl || activeDoc.serverUrl || ''}
               title={activeDoc.originalName || activeDoc.name}
