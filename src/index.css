@@ -82,6 +82,21 @@
   transform: translateZ(0);
 }
 
+/* Solid Opaque Popover & Dropdown (Guarantees zero background bleed-through) */
+.ios-popover {
+  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18),
+              0 8px 16px -4px rgba(15, 23, 42, 0.08) !important;
+}
+
+.dark .ios-popover {
+  background: #0f172a !important;
+  border: 1px solid rgba(51, 65, 85, 0.8) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85),
+              0 10px 20px -4px rgba(0, 0, 0, 0.6) !important;
+}
+
 .ios-card {
   border-radius: 1.5rem;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
