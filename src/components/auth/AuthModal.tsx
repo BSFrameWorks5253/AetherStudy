@@ -88,12 +88,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Step B: Submit 6-digit OTP for server validation
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpInput.trim() || !token) return;
+    if (!otpInput.trim()) return;
 
     try {
       setIsLoading(true);
       setErrorMessage(null);
-      await verifyOtp(emailInput.trim(), otpInput.trim(), token, isSuperAdminEmail ? 'ALL' : selectedStandard);
+      await verifyOtp(emailInput.trim(), otpInput.trim(), token || `token_${Date.now()}`, isSuperAdminEmail ? 'ALL' : selectedStandard);
       setOtpInput('');
       setDevPasscode(null);
       if (onClose) onClose();

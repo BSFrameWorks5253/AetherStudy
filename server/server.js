@@ -729,8 +729,6 @@ app.post('/api/auth/verify', (req, res) => {
     const users = readJsonFile('users.json', initialUsers);
     let user = users.find((u) => u.email.toLowerCase() === normalizedEmail);
 
-    const isSuper = Boolean(SUPER_ADMIN_EMAIL) && normalizedEmail === SUPER_ADMIN_EMAIL;
-
     if (!user) {
       user = {
         email: normalizedEmail,
