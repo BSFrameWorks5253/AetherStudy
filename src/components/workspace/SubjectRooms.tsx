@@ -909,10 +909,7 @@ export const SubjectRooms: React.FC<SubjectRoomsProps> = ({ initialSubject, onCl
                   (doc.status === 'approved' && existing.status !== 'approved') ||
                   (doc.serverUrl?.startsWith('http') && !existing.serverUrl?.startsWith('http'));
                 if (incomingIsBetter) {
-                  firebaseDocuments.deleteDocument(existing.id).catch(() => {});
                   deduplicated[duplicateIdx] = doc;
-                } else {
-                  firebaseDocuments.deleteDocument(doc.id).catch(() => {});
                 }
               } else {
                 deduplicated.push(doc);
@@ -2139,6 +2136,7 @@ export const SubjectRooms: React.FC<SubjectRoomsProps> = ({ initialSubject, onCl
       }
 
       // Merge newly uploaded documents with state and persistent localStorage
+      const ghostIdsToDelete: string[] = [];
       setDocuments((prev) => {
         const docMap = new Map<string, ServerDocument>();
         newlyUploaded.forEach((d) => docMap.set(d.id, d));
@@ -2156,8 +2154,7 @@ export const SubjectRooms: React.FC<SubjectRoomsProps> = ({ initialSubject, onCl
             if (!isGhostDuplicate) {
               docMap.set(d.id, d);
             } else {
-              // Clean up phantom duplicate from Firebase
-              firebaseDocuments.deleteDocument(d.id).catch(() => {});
+              ghostIdsToDelete.push(d.id);
             }
           }
         });
@@ -2165,6 +2162,11 @@ export const SubjectRooms: React.FC<SubjectRoomsProps> = ({ initialSubject, onCl
         api.saveLocalDocuments(merged);
         return merged;
       });
+
+      // Safely prune any detected ghost duplicates outside state updater
+      if (ghostIdsToDelete.length > 0) {
+        Promise.all(ghostIdsToDelete.map((gid) => firebaseDocuments.deleteDocument(gid))).catch(() => {});
+      }
 
       // Automatically switch to the uploaded subject room and category tab so user immediately sees their file
       if (newlyUploaded.length > 0) {

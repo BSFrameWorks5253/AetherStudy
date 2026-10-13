@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
 import { PomodoroProvider } from './context/PomodoroContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -17,15 +18,17 @@ const rootElement = document.getElementById('root');
 if (rootElement) {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <ThemeProvider>
-        <AuthProvider>
-          <PomodoroProvider>
-            <App />
-            <Analytics />
-            <SpeedInsights />
-          </PomodoroProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <ErrorBoundary>
+        <ThemeProvider>
+          <AuthProvider>
+            <PomodoroProvider>
+              <App />
+              <Analytics />
+              <SpeedInsights />
+            </PomodoroProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
     </React.StrictMode>
   );
 }
