@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   } = usePomodoro();
 
   const { theme, toggleTheme } = useTheme();
-  const { currentUser, isAuthenticated, isSuperAdmin, isAdmin, activeStandard, logout, openAuthModal } = useAuth();
+  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout, openAuthModal } = useAuth();
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
@@ -344,8 +344,8 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             </button>
           )}
 
-          {/* Admin User Management Button */}
-          {(isSuperAdmin || isAdmin) && (
+          {/* SuperAdmin User Management Button */}
+          {isSuperAdmin && (
             <button
               type="button"
               onClick={() => setShowUsersModal(true)}
@@ -508,7 +508,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
                     </button>
                   )}
 
-                  {(isSuperAdmin || isAdmin) && (
+                  {isSuperAdmin && (
                     <button
                       type="button"
                       onClick={() => {

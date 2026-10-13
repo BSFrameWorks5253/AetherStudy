@@ -42,7 +42,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigate,
   onOpenPaperRequestModal,
 }) => {
-  const { currentUser, isSuperAdmin, isAdmin } = useAuth();
+  const { currentUser, isSuperAdmin } = useAuth();
   const [activeSection, setActiveSection] = useState<'overview' | 'recents'>('overview');
   const [showUsersModal, setShowUsersModal] = useState<boolean>(false);
   const [showDocumentReviewsModal, setShowDocumentReviewsModal] = useState<boolean>(false);
@@ -845,7 +845,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   </button>
                 )}
 
-                {(isSuperAdmin || isAdmin) && (
+                {isSuperAdmin && (
                   <button
                     type="button"
                     onClick={() => setShowUsersModal(true)}

@@ -73,7 +73,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await sendOtp(emailInput.trim());
       setToken(res.token);
       setMaskedEmail(res.maskedEmail);
-      if (res.devPasscode) setDevPasscode(res.devPasscode);
+      if (res.devPasscode) {
+        setDevPasscode(res.devPasscode);
+        setOtpInput(res.devPasscode);
+      }
       setAuthStep('otp');
     } catch (err: any) {
       setErrorMessage(err.message || 'Unable to send verification code. Please check your network.');
@@ -107,8 +110,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setErrorMessage(null);
       const res = await sendOtp(emailInput.trim());
       setToken(res.token);
-      setOtpInput('');
-      if (res.devPasscode) setDevPasscode(res.devPasscode);
+      if (res.devPasscode) {
+        setDevPasscode(res.devPasscode);
+        setOtpInput(res.devPasscode);
+      } else {
+        setOtpInput('');
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Resend failed. Please try again.');
     } finally {

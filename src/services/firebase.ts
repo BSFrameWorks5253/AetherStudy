@@ -1122,8 +1122,13 @@ export const firebaseUsers = {
     try {
       await ensureFirebaseAuth();
       const userRef = ref(rtdb, `users/${safeKey}`);
-      const snap = await get(userRef);
-      const existing = snap.val() || {};
+      let existing: Partial<UserProfile> = {};
+      try {
+        const snap = await get(userRef);
+        if (snap.exists()) {
+          existing = snap.val() || {};
+        }
+      } catch {}
 
       const profile: UserProfile = {
         email: cleanEmail,
@@ -1136,9 +1141,15 @@ export const firebaseUsers = {
         status: 'active',
       };
 
+      // 1. RTDB persistence
       await set(userRef, profile);
 
-      // Cache locally
+      // 2. Dual Firestore cloud backup
+      try {
+        await setDoc(doc(db, 'user_profiles', safeKey), profile, { merge: true });
+      } catch {}
+
+      // 3. Cache locally
       try {
         const cached = localStorage.getItem('aether_cached_users');
         const list: UserProfile[] = cached ? JSON.parse(cached) : [];
@@ -1149,6 +1160,23 @@ export const firebaseUsers = {
       return true;
     } catch (err) {
       console.warn('[Firebase Record User Notice]:', err);
+      // Ensure local cache is updated even if network fails
+      try {
+        const profile: UserProfile = {
+          email: cleanEmail,
+          role: isOwner ? 'SUPER_ADMIN' : (user.role || 'USER'),
+          standard: user.standard || '12',
+          lastLogin: user.lastLogin || now,
+          lastActive: now,
+          createdAt: now,
+          name: user.name || cleanEmail.split('@')[0],
+          status: 'active',
+        };
+        const cached = localStorage.getItem('aether_cached_users');
+        const list: UserProfile[] = cached ? JSON.parse(cached) : [];
+        const filtered = list.filter((u) => u.email.toLowerCase() !== cleanEmail);
+        localStorage.setItem('aether_cached_users', JSON.stringify([...filtered, profile]));
+      } catch {}
       return false;
     }
   },
@@ -1163,21 +1191,30 @@ export const firebaseUsers = {
     try {
       await ensureFirebaseAuth();
       const userRef = ref(rtdb, `users/${safeKey}`);
-      const snap = await get(userRef);
-      const existing = snap.val() || {
-        email: cleanEmail,
-        createdAt: new Date().toISOString(),
-      };
+      let existing: Partial<UserProfile> = {};
+      try {
+        const snap = await get(userRef);
+        if (snap.exists()) {
+          existing = snap.val() || {};
+        }
+      } catch {}
 
       const updated: UserProfile = {
-        ...existing,
         email: cleanEmail,
         role: finalRole,
-        ...(standard ? { standard } : {}),
+        lastLogin: existing.lastLogin || new Date().toISOString(),
         lastActive: new Date().toISOString(),
+        createdAt: existing.createdAt || new Date().toISOString(),
+        standard: standard || existing.standard || '12',
+        name: existing.name || cleanEmail.split('@')[0],
+        status: existing.status || 'active',
       };
 
       await set(userRef, updated);
+
+      try {
+        await setDoc(doc(db, 'user_profiles', safeKey), updated, { merge: true });
+      } catch {}
 
       // Update cache
       try {
@@ -1198,6 +1235,9 @@ export const firebaseUsers = {
   },
 
   async getAllUsers(): Promise<UserProfile[]> {
+    const userMap = new Map<string, UserProfile>();
+
+    // 1. Fetch from Firebase Realtime Database
     try {
       await ensureFirebaseAuth();
       const snap = await get(ref(rtdb, 'users'));
@@ -1205,17 +1245,50 @@ export const firebaseUsers = {
         const val = snap.val();
         if (val && typeof val === 'object') {
           const list: UserProfile[] = Object.values(val);
-          return list;
+          list.forEach((u) => {
+            if (u && u.email) userMap.set(u.email.toLowerCase().trim(), u);
+          });
         }
       }
     } catch (err) {
-      console.warn('[Firebase GetAllUsers Notice]:', err);
+      console.warn('[Firebase GetAllUsers RTDB Notice]:', err);
     }
+
+    // 2. Local cache fallback & reconciliation
     try {
       const cached = localStorage.getItem('aether_cached_users');
-      if (cached) return JSON.parse(cached);
+      if (cached) {
+        const list: UserProfile[] = JSON.parse(cached);
+        if (Array.isArray(list)) {
+          list.forEach((u) => {
+            if (u && u.email && !userMap.has(u.email.toLowerCase().trim())) {
+              userMap.set(u.email.toLowerCase().trim(), u);
+            }
+          });
+        }
+      }
     } catch {}
-    return [];
+
+    // 3. Always guarantee primary SuperAdmin presence
+    const ownerEmail = 'bs.framework5253@gmail.com';
+    const existingOwner = userMap.get(ownerEmail);
+    userMap.set(ownerEmail, {
+      email: ownerEmail,
+      role: 'SUPER_ADMIN',
+      name: 'Burhanuddin Sounasath (Super Admin)',
+      standard: 'ALL',
+      status: 'active',
+      lastLogin: existingOwner?.lastLogin || new Date().toISOString(),
+      lastActive: new Date().toISOString(),
+      createdAt: existingOwner?.createdAt || '2026-01-01T00:00:00.000Z',
+    });
+
+    const finalUsers = Array.from(userMap.values());
+    try {
+      localStorage.setItem('aether_cached_users', JSON.stringify(finalUsers));
+    } catch {}
+
+    return finalUsers;
   },
 };
 

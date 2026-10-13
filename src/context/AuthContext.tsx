@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const closeAuthModal = () => setIsAuthModalOpen(false);
 
   const refreshUsers = async () => {
-    if (isAdmin) {
+    if (isSuperAdmin) {
       try {
         const users = await api.getUsers();
         setUsersList(users);
@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUserRole = async (targetEmail: string, newRole: UserRole, standard?: string): Promise<boolean> => {
-    if (!currentUser || !isAdmin) return false;
+    if (!currentUser || !isSuperAdmin) return false;
     try {
       const res = await api.updateUserRole(currentUser.email, targetEmail, newRole, standard);
       if (res.success) {
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addAdminUser = async (email: string, role: UserRole = 'ADMIN', standard?: string): Promise<boolean> => {
-    if (!currentUser || !isAdmin) return false;
+    if (!currentUser || !isSuperAdmin) return false;
     try {
       const res = await api.addAdminUser(currentUser.email, email, role, standard);
       if (res.success) {
@@ -148,9 +148,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [currentUser]);
 
-  // Live real-time synchronizer for Admins to monitor registered students & active users
+  // Live real-time synchronizer strictly for Super Admin to monitor registered students & active users
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isSuperAdmin) {
+      setUsersList([]);
+      return;
+    }
     refreshUsers();
     const unsub = firebaseUsers.subscribe((cloudUsers) => {
       if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
@@ -169,7 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
     return () => unsub();
-  }, [isAdmin, currentUser?.email]);
+  }, [isSuperAdmin, currentUser?.email]);
 
   return (
     <AuthContext.Provider

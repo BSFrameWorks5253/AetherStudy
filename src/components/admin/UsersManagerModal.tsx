@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Users,
@@ -27,7 +27,7 @@ export const UsersManagerModal: React.FC<UsersManagerModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { currentUser, usersList, refreshUsers, updateUserRole, addAdminUser } = useAuth();
+  const { currentUser, isSuperAdmin, usersList, refreshUsers, updateUserRole, addAdminUser } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterTab, setFilterTab] = useState<'all' | 'admins' | 'students' | 'active'>('all');
@@ -40,7 +40,13 @@ export const UsersManagerModal: React.FC<UsersManagerModalProps> = ({
   const [isSubmittingNew, setIsSubmittingNew] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen && isSuperAdmin) {
+      refreshUsers();
+    }
+  }, [isOpen, isSuperAdmin]);
+
+  if (!isOpen || !isSuperAdmin) return null;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
