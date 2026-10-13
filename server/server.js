@@ -1480,7 +1480,9 @@ app.post('/api/documents/upload', optionalUser, upload.single('file'), async (re
     ? tags.split(',').map((t) => t.trim()).filter(Boolean)
     : [];
 
-  const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+  const docId = (req.body.id && typeof req.body.id === 'string' && req.body.id.trim())
+    ? req.body.id.trim()
+    : ('doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7));
   const streamUrl = `/api/documents/${docId}/pdf`;
 
   const requestedName = (req.body.name || '').trim();
@@ -1561,10 +1563,11 @@ app.post('/api/documents/upload', optionalUser, upload.single('file'), async (re
     console.error('[D1 Single Upload Storage Error]:', d1Err);
   }
 
-  // 2. Add to local documents.json
+  // 2. Add to local documents.json (deduplicate by docId if existing)
   const docs = readJsonFile('documents.json', []);
-  docs.unshift(newDoc);
-  writeJsonFile('documents.json', docs);
+  const filteredDocs = docs.filter((d) => d && d.id !== docId);
+  filteredDocs.unshift(newDoc);
+  writeJsonFile('documents.json', filteredDocs);
 
   // Clean temp file
   try {
@@ -1694,8 +1697,9 @@ app.post('/api/documents/complete-chunked', optionalUser, async (req, res) => {
   }
 
   const docs = readJsonFile('documents.json', []);
-  docs.unshift(newDoc);
-  writeJsonFile('documents.json', docs);
+  const filteredDocs = docs.filter((d) => d && d.id !== id);
+  filteredDocs.unshift(newDoc);
+  writeJsonFile('documents.json', filteredDocs);
 
   res.status(201).json(newDoc);
 });
@@ -1766,7 +1770,9 @@ app.post('/api/documents/upload-multiple', optionalUser, upload.array('files', 3
       ? [fileCustomFilter]
       : parsedTags;
 
-    const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+    const docId = (fileMeta.id && typeof fileMeta.id === 'string' && fileMeta.id.trim())
+      ? fileMeta.id.trim()
+      : ('doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7));
     const streamUrl = `/api/documents/${docId}/pdf`;
 
     const requestedName = (fileMeta.name || '').trim();
@@ -1844,11 +1850,12 @@ app.post('/api/documents/upload-multiple', optionalUser, upload.array('files', 3
       }
     } catch {}
 
-    docs.unshift(newDoc);
     createdDocs.push(newDoc);
   }
 
-  writeJsonFile('documents.json', docs);
+  const createdIds = new Set(createdDocs.map((d) => d.id));
+  const existingDocs = docs.filter((d) => d && !createdIds.has(d.id));
+  writeJsonFile('documents.json', [...createdDocs, ...existingDocs]);
   res.status(201).json({ documents: createdDocs, count: createdDocs.length });
 });
 

@@ -878,9 +878,49 @@ export const SubjectRooms: React.FC<SubjectRoomsProps> = ({ initialSubject, onCl
                 docMap.set(d.id, d);
               }
             });
-            const merged = Array.from(docMap.values());
-            api.saveLocalDocuments(merged);
-            return merged;
+
+            // Smart deduplication: prune accidental duplicate uploads of the same PDF
+            const list = Array.from(docMap.values());
+            const deduplicated: ServerDocument[] = [];
+            for (const doc of list) {
+              const normName = (doc.name || doc.originalName || '').trim().toLowerCase();
+              const normSub = (doc.subject || 'General').trim().toLowerCase();
+              const normStd = (doc.standard || '12').trim();
+              const normCat = (doc.category || 'notes').trim().toLowerCase();
+
+              const duplicateIdx = deduplicated.findIndex((other) => {
+                const oName = (other.name || other.originalName || '').trim().toLowerCase();
+                const oSub = (other.subject || 'General').trim().toLowerCase();
+                const oStd = (other.standard || '12').trim();
+                const oCat = (other.category || 'notes').trim().toLowerCase();
+                if (normName !== oName || normSub !== oSub || normStd !== oStd || normCat !== oCat) return false;
+
+                const sameStream = Boolean(doc.streamUrl && other.streamUrl && doc.streamUrl === other.streamUrl);
+                const sameSize = Boolean(doc.sizeBytes && other.sizeBytes && doc.sizeBytes === other.sizeBytes);
+                const t1 = new Date(doc.uploadedAt || 0).getTime();
+                const t2 = new Date(other.uploadedAt || 0).getTime();
+                const nearTime = t1 > 0 && t2 > 0 && Math.abs(t1 - t2) < 180000;
+                return sameStream || (sameSize && nearTime);
+              });
+
+              if (duplicateIdx >= 0) {
+                const existing = deduplicated[duplicateIdx];
+                const incomingIsBetter =
+                  (doc.status === 'approved' && existing.status !== 'approved') ||
+                  (doc.serverUrl?.startsWith('http') && !existing.serverUrl?.startsWith('http'));
+                if (incomingIsBetter) {
+                  firebaseDocuments.deleteDocument(existing.id).catch(() => {});
+                  deduplicated[duplicateIdx] = doc;
+                } else {
+                  firebaseDocuments.deleteDocument(doc.id).catch(() => {});
+                }
+              } else {
+                deduplicated.push(doc);
+              }
+            }
+
+            api.saveLocalDocuments(deduplicated);
+            return deduplicated;
           });
         } else {
           // If cloud is currently empty but this client has local documents, push them to cloud
@@ -1577,41 +1617,21 @@ export const SubjectRooms: React.FC<SubjectRoomsProps> = ({ initialSubject, onCl
 
     const docToDelete = documents.find((d) => d.id === id);
 
-    // 1. Instant Optimistic UI removal: Card disappears immediately without waiting for any network
-    setDocuments((prev) =>
-      prev.filter((d) => {
-        if (d.id === id) return false;
-        if (docToDelete) {
-          if (docToDelete.name && d.name === docToDelete.name) return false;
-          if (docToDelete.originalName && d.originalName === docToDelete.originalName) return false;
-          if (docToDelete.streamUrl && d.streamUrl === docToDelete.streamUrl) return false;
-        }
-        return true;
-      })
-    );
+    // 1. Instant Optimistic UI removal: strictly remove by document ID
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
 
     // 2. Immediately close PDF reader if this document is open
-    if (readingDoc?.id === id || (docToDelete && readingDoc?.name === docToDelete.name)) {
+    if (readingDoc?.id === id) {
       handleCloseReader();
     }
 
-    // 3. Synchronously record tombstone into localStorage and memory so it never revives
-    firebaseDeletedDocs.markDeletedSync(docToDelete || id);
+    // 3. Synchronously record tombstone into localStorage and memory strictly by ID
+    firebaseDeletedDocs.markDeletedSync(id);
 
-    // 4. Synchronously purge from local cache
+    // 4. Synchronously purge from local cache strictly by ID
     try {
       const currentLocal = api.getLocalDocuments();
-      api.saveLocalDocuments(
-        currentLocal.filter((d) => {
-          if (d.id === id) return false;
-          if (docToDelete) {
-            if (docToDelete.name && d.name === docToDelete.name) return false;
-            if (docToDelete.originalName && d.originalName === docToDelete.originalName) return false;
-            if (docToDelete.streamUrl && d.streamUrl === docToDelete.streamUrl) return false;
-          }
-          return true;
-        })
-      );
+      api.saveLocalDocuments(currentLocal.filter((d) => d.id !== id));
     } catch {}
 
     // 5. Fire background asynchronous deletion tasks (Google Drive, Firebase, Backend)
@@ -2123,11 +2143,26 @@ export const SubjectRooms: React.FC<SubjectRoomsProps> = ({ initialSubject, onCl
         const docMap = new Map<string, ServerDocument>();
         newlyUploaded.forEach((d) => docMap.set(d.id, d));
         prev.forEach((d) => {
-          if (!docMap.has(d.id)) docMap.set(d.id, d);
+          if (!docMap.has(d.id)) {
+            // Check if this is an orphaned ghost duplicate of any newly uploaded file
+            const isGhostDuplicate = newlyUploaded.some(
+              (nu) =>
+                nu.id !== d.id &&
+                (nu.name === d.name || nu.originalName === d.originalName) &&
+                nu.subject === d.subject &&
+                nu.standard === d.standard &&
+                nu.category === d.category
+            );
+            if (!isGhostDuplicate) {
+              docMap.set(d.id, d);
+            } else {
+              // Clean up phantom duplicate from Firebase
+              firebaseDocuments.deleteDocument(d.id).catch(() => {});
+            }
+          }
         });
         const merged = Array.from(docMap.values());
         api.saveLocalDocuments(merged);
-        firebaseDocuments.saveAll(merged).catch(() => {});
         return merged;
       });
 

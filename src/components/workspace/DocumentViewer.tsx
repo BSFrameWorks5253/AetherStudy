@@ -146,29 +146,19 @@ export const DocumentViewer: React.FC = () => {
 
     const docToDelete = documents.find((d) => d.id === id);
 
-    // 1. Instant Optimistic UI removal
-    setDocuments((prev) =>
-      prev.filter((d) => {
-        if (d.id === id) return false;
-        if (docToDelete) {
-          if (docToDelete.name && d.name === docToDelete.name) return false;
-          if (docToDelete.originalName && d.originalName === docToDelete.originalName) return false;
-          if (docToDelete.streamUrl && d.streamUrl === docToDelete.streamUrl) return false;
-        }
-        return true;
-      })
-    );
+    // 1. Instant Optimistic UI removal strictly by unique document ID
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
 
-    if (activeDoc?.id === id || (docToDelete && activeDoc?.name === docToDelete.name)) {
-      const remaining = documents.filter((d) => d.id !== id && (!docToDelete || d.name !== docToDelete.name));
+    if (activeDoc?.id === id) {
+      const remaining = documents.filter((d) => d.id !== id);
       setActiveDoc(remaining.length > 0 ? remaining[0] : null);
     }
 
-    // 2. Synchronous tombstone & cache update
-    firebaseDeletedDocs.markDeletedSync(docToDelete || id);
+    // 2. Synchronous tombstone & cache update strictly by ID
+    firebaseDeletedDocs.markDeletedSync(id);
     try {
       const local = api.getLocalDocuments();
-      api.saveLocalDocuments(local.filter((d) => d.id !== id && (!docToDelete || d.name !== docToDelete.name)));
+      api.saveLocalDocuments(local.filter((d) => d.id !== id));
     } catch {}
 
     // 3. Background cloud delete

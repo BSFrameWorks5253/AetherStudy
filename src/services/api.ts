@@ -836,6 +836,7 @@ export const api = {
       if (file.size < 3.5 * 1024 * 1024) {
         // Direct single-request multipart upload for files < 3.5MB
         const formData = new FormData();
+        formData.append('id', docId);
         formData.append('file', file);
         formData.append('name', effectiveName);
         formData.append('subject', subject);
@@ -856,10 +857,14 @@ export const api = {
         if (res.ok) {
           const uploaded = await res.json();
           if (uploaded && uploaded.id) {
+            const oldId = newDoc.id;
             newDoc.id = uploaded.id;
             newDoc.serverUrl = uploaded.serverUrl || `/api/documents/${uploaded.id}/pdf`;
             newDoc.streamUrl = uploaded.streamUrl || `/api/documents/${uploaded.id}/pdf`;
             newDoc.url = uploaded.url || `/api/documents/${uploaded.id}/pdf`;
+            if (oldId !== uploaded.id) {
+              firebaseDocuments.deleteDocument(oldId).catch(() => {});
+            }
           }
         }
       } else {
@@ -920,7 +925,8 @@ export const api = {
 
     // Refresh and persist updated document with permanent Cloudflare D1 streamUrl
     const currentLocals = api.getLocalDocuments();
-    api.saveLocalDocuments(currentLocals.map((d) => (d.id === docId ? newDoc : d)));
+    api.saveLocalDocuments([newDoc, ...currentLocals.filter((d) => d.id !== docId && d.id !== newDoc.id)]);
+    firebaseDocuments.saveDocument(newDoc).catch(() => {});
 
     return newDoc;
   },
@@ -974,29 +980,19 @@ export const api = {
   async deleteDocument(id: string, requesterEmail?: string, docMeta?: ServerDocument): Promise<boolean> {
     if (!id) return false;
 
-    // 1. Immediately register in persistent tombstone blacklist synchronously
-    firebaseDeletedDocs.markDeletedSync(docMeta || id);
+    // 1. Immediately register in persistent tombstone blacklist synchronously strictly by ID
+    firebaseDeletedDocs.markDeletedSync(id);
 
-    // 2. Synchronously purge from local cache & IndexedDB vault
+    // 2. Synchronously purge from local cache & IndexedDB vault strictly by unique ID
     try {
       pdfVault.delete(id).catch(() => {});
       const local = api.getLocalDocuments();
-      api.saveLocalDocuments(
-        local.filter((d) => {
-          if (d.id === id) return false;
-          if (docMeta) {
-            if (docMeta.name && d.name === docMeta.name) return false;
-            if (docMeta.originalName && d.originalName === docMeta.originalName) return false;
-            if (docMeta.streamUrl && d.streamUrl === docMeta.streamUrl) return false;
-          }
-          return true;
-        })
-      );
+      api.saveLocalDocuments(local.filter((d) => d.id !== id));
     } catch {}
 
     // 3. Delete from Firebase cloud repository and Cloud Storage (non-blocking)
     try {
-      firebaseDeletedDocs.markDeleted(docMeta || id).catch(() => {});
+      firebaseDeletedDocs.markDeleted(id).catch(() => {});
       firebaseDocuments.deleteDocument(id).catch(() => {});
       if (docMeta?.streamUrl && docMeta.streamUrl.includes('firebasestorage.googleapis.com')) {
         firebaseStorageService.deletePdf(docMeta.streamUrl).catch(() => {});
