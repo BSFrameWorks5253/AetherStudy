@@ -40,7 +40,6 @@
    APPLE iOS 26 SPATIAL GLASS & SQUIRCLE ARCHITECTURE
    ========================================================================= */
 
-/* Apple Crystalline Frosted Glass (High-Framerate GPU Composited) */
 .liquid-glass,
 .ios-glass {
   background: rgba(255, 255, 255, 0.82);
@@ -65,7 +64,6 @@
   transform: translateZ(0);
 }
 
-/* Subtle Secondary Glass */
 .liquid-glass-subtle,
 .ios-glass-subtle {
   background: rgba(248, 250, 252, 0.76);
@@ -84,9 +82,8 @@
   transform: translateZ(0);
 }
 
-/* Apple Squircle Cards with Micro-Interaction */
 .ios-card {
-  border-radius: 1.5rem; /* 24px continuous curve */
+  border-radius: 1.5rem;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
   will-change: transform;
   transform: translateZ(0);
@@ -173,44 +170,229 @@
 }
 
 /* Apple Minimal Smooth Scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.28);
   border-radius: 9999px;
 }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); }
+::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.65); }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
-}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 58, 237, 0.65);
-}
-
-/* Hide scrollbar for tab bars */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* =========================================================================
+   KEYFRAME ANIMATIONS
+   ========================================================================= */
 
 @keyframes indeterminate {
-  0% { transform: translateX(-100%) scaleX(0.2); }
-  50% { transform: translateX(0%) scaleX(0.6); }
+  0%   { transform: translateX(-100%) scaleX(0.2); }
+  50%  { transform: translateX(0%) scaleX(0.6); }
   100% { transform: translateX(100%) scaleX(0.2); }
 }
-
 .animate-indeterminate {
   animation: indeterminate 1.5s infinite ease-in-out;
   transform-origin: 0% 50%;
+}
+
+/* Fade-in slide-up entrance */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Staggered card entrance */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.30s; }
+
+/* =========================================================================
+   3D FLIP CARD  — TRUE PERSPECTIVE FLIP ANIMATION
+   ========================================================================= */
+
+.flip-card-scene {
+  perspective: 1400px;
+  perspective-origin: 50% 50%;
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.flip-card-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.flip-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-card-face--back {
+  transform: rotateY(180deg);
+}
+
+/* =========================================================================
+   PROGRESS BAR UTILITY
+   ========================================================================= */
+
+.progress-bar-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+.dark .progress-bar-track { background: rgba(255, 255, 255, 0.08); }
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #7c3aed, #6366f1);
+  transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-fill.is-complete {
+  background: linear-gradient(90deg, #059669, #10b981);
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer-sweep 2.2s 0.8s infinite;
+}
+
+/* =========================================================================
+   SHIMMER SKELETON
+   ========================================================================= */
+
+@keyframes shimmer-sweep {
+  0%   { left: -100%; }
+  100% { left: 200%; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 37%, rgba(0,0,0,0.04) 63%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+.dark .skeleton-shimmer {
+  background: linear-gradient(90deg, 
+    rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.10) 37%, rgba(255,255,255,0.04) 63%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+/* =========================================================================
+   GLOWING ACCENT CARD
+   ========================================================================= */
+
+.glow-brand {
+  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.18),
+              0 8px 24px -4px rgba(124, 58, 237, 0.12);
+  transition: box-shadow 0.3s ease;
+}
+.glow-brand:hover {
+  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.4),
+              0 14px 36px -6px rgba(124, 58, 237, 0.28);
+}
+
+/* =========================================================================
+   SUBJECT COLOR ACCENT CHIPS & LEFT BORDERS
+   ========================================================================= */
+
+.subject-accent-accounts { border-left: 3px solid #f59e0b; }
+.subject-accent-ocm      { border-left: 3px solid #3b82f6; }
+.subject-accent-eco      { border-left: 3px solid #10b981; }
+.subject-accent-sp       { border-left: 3px solid #a855f7; }
+.subject-accent-english  { border-left: 3px solid #0ea5e9; }
+.subject-accent-it       { border-left: 3px solid #f43f5e; }
+.subject-accent-maths    { border-left: 3px solid #f97316; }
+.subject-accent-hindi    { border-left: 3px solid #ec4899; }
+.subject-accent-marathi  { border-left: 3px solid #14b8a6; }
+
+/* =========================================================================
+   CHAPTER ROW HOVER ACCENT LINE
+   ========================================================================= */
+
+.chapter-row {
+  position: relative;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chapter-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 2px; height: 0;
+  background: linear-gradient(180deg, #7c3aed, #6366f1);
+  border-radius: 9999px;
+  transition: height 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chapter-row:hover::before,
+.chapter-row.is-active::before {
+  height: 60%;
+}
+
+/* =========================================================================
+   COUNTDOWN TICK
+   ========================================================================= */
+
+@keyframes tick-in {
+  0%   { transform: translateY(-8px); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+.animate-tick-in {
+  animation: tick-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* =========================================================================
+   PULSE RING (for active timer dot, notification badge)
+   ========================================================================= */
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.pulse-ring {
+  position: relative;
+}
+.pulse-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  animation: pulse-ring 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }

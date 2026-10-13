@@ -23,12 +23,16 @@ import {
   FileQuestion,
   User,
   ChevronDown,
+  Users,
+  ShieldCheck,
 } from 'lucide-react';
 import { triggerPWAInstall } from '../common/PWAInstallBanner';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { firebaseNotifications } from '../../services/firebase';
 import { PaperRequestsManagerModal } from '../vault/PaperRequestsManagerModal';
 import { StudentPaperRequestModal } from '../vault/StudentPaperRequestModal';
+import { UsersManagerModal } from '../admin/UsersManagerModal';
+import { DocumentReviewsModal } from '../admin/DocumentReviewsModal';
 
 interface HeaderProps {
   title: string;
@@ -48,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   } = usePomodoro();
 
   const { theme, toggleTheme } = useTheme();
-  const { currentUser, isAuthenticated, isSuperAdmin, activeStandard, logout, openAuthModal } = useAuth();
+  const { currentUser, isAuthenticated, isSuperAdmin, isAdmin, activeStandard, logout, openAuthModal } = useAuth();
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showTimerPopover, setShowTimerPopover] = useState<boolean>(false);
@@ -56,8 +60,11 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
   const [showPaperRequestsModal, setShowPaperRequestsModal] = useState<boolean>(false);
   const [showStudentRequestModal, setShowStudentRequestModal] = useState<boolean>(false);
+  const [showUsersModal, setShowUsersModal] = useState<boolean>(false);
+  const [showDocumentReviewsModal, setShowDocumentReviewsModal] = useState<boolean>(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
   const [pendingPaperReqsCount, setPendingPaperReqsCount] = useState<number>(0);
+  const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
   const [canInstall, setCanInstall] = useState<boolean>(false);
 
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -110,6 +117,11 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           const reqs = await api.getPaperRequests();
           setPendingPaperReqsCount(reqs.filter((r) => r.status === 'pending').length);
         } catch {}
+
+        try {
+          const rev = await api.getPendingReviews();
+          setPendingReviewsCount(rev.pendingUploads.length + rev.pendingRenames.length);
+        } catch {}
       }
     };
 
@@ -133,9 +145,13 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
       checkNotifs();
       if (isSuperAdmin) setPendingPaperReqsCount((p) => p + 1);
     };
+    const handleReviewsUpdated = () => {
+      checkNotifs();
+    };
 
     window.addEventListener('aether_open_paper_request', handleOpenStudentRequest);
     window.addEventListener('aether_paper_request_submitted', handlePaperRequestSubmitted);
+    window.addEventListener('aether_reviews_updated', handleReviewsUpdated);
 
     // Realtime notification sync & native phone notification tray alerts
     const unsubscribe = firebaseNotifications.subscribe((cloudNotifs) => {
@@ -156,6 +172,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
       window.removeEventListener('aether_open_notifications_modal', handleOpenModal);
       window.removeEventListener('aether_open_paper_request', handleOpenStudentRequest);
       window.removeEventListener('aether_paper_request_submitted', handlePaperRequestSubmitted);
+      window.removeEventListener('aether_reviews_updated', handleReviewsUpdated);
       unsubscribe();
     };
   }, [activeStandard, isSuperAdmin]);
@@ -327,6 +344,37 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
             </button>
           )}
 
+          {/* Admin User Management Button */}
+          {(isSuperAdmin || isAdmin) && (
+            <button
+              type="button"
+              onClick={() => setShowUsersModal(true)}
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-500/10 hover:bg-brand-500/20 text-brand-700 dark:text-brand-300 border border-brand-500/25 text-xs font-bold transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
+              title="View all users, active/inactive statuses, and assign admin roles"
+            >
+              <Users className="w-3.5 h-3.5 text-brand-500" />
+              <span>Users & Admins</span>
+            </button>
+          )}
+
+          {/* SuperAdmin Document Reviews Desk Button */}
+          {isSuperAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowDocumentReviewsModal(true)}
+              className="relative hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/25 text-xs font-bold transition-all ios-pill cursor-pointer active:scale-95 shrink-0"
+              title="SuperAdmin Review Desk: Authorize faculty admin uploads and renames"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+              <span>Review Desk</span>
+              {pendingReviewsCount > 0 && (
+                <span className="min-w-[17px] h-[17px] px-1 bg-amber-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center animate-pulse">
+                  {pendingReviewsCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Announcements & Notifications Bell */}
           <button
             type="button"
@@ -460,6 +508,23 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
                     </button>
                   )}
 
+                  {(isSuperAdmin || isAdmin) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        setShowUsersModal(true);
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <Users className="w-4 h-4 text-brand-500" />
+                        <span>User Directory & Admins</span>
+                      </div>
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    </button>
+                  )}
+
                   {isSuperAdmin && (
                     <button
                       type="button"
@@ -476,6 +541,27 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
                       {pendingPaperReqsCount > 0 && (
                         <span className="px-1.5 py-0.2 bg-amber-500 text-black rounded-full text-[10px] font-bold">
                           {pendingPaperReqsCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
+
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        setShowDocumentReviewsModal(true);
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <ShieldCheck className="w-4 h-4 text-amber-500" />
+                        <span>Document Review Desk</span>
+                      </div>
+                      {pendingReviewsCount > 0 && (
+                        <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-bold animate-pulse">
+                          {pendingReviewsCount}
                         </span>
                       )}
                     </button>
@@ -525,6 +611,29 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           isOpen={showPaperRequestsModal}
           onClose={() => setShowPaperRequestsModal(false)}
           onRequestCountChange={(cnt) => setPendingPaperReqsCount(cnt)}
+        />
+      )}
+
+      {/* SuperAdmin & Admin User Directory & Role Assignment Modal */}
+      {showUsersModal && (
+        <UsersManagerModal
+          isOpen={showUsersModal}
+          onClose={() => setShowUsersModal(false)}
+        />
+      )}
+
+      {/* SuperAdmin Document Reviews Modal */}
+      {showDocumentReviewsModal && (
+        <DocumentReviewsModal
+          isOpen={showDocumentReviewsModal}
+          onClose={() => setShowDocumentReviewsModal(false)}
+          reviewerEmail={currentUser?.email || 'bs.framework5253@gmail.com'}
+          onReviewsUpdated={() => {
+            api.getPendingReviews().then(res => {
+              setPendingReviewsCount(res.pendingUploads.length + res.pendingRenames.length);
+            }).catch(() => {});
+            window.dispatchEvent(new CustomEvent('aether_reviews_updated'));
+          }}
         />
       )}
     </>

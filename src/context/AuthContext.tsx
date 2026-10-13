@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UserRole, AuthContextType } from '../types/auth';
 import { api, setAuthToken } from '../services/api';
+import { firebaseUsers } from '../services/firebase';
 import { AuthModal } from '../components/auth/AuthModal';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -96,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const closeAuthModal = () => setIsAuthModalOpen(false);
 
   const refreshUsers = async () => {
-    if (isSuperAdmin) {
+    if (isAdmin) {
       try {
         const users = await api.getUsers();
         setUsersList(users);
@@ -107,9 +108,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUserRole = async (targetEmail: string, newRole: UserRole, standard?: string): Promise<boolean> => {
-    if (!currentUser || !isSuperAdmin) return false;
+    if (!currentUser || !isAdmin) return false;
     try {
-      const res = await api.updateUserRole(currentUser.email, targetEmail, newRole);
+      const res = await api.updateUserRole(currentUser.email, targetEmail, newRole, standard);
       if (res.success) {
         setUsersList((prev) =>
           prev.map((u) => (u.email.toLowerCase() === targetEmail.toLowerCase() ? { ...u, role: newRole, ...(standard ? { standard } : {}) } : u))
@@ -124,9 +125,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addAdminUser = async (email: string, role: UserRole = 'ADMIN', standard?: string): Promise<boolean> => {
-    if (!currentUser || !isSuperAdmin) return false;
+    if (!currentUser || !isAdmin) return false;
     try {
-      const res = await api.addAdminUser(currentUser.email, email, role);
+      const res = await api.addAdminUser(currentUser.email, email, role, standard);
       if (res.success) {
         setUsersList(
           res.users.map((u) => (u.email.toLowerCase() === email.toLowerCase() && standard ? { ...u, standard } : u))
@@ -135,16 +136,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return false;
     } catch (err) {
-      alert((err as Error).message || 'Failed to add administrator');
+      alert((err as Error).message || 'Failed to add user');
       return false;
     }
   };
 
+  // Proactively record active session to Firebase Realtime Database
   useEffect(() => {
-    if (isSuperAdmin) {
-      refreshUsers();
+    if (currentUser?.email) {
+      firebaseUsers.recordUser(currentUser).catch(() => {});
     }
   }, [currentUser]);
+
+  // Live real-time synchronizer for Admins to monitor registered students & active users
+  useEffect(() => {
+    if (!isAdmin) return;
+    refreshUsers();
+    const unsub = firebaseUsers.subscribe((cloudUsers) => {
+      if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+        setUsersList((prev) => {
+          const map = new Map<string, UserProfile>();
+          cloudUsers.forEach((u) => {
+            if (u && u.email) map.set(u.email.toLowerCase(), u);
+          });
+          prev.forEach((u) => {
+            if (u && u.email && !map.has(u.email.toLowerCase())) {
+              map.set(u.email.toLowerCase(), u);
+            }
+          });
+          return Array.from(map.values());
+        });
+      }
+    });
+    return () => unsub();
+  }, [isAdmin, currentUser?.email]);
 
   return (
     <AuthContext.Provider

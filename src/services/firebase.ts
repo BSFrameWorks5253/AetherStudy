@@ -31,6 +31,7 @@ import {
   deleteObject,
 } from 'firebase/storage';
 import { TimeSlot } from '../types/timetable';
+import { UserProfile, UserRole } from '../types/auth';
 import { getUserStorageItem, setUserStorageItem } from '../utils/userStorage';
 
 const firebaseConfig = {
@@ -1082,6 +1083,139 @@ export const firebaseDocuments = {
       console.warn('[Firebase Reset Full Documents Error]:', err);
       return false;
     }
+  },
+};
+
+/**
+ * Realtime User Directory & Admin Management Service
+ * Gives Administrators real-time visibility over all users (active/inactive, emails, standards)
+ * and allows promoting/demoting users to/from admin roles.
+ */
+export const firebaseUsers = {
+  subscribe(callback: (users: UserProfile[]) => void): () => void {
+    const usersRef = ref(rtdb, 'users');
+    const unsub = onValue(
+      usersRef,
+      (snapshot) => {
+        const val = snapshot.val();
+        if (val && typeof val === 'object') {
+          const list: UserProfile[] = Object.values(val);
+          callback(list);
+        } else {
+          callback([]);
+        }
+      },
+      (err) => {
+        console.warn('[Firebase Users Subscription Notice]:', err);
+      }
+    );
+    return () => unsub();
+  },
+
+  async recordUser(user: Partial<UserProfile> & { email: string }): Promise<boolean> {
+    if (!user || !user.email) return false;
+    const cleanEmail = user.email.toLowerCase().trim();
+    const safeKey = cleanEmail.replace(/[.#$[\]]/g, '_');
+    const isOwner = cleanEmail === 'bs.framework5253@gmail.com';
+    const now = new Date().toISOString();
+
+    try {
+      await ensureFirebaseAuth();
+      const userRef = ref(rtdb, `users/${safeKey}`);
+      const snap = await get(userRef);
+      const existing = snap.val() || {};
+
+      const profile: UserProfile = {
+        email: cleanEmail,
+        role: isOwner ? 'SUPER_ADMIN' : (user.role || existing.role || 'USER'),
+        standard: user.standard || existing.standard || '12',
+        lastLogin: user.lastLogin || existing.lastLogin || now,
+        lastActive: now,
+        createdAt: existing.createdAt || now,
+        name: user.name || existing.name || cleanEmail.split('@')[0],
+        status: 'active',
+      };
+
+      await set(userRef, profile);
+
+      // Cache locally
+      try {
+        const cached = localStorage.getItem('aether_cached_users');
+        const list: UserProfile[] = cached ? JSON.parse(cached) : [];
+        const filtered = list.filter((u) => u.email.toLowerCase() !== cleanEmail);
+        localStorage.setItem('aether_cached_users', JSON.stringify([...filtered, profile]));
+      } catch {}
+
+      return true;
+    } catch (err) {
+      console.warn('[Firebase Record User Notice]:', err);
+      return false;
+    }
+  },
+
+  async updateUserRole(targetEmail: string, newRole: UserRole, standard?: string): Promise<boolean> {
+    if (!targetEmail) return false;
+    const cleanEmail = targetEmail.toLowerCase().trim();
+    const safeKey = cleanEmail.replace(/[.#$[\]]/g, '_');
+    const isOwner = cleanEmail === 'bs.framework5253@gmail.com';
+    const finalRole: UserRole = isOwner ? 'SUPER_ADMIN' : newRole;
+
+    try {
+      await ensureFirebaseAuth();
+      const userRef = ref(rtdb, `users/${safeKey}`);
+      const snap = await get(userRef);
+      const existing = snap.val() || {
+        email: cleanEmail,
+        createdAt: new Date().toISOString(),
+      };
+
+      const updated: UserProfile = {
+        ...existing,
+        email: cleanEmail,
+        role: finalRole,
+        ...(standard ? { standard } : {}),
+        lastActive: new Date().toISOString(),
+      };
+
+      await set(userRef, updated);
+
+      // Update cache
+      try {
+        const cached = localStorage.getItem('aether_cached_users');
+        const list: UserProfile[] = cached ? JSON.parse(cached) : [];
+        const updatedList = list.map((u) => u.email.toLowerCase() === cleanEmail ? updated : u);
+        if (!updatedList.some((u) => u.email.toLowerCase() === cleanEmail)) {
+          updatedList.push(updated);
+        }
+        localStorage.setItem('aether_cached_users', JSON.stringify(updatedList));
+      } catch {}
+
+      return true;
+    } catch (err) {
+      console.warn('[Firebase Update User Role Notice]:', err);
+      return false;
+    }
+  },
+
+  async getAllUsers(): Promise<UserProfile[]> {
+    try {
+      await ensureFirebaseAuth();
+      const snap = await get(ref(rtdb, 'users'));
+      if (snap.exists()) {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          const list: UserProfile[] = Object.values(val);
+          return list;
+        }
+      }
+    } catch (err) {
+      console.warn('[Firebase GetAllUsers Notice]:', err);
+    }
+    try {
+      const cached = localStorage.getItem('aether_cached_users');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
   },
 };
 

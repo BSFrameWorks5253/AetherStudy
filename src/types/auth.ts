@@ -5,6 +5,10 @@ export interface UserProfile {
   role: UserRole;
   standard?: string; // '10' | '12' | '9' | '11' | 'ALL'
   lastLogin: string;
+  lastActive?: string;
+  createdAt?: string;
+  name?: string;
+  status?: 'active' | 'inactive';
 }
 
 export interface AuthContextType {

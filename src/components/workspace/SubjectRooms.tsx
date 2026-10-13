@@ -43,8 +43,11 @@ import {
   ChevronUp,
   MoreVertical,
   SlidersHorizontal,
+  ShieldCheck,
 } from 'lucide-react';
 import { readingMemory, getCanonicalDocKey } from '../../services/readingMemory';
+import { recentDocuments } from '../../services/recentDocuments';
+import { DocumentReviewsModal } from '../admin/DocumentReviewsModal';
 
 interface SubjectMeta {
   name: string;
@@ -609,15 +612,32 @@ const detectChapterForFile = (
   return { chapterNumber: fallbackChapter || 'All', customChapter: '' };
 };
 
-export const SubjectRooms: React.FC = () => {
+export interface SubjectRoomsProps {
+  initialSubject?: string | null;
+  onClearSubject?: () => void;
+}
+
+export const SubjectRooms: React.FC<SubjectRoomsProps> = ({ initialSubject, onClearSubject }) => {
   const { currentUser, isSuperAdmin, isAdmin, canUpload, activeStandard } = useAuth();
 
   // Navigation & Room State
   const [activeRoom, setActiveRoom] = useState<string | null>(() => {
+    if (initialSubject) {
+      const allBase = Object.values(DEFAULT_STANDARD_SUBJECTS).flat();
+      return findSubjectBySlug(getSubjectSlug(initialSubject), allBase) || initialSubject;
+    }
     try {
+      const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (pathname.startsWith('/studyroom/')) {
+        const seg = pathname.replace(/^\/studyroom\/?/, '').split('/')[0];
+        if (seg) {
+          const allBase = Object.values(DEFAULT_STANDARD_SUBJECTS).flat();
+          const match = findSubjectBySlug(seg, allBase);
+          if (match) return match;
+        }
+      }
       const initial = sessionStorage.getItem('aether_initial_room');
       if (initial) {
-        sessionStorage.removeItem('aether_initial_room');
         return initial;
       }
     } catch {}
@@ -626,17 +646,7 @@ export const SubjectRooms: React.FC = () => {
   const [activeCategoryTab, setActiveCategoryTab] = useState<'syllabus' | 'textbooks' | 'notes' | 'pyq'>('syllabus');
   const [readingDoc, setReadingDoc] = useState<ServerDocument | null>(null);
 
-  // Listen for direct room jump from Home Screen
-  useEffect(() => {
-    const handleSwitch = (e: any) => {
-      if (e?.detail?.subject) {
-        setActiveRoom(e.detail.subject);
-        setReadingDoc(null);
-      }
-    };
-    window.addEventListener('aether_switch_room', handleSwitch);
-    return () => window.removeEventListener('aether_switch_room', handleSwitch);
-  }, []);
+
 
   // Chapter syllabus mastery tracking (strictly isolated per student account)
   const [completedChapters, setCompletedChapters] = useState<Record<string, boolean>>(() => {
@@ -750,6 +760,18 @@ export const SubjectRooms: React.FC = () => {
     setEditDocTag(doc.customFilter || (doc.tags && doc.tags[0]) || '');
   };
 
+  // SuperAdmin Document Review Desk State
+  const [showReviewsModal, setShowReviewsModal] = useState<boolean>(false);
+  const [pendingReviewsTotal, setPendingReviewsTotal] = useState<number>(0);
+
+  const fetchPendingReviewsCount = async () => {
+    if (!isSuperAdmin) return;
+    try {
+      const res = await api.getPendingReviews();
+      setPendingReviewsTotal(res.pendingUploads.length + res.pendingRenames.length);
+    } catch {}
+  };
+
   // Section collapse/visibility toggles for empty chapters (keeps chapters with files UP at top)
   const [showEmptyChaptersSyllabus, setShowEmptyChaptersSyllabus] = useState<boolean>(true);
   const [showEmptyChaptersNotes, setShowEmptyChaptersNotes] = useState<boolean>(false);
@@ -773,6 +795,9 @@ export const SubjectRooms: React.FC = () => {
       }
       if (papersRes.status === 'fulfilled' && Array.isArray(papersRes.value) && papersRes.value.length > 0) {
         setTestPapers(papersRes.value);
+      }
+      if (isSuperAdmin) {
+        fetchPendingReviewsCount();
       }
     } catch (err) {
       console.warn('Could not load subjects and documents:', err);
@@ -822,6 +847,9 @@ export const SubjectRooms: React.FC = () => {
 
   useEffect(() => {
     loadContent();
+    if (isSuperAdmin) {
+      fetchPendingReviewsCount();
+    }
   }, [activeStandard, isSuperAdmin]);
 
   // Real-time Cloud Synchronization for academic documents across tabs and devices
@@ -928,6 +956,37 @@ export const SubjectRooms: React.FC = () => {
     return [...baseList, ...customList];
   }, [activeStandard, serverSubjects, documents]);
 
+  // Reactively sync activeRoom whenever initialSubject prop changes from Home Screen or Workspace
+  useEffect(() => {
+    if (initialSubject) {
+      const matched = findSubjectBySlug(getSubjectSlug(initialSubject), availableSubjects) || initialSubject;
+      setActiveRoom(matched);
+      setReadingDoc(null);
+      const slug = getSubjectSlug(matched);
+      if (window.location.pathname !== `/studyroom/${slug}`) {
+        window.history.replaceState(null, '', `/studyroom/${slug}`);
+      }
+    }
+  }, [initialSubject, availableSubjects]);
+
+  // Listen for direct room jump from Home Screen
+  useEffect(() => {
+    const handleSwitch = (e: any) => {
+      if (e?.detail?.subject) {
+        const targetSub = e.detail.subject;
+        const matched = findSubjectBySlug(getSubjectSlug(targetSub), availableSubjects) || targetSub;
+        setActiveRoom(matched);
+        setReadingDoc(null);
+        const slug = getSubjectSlug(matched);
+        if (window.location.pathname !== `/studyroom/${slug}`) {
+          window.history.pushState(null, '', `/studyroom/${slug}`);
+        }
+      }
+    };
+    window.addEventListener('aether_switch_room', handleSwitch);
+    return () => window.removeEventListener('aether_switch_room', handleSwitch);
+  }, [availableSubjects]);
+
   // Dedicated 100% to Maharashtra State Board Standard 12 (HSC Commerce)
   const effectiveStandard = '12';
 
@@ -1005,16 +1064,24 @@ export const SubjectRooms: React.FC = () => {
     }
   };
 
-  // Filter documents strictly by effective standard (never mix Std 11 and Std 12!)
+  // Filter documents strictly by effective standard and pending review approval
   const standardFilteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
+      // Review filter: Students only see approved docs. Admins & SuperAdmins see pending docs (with review badges)
+      const isApproved = !doc.status || doc.status === 'approved';
+      if (!isAdmin && !isSuperAdmin && !isApproved) {
+        return false;
+      }
+      if (doc.status === 'rejected' && !isSuperAdmin) {
+        return false;
+      }
       if (!effectiveStandard) return true;
       if (doc.standard && doc.standard !== 'ALL' && doc.standard !== effectiveStandard) {
         return false;
       }
       return true;
     });
-  }, [documents, effectiveStandard]);
+  }, [documents, effectiveStandard, isAdmin, isSuperAdmin]);
 
   // Documents inside the selected room (strictly matching subject AND standard)
   const roomDocuments = useMemo(() => {
@@ -1076,6 +1143,24 @@ export const SubjectRooms: React.FC = () => {
     const segments = subPath ? subPath.split('/').filter(Boolean) : [];
 
     if (segments.length === 0) {
+      let initialRoom = null;
+      try {
+        initialRoom = sessionStorage.getItem('aether_initial_room');
+        if (initialRoom) {
+          sessionStorage.removeItem('aether_initial_room');
+        }
+      } catch {}
+
+      if (initialRoom) {
+        const matched = findSubjectBySlug(getSubjectSlug(initialRoom), availableSubjects) || initialRoom;
+        setActiveRoom(matched);
+        const sSlug = getSubjectSlug(matched);
+        if (window.location.pathname !== `/studyroom/${sSlug}`) {
+          window.history.replaceState(null, '', `/studyroom/${sSlug}`);
+        }
+        return;
+      }
+
       setActiveRoom(null);
       setReadingDoc(null);
       return;
@@ -1184,6 +1269,19 @@ export const SubjectRooms: React.FC = () => {
     if (!activeRoom) {
       setActiveRoom(doc.subject);
     }
+    recentDocuments.addRecentDocument({
+      id: doc.id || doc.name,
+      name: doc.name || doc.originalName || 'Document',
+      originalName: doc.originalName || doc.name,
+      subject: doc.subject || activeRoom || 'General',
+      standard: doc.standard || '12',
+      category: doc.category === 'textbook' ? 'textbook' : 'notes',
+      chapterNumber: doc.chapterNumber || '',
+      chapterTitle: doc.chapterTitle || '',
+      streamUrl: doc.streamUrl || '',
+      serverUrl: doc.serverUrl || '',
+      url: doc.streamUrl || doc.serverUrl || '',
+    });
     const slug = getSubjectSlug(doc.subject || activeRoom || 'room');
     const docName = doc.name || doc.originalName || 'document';
     const targetUrl = `/studyroom/${slug}/${encodeURIComponent(docName)}`;
@@ -1207,6 +1305,7 @@ export const SubjectRooms: React.FC = () => {
   const handleBackToOverview = () => {
     setActiveRoom(null);
     setReadingDoc(null);
+    onClearSubject?.();
     const targetUrl = '/studyroom';
     if (window.location.pathname !== targetUrl) {
       window.history.pushState(null, '', targetUrl);
@@ -1844,14 +1943,20 @@ export const SubjectRooms: React.FC = () => {
       nextName = `${nextName}.pdf`;
     }
 
-    const updated = await api.updateDocument(editingDoc.id, {
-      name: nextName,
-      originalName: nextName,
-      chapterNumber: editDocChapter,
-      chapterTitle: chTitle,
-      customFilter: trimmedTag,
-      tags: nextTags,
-    });
+    const isNameChanging = nextName !== (editingDoc.name || editingDoc.originalName);
+    const updated = await api.updateDocument(
+      editingDoc.id,
+      {
+        name: nextName,
+        originalName: nextName,
+        chapterNumber: editDocChapter,
+        chapterTitle: chTitle,
+        customFilter: trimmedTag,
+        tags: nextTags,
+      },
+      isSuperAdmin,
+      currentUser?.email
+    );
 
     if (updated) {
       setDocuments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
@@ -1859,6 +1964,9 @@ export const SubjectRooms: React.FC = () => {
         const nextList = [...customFiltersList, trimmedTag];
         setCustomFiltersList(nextList);
         localStorage.setItem('aether_custom_filters', JSON.stringify(nextList));
+      }
+      if (!isSuperAdmin && isNameChanging) {
+        alert('Rename request submitted! The SuperAdmin (Burhanuddin Sounasath) will review and approve your rename before it goes live for students.');
       }
     }
 
@@ -1957,7 +2065,8 @@ export const SubjectRooms: React.FC = () => {
             chTitle,
             filt,
             tags,
-            docName
+            docName,
+            isSuperAdmin
           );
         } catch (err: any) {
           console.warn(`[Vault Direct Upload Fallback for ${file.name}]:`, err);
@@ -1969,6 +2078,7 @@ export const SubjectRooms: React.FC = () => {
             vaultUrl = URL.createObjectURL(file);
           }
 
+          const isOwnerApproved = isSuperAdmin || currentUser?.email?.toLowerCase() === 'bs.framework5253@gmail.com';
           uploadedRecord = {
             id: docId,
             name: docName,
@@ -1981,6 +2091,9 @@ export const SubjectRooms: React.FC = () => {
             size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
             uploadedAt: new Date().toISOString(),
             uploadedBy: currentUser?.email || 'Faculty',
+            uploadedByRole: currentUser?.role,
+            status: isOwnerApproved ? 'approved' : 'pending',
+            reviewNotes: isOwnerApproved ? undefined : 'Faculty upload awaiting SuperAdmin review',
             subject: targetSub,
             standard: targetStd,
             category: cat,
@@ -2037,6 +2150,9 @@ export const SubjectRooms: React.FC = () => {
       setFileConfigs([]);
       setUploadChapterTitle('');
       setUploadCustomChapter('');
+      if (!isSuperAdmin) {
+        alert('Upload submitted successfully! Your PDF has been sent to SuperAdmin (Burhanuddin Sounasath) for review and will be published for students once approved.');
+      }
       setTimeout(() => {
         setUploadSuccess(false);
         setIsUploadPage(false);
@@ -2163,6 +2279,23 @@ export const SubjectRooms: React.FC = () => {
                   <CheckCircle className="w-5 h-5 shrink-0 text-emerald-500" />
                   <span className="font-bold">
                     Upload completed successfully! All documents are synced to Cloud & Google Drive.
+                  </span>
+                </div>
+              )}
+
+              {/* Faculty Admin Review Info Notice */}
+              {!isSuperAdmin ? (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 shrink-0 text-amber-500" />
+                  <div>
+                    <strong>SuperAdmin Review Mode:</strong> As a faculty admin, your uploaded PDFs will be automatically routed to the SuperAdmin (<strong>Burhanuddin Sounasath</strong>) for quality review and approval before becoming visible to students.
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm flex items-center gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-500" />
+                  <span>
+                    <strong>SuperAdmin Direct Publishing:</strong> Uploads by you (Burhanuddin Sounasath) are immediately verified, published, and synced to students without requiring review.
                   </span>
                 </div>
               )}
@@ -2730,6 +2863,21 @@ export const SubjectRooms: React.FC = () => {
             {/* Quick Room Actions (Admin only) */}
             {isAdmin && (
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => setShowReviewsModal(true)}
+                    className="relative px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
+                    title="SuperAdmin Review Desk: Authorize faculty admin uploads and renames"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Review Desk</span>
+                    {pendingReviewsTotal > 0 && (
+                      <span className="px-1.5 py-0.2 bg-white text-amber-700 text-[10px] rounded-full font-black animate-pulse">
+                        {pendingReviewsTotal}
+                      </span>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={() => openUploadStudio({ subject: activeRoom, category: 'notes' })}
                   className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl shadow-xs flex items-center space-x-1 transition-all cursor-pointer active:scale-95"
@@ -2947,10 +3095,11 @@ export const SubjectRooms: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-                          {syllabusChapterBuckets.withFiles.map(({ chapter: ch, docs: chapterDocs, isCompleted, chapterKey }) => (
+                          {syllabusChapterBuckets.withFiles.map(({ chapter: ch, docs: chapterDocs, isCompleted, chapterKey }, cIdx) => (
                             <div
                               key={ch.number + ch.title}
-                              className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                              style={{ animationDelay: `${cIdx * 40}ms` }}
+                              className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 flex flex-col justify-between hover:-translate-y-1 hover:shadow-xl animate-fade-in-up ${
                                 isCompleted
                                   ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
                                   : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-brand-500/50 hover:shadow-md'
@@ -3245,6 +3394,16 @@ export const SubjectRooms: React.FC = () => {
                               </div>
 
                               <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                {doc.status === 'pending' && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                    Pending Review
+                                  </span>
+                                )}
+                                {doc.pendingRename && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800" title={`Pending rename to: ${doc.pendingRename}`}>
+                                    Rename in Review
+                                  </span>
+                                )}
                                 {matchedCh && (
                                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                                     {matchedCh.number}
@@ -3644,6 +3803,16 @@ export const SubjectRooms: React.FC = () => {
                                                 </div>
 
                                                 <div className="flex items-center gap-1 flex-wrap justify-end">
+                                                  {doc.status === 'pending' && (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                                      Pending Review
+                                                    </span>
+                                                  )}
+                                                  {doc.pendingRename && (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800" title={`Pending rename to: ${doc.pendingRename}`}>
+                                                      Rename in Review
+                                                    </span>
+                                                  )}
                                                   {doc.customFilter && (
                                                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                                                       {doc.customFilter}
@@ -3788,11 +3957,23 @@ export const SubjectRooms: React.FC = () => {
                                       <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
                                         <FileText className="w-4 h-4" />
                                       </div>
-                                      {doc.customFilter && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                                          {doc.customFilter}
-                                        </span>
-                                      )}
+                                      <div className="flex items-center gap-1 flex-wrap justify-end">
+                                        {doc.status === 'pending' && (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                            Pending Review
+                                          </span>
+                                        )}
+                                        {doc.pendingRename && (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800" title={`Pending rename to: ${doc.pendingRename}`}>
+                                            Rename in Review
+                                          </span>
+                                        )}
+                                        {doc.customFilter && (
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                            {doc.customFilter}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                     <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-brand-600 transition-colors line-clamp-2">
                                       {doc.name || doc.originalName}
@@ -3923,6 +4104,16 @@ export const SubjectRooms: React.FC = () => {
                                 </div>
 
                                 <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                  {doc.status === 'pending' && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                      Pending Review
+                                    </span>
+                                  )}
+                                  {doc.pendingRename && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800" title={`Pending rename to: ${doc.pendingRename}`}>
+                                      Rename in Review
+                                    </span>
+                                  )}
                                   {matchedCh && (
                                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
                                       {matchedCh.number}
@@ -4140,6 +4331,21 @@ export const SubjectRooms: React.FC = () => {
 
               {isAdmin && (
                 <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 self-start lg:self-center">
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => setShowReviewsModal(true)}
+                      className="px-3.5 sm:px-4 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-lg shadow-amber-500/25 flex items-center space-x-1.5 transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                      title="SuperAdmin Review Desk: Authorize faculty admin uploads and renames"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Review Desk</span>
+                      {pendingReviewsTotal > 0 && (
+                        <span className="px-1.5 py-0.2 bg-white text-amber-700 text-[10px] rounded-full font-black animate-pulse">
+                          {pendingReviewsTotal}
+                        </span>
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       openUploadStudio({
@@ -4178,7 +4384,7 @@ export const SubjectRooms: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6">
-              {filteredDeskSubjects.map((sub) => {
+              {filteredDeskSubjects.map((sub, sIdx) => {
                 const Icon = sub.icon;
                 const metrics = subjectMetricsMap[sub.name] || { directDocsCount: 0, tBooks: 0, nDocs: 0, pCount: 0 };
                 const tBooks = metrics.tBooks;
@@ -4188,21 +4394,24 @@ export const SubjectRooms: React.FC = () => {
                 return (
                   <div
                     key={sub.name}
-                    className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 hover:border-brand-500/40 dark:hover:border-brand-400/40 shadow-sm hover:shadow-xl transition-all duration-300 group flex flex-col justify-between relative overflow-hidden backdrop-blur-md"
+                    style={{ animationDelay: `${sIdx * 45}ms` }}
+                    className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 hover:border-brand-500/50 dark:hover:border-brand-400/50 shadow-sm hover:shadow-2xl hover:shadow-brand-500/10 transition-all duration-300 group flex flex-col justify-between relative overflow-hidden backdrop-blur-md hover:-translate-y-1.5 animate-fade-in-up"
                   >
                     {/* Top ambient color accent hairline */}
                     <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${sub.colorGradient} opacity-80 group-hover:opacity-100 transition-opacity`} />
+                    {/* Ambient subtle glow on hover */}
+                    <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-brand-500/5 via-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-                    <div className="space-y-3 sm:space-y-4">
+                    <div className="space-y-3 sm:space-y-4 relative z-10">
                       <div className="flex items-center justify-between">
                         <div
                           onClick={() => handleSelectRoom(sub.name)}
-                          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${sub.colorGradient} flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-all cursor-pointer`}
+                          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${sub.colorGradient} flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-110 group-hover:rotate-1 transition-all duration-300 cursor-pointer`}
                         >
                           <Icon className="w-6 h-6" />
                         </div>
 
-                        <span className={`text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${sub.badgeColor}`}>
+                        <span className={`text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shadow-2xs ${sub.badgeColor}`}>
                           {sub.code}
                         </span>
                       </div>
@@ -4224,7 +4433,7 @@ export const SubjectRooms: React.FC = () => {
                             e.stopPropagation();
                             handleSelectRoom(sub.name, 'textbooks');
                           }}
-                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-[11px] font-medium text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/70 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-[11px] font-medium text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/70 shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                           title="Open Official Textbooks"
                         >
                           <BookOpen className="w-3.5 h-3.5 text-blue-500 shrink-0" />
@@ -4237,7 +4446,7 @@ export const SubjectRooms: React.FC = () => {
                             e.stopPropagation();
                             handleSelectRoom(sub.name, 'notes');
                           }}
-                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-[11px] font-medium text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/70 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-[11px] font-medium text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/70 shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                           title="Open Chapter Notes"
                         >
                           <FileText className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -4251,7 +4460,7 @@ export const SubjectRooms: React.FC = () => {
                               e.stopPropagation();
                               handleSelectRoom(sub.name, 'pyq');
                             }}
-                            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-950/40 text-[11px] font-medium text-amber-700 dark:text-amber-300 border border-amber-500/20 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                            className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-950/40 text-[11px] font-medium text-amber-700 dark:text-amber-300 border border-amber-500/20 shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
                             title="Open Board PYQ Papers"
                           >
                             <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -4263,14 +4472,14 @@ export const SubjectRooms: React.FC = () => {
 
                     <div
                       onClick={() => handleSelectRoom(sub.name)}
-                      className="pt-3.5 mt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between cursor-pointer"
+                      className="pt-3.5 mt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between cursor-pointer relative z-10"
                     >
                       <div className="text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
                         <span>HSC Syllabus</span>
                       </div>
 
-                      <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 group-hover:translate-x-1 transition-transform flex items-center space-x-1">
+                      <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 group-hover:translate-x-1.5 transition-transform flex items-center space-x-1">
                         <span>Enter Room</span>
                         <span>→</span>
                       </span>
@@ -4580,6 +4789,26 @@ export const SubjectRooms: React.FC = () => {
             </div>
 
             <div className="p-5 space-y-4">
+              {!isSuperAdmin ? (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+                  <span>
+                    <strong>Faculty Admin Notice:</strong> Renaming this PDF will be sent to the SuperAdmin (<strong>Burhanuddin Sounasath</strong>) for review & approval before updating for students.
+                  </span>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span>SuperAdmin Mode: Renaming takes effect immediately across all devices.</span>
+                </div>
+              )}
+
+              {editingDoc.pendingRename && (
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-xs">
+                  Pending rename requested by {editingDoc.pendingRenameBy || 'Admin'}: <strong>{editingDoc.pendingRename}</strong>
+                </div>
+              )}
+
               {/* PDF Document Name / Custom Rename Field */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -4961,6 +5190,19 @@ export const SubjectRooms: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* SuperAdmin Document Review Desk Modal */}
+      {isSuperAdmin && (
+        <DocumentReviewsModal
+          isOpen={showReviewsModal}
+          onClose={() => setShowReviewsModal(false)}
+          reviewerEmail={currentUser?.email || 'bs.framework5253@gmail.com'}
+          onReviewsUpdated={() => {
+            loadContent();
+            fetchPendingReviewsCount();
+          }}
+        />
       )}
     </div>
   );

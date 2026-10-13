@@ -52,8 +52,10 @@ interface UniversalPdfViewerProps {
   backLabel?: string;
 }
 
+import { recentDocuments } from '../../services/recentDocuments';
+
 /**
- * Continuous Scroll Page Component with Intersection Visibility
+ * Continuous Scroll Page Component with Stable Dimensions & Smooth In-View Rendering
  */
 const ContinuousPdfPage: React.FC<{
   pdfDoc: any;
@@ -77,10 +79,15 @@ const ContinuousPdfPage: React.FC<{
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [rendered, setRendered] = useState<boolean>(false);
-  const [inView, setInView] = useState<boolean>(pageNumber <= 3); // Preload first 3 pages
+  const [inView, setInView] = useState<boolean>(pageNumber <= 3);
+  const [pageHeight, setPageHeight] = useState<number>(() => Math.floor(scale * baseWidth * (aspectRatio || 1.414)));
   const renderTaskRef = useRef<any>(null);
+  const isRenderingRef = useRef<boolean>(false);
 
-  const estimatedHeight = Math.floor(scale * baseWidth * (aspectRatio || 1.414));
+  // Update expected height whenever scale changes
+  useEffect(() => {
+    setPageHeight(Math.floor(scale * baseWidth * (aspectRatio || 1.414)));
+  }, [scale, baseWidth, aspectRatio]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -91,16 +98,10 @@ const ContinuousPdfPage: React.FC<{
           if (entry.isIntersecting) {
             setInView(true);
             if (onVisible) onVisible(pageNumber);
-          } else {
-            // Keep memory lean: unmount canvases that are far away (>1200px)
-            if (pageNumber > 3) {
-              setInView(false);
-              setRendered(false);
-            }
           }
         });
       },
-      { rootMargin: '1200px 0px 1200px 0px', threshold: 0.05 }
+      { rootMargin: '1000px 0px 1000px 0px', threshold: 0.05 }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -109,6 +110,14 @@ const ContinuousPdfPage: React.FC<{
   useEffect(() => {
     if (!pdfDoc || !inView) return;
     let cancelled = false;
+
+    // Cancel any previous task on this page before re-rendering
+    if (renderTaskRef.current) {
+      try {
+        renderTaskRef.current.cancel();
+      } catch {}
+      renderTaskRef.current = null;
+    }
 
     pdfDoc.getPage(pageNumber).then((page: any) => {
       if (cancelled) return;
@@ -120,28 +129,47 @@ const ContinuousPdfPage: React.FC<{
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const viewport = page.getViewport({ scale, rotation });
 
+      const calculatedHeight = Math.floor(viewport.height);
+      setPageHeight(calculatedHeight);
+
       canvas.width = Math.floor(viewport.width * dpr);
       canvas.height = Math.floor(viewport.height * dpr);
       canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
+      canvas.style.height = `${calculatedHeight}px`;
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+      isRenderingRef.current = true;
       const task = page.render({ canvasContext: context, viewport });
       renderTaskRef.current = task;
+
       task.promise
         .then(() => {
+          isRenderingRef.current = false;
+          renderTaskRef.current = null;
           if (!cancelled) setRendered(true);
           try { page.cleanup(); } catch {}
         })
-        .catch(() => {
+        .catch((err: any) => {
+          isRenderingRef.current = false;
+          renderTaskRef.current = null;
           try { page.cleanup(); } catch {}
+          if (
+            err?.name === 'RenderingCancelledException' ||
+            err?.message?.toLowerCase().includes('cancelled') ||
+            err?.message?.toLowerCase().includes('canceled')
+          ) {
+            return;
+          }
         });
     }).catch(() => {});
 
     return () => {
       cancelled = true;
       if (renderTaskRef.current) {
-        try { renderTaskRef.current.cancel(); } catch {}
+        try {
+          renderTaskRef.current.cancel();
+        } catch {}
+        renderTaskRef.current = null;
       }
     };
   }, [pdfDoc, pageNumber, scale, rotation, inView]);
@@ -150,9 +178,9 @@ const ContinuousPdfPage: React.FC<{
     <div
       ref={containerRef}
       id={`pdf-page-${pageNumber}`}
-      className={`relative my-2 sm:my-6 shadow-xl sm:shadow-2xl rounded-xl sm:rounded-2xl transition-all max-w-full overflow-hidden mx-auto ${themeStyles.paperBg}`}
+      className={`relative my-2 sm:my-5 shadow-xl sm:shadow-2xl rounded-xl sm:rounded-2xl transition-all max-w-full overflow-hidden mx-auto ${themeStyles.paperBg}`}
       style={{
-        minHeight: rendered ? 'auto' : `${estimatedHeight}px`,
+        minHeight: `${pageHeight}px`,
         filter: themeStyles.canvasFilter,
       }}
     >
@@ -162,8 +190,7 @@ const ContinuousPdfPage: React.FC<{
       <canvas ref={canvasRef} className="block max-w-full h-auto rounded-lg sm:rounded-xl mx-auto" />
       {!rendered && inView && (
         <div
-          className="flex flex-col items-center justify-center text-xs font-semibold opacity-60"
-          style={{ height: `${estimatedHeight}px` }}
+          className="flex flex-col items-center justify-center text-xs font-semibold opacity-60 absolute inset-0 bg-black/5 dark:bg-white/5"
         >
           <RefreshCw className="w-5 h-5 animate-spin mb-2 text-brand-500" />
           <span>Rendering Page {pageNumber}...</span>
@@ -544,12 +571,23 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
     };
   }, [resolvedPdfUrl, safePdfUrl, isGoogleDrive, docKey, initialPage, url, title]);
 
-  // Save progress persistently
+  // Save progress persistently and update recent documents list
   useEffect(() => {
     if (numPages > 0 && currentPage > 0) {
       readingMemory.saveProgress(docKey, title, currentPage, numPages);
+      recentDocuments.addRecentDocument({
+        id: docKey,
+        name: title,
+        subject: subtitle ? subtitle.split('•')[0].trim() : 'Study Material',
+        streamUrl: url,
+        serverUrl: url,
+        url,
+        currentPage,
+        numPages,
+        percent: Math.round((currentPage / numPages) * 100),
+      });
     }
-  }, [docKey, title, currentPage, numPages]);
+  }, [docKey, title, subtitle, url, currentPage, numPages]);
 
   // Single-Page Canvas Render Mode
   useEffect(() => {
@@ -613,7 +651,13 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
           try {
             page.cleanup();
           } catch {}
-          if (err?.name === 'RenderingCancelledException') return;
+          if (
+            err?.name === 'RenderingCancelledException' ||
+            err?.message?.toLowerCase().includes('cancelled') ||
+            err?.message?.toLowerCase().includes('canceled')
+          ) {
+            return;
+          }
           console.warn('Canvas render error, falling back to Native engine:', err);
           setIsPageRendering(false);
           setEngineMode('native');
@@ -757,8 +801,8 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
 
           <div className="h-4 w-px bg-black/10 dark:bg-white/10 shrink-0 hidden sm:block" />
 
-          <div className="min-w-0 flex-1 max-w-[140px] xs:max-w-[200px] sm:max-w-xs md:max-w-md">
-            <h2 className="text-xs sm:text-sm font-bold truncate leading-tight tracking-tight">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xs sm:text-sm font-bold truncate leading-tight tracking-tight" title={title}>
               {title}
             </h2>
             {subtitle && (
@@ -922,7 +966,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
               </button>
               <button
                 onClick={handleFitPage}
-                className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer hidden md:inline-block"
+                className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-black/5 dark:hover:bg-white/10 opacity-70 hover:opacity-100 transition-all cursor-pointer hidden lg:inline-block"
                 title="Fit Page Height"
               >
                 Fit Page
@@ -1060,7 +1104,7 @@ export const UniversalPdfViewer: React.FC<UniversalPdfViewerProps> = ({
             <div className="flex flex-col items-center justify-start min-w-full">
               {Array.from({ length: numPages || 1 }, (_, i) => i + 1).map((p) => (
                 <ContinuousPdfPage
-                  key={`page-${p}-${scale}-${rotation}`}
+                  key={`page-${p}`}
                   pdfDoc={pdfDoc}
                   pageNumber={p}
                   scale={scale}

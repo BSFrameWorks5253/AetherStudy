@@ -1,6 +1,6 @@
 import { UserProfile, UserRole } from '../types/auth';
 import { TestPaper } from '../types/testPaper';
-import { firebaseTimetable, firebasePaperRequests, firebaseDocuments, firebaseStorageService, firebaseDeletedDocs } from './firebase';
+import { firebaseTimetable, firebasePaperRequests, firebaseDocuments, firebaseStorageService, firebaseDeletedDocs, firebaseUsers } from './firebase';
 import { deleteFromGoogleDrive } from './clientGoogleDrive';
 import { pdfVault } from './pdfVault';
 import catalogData from '../data/catalog.json';
@@ -18,6 +18,7 @@ export interface ServerDocument {
   uploadedAt: string;
   subject: string;
   uploadedBy?: string;
+  uploadedByRole?: UserRole;
   standard?: string;
   category?: 'textbook' | 'notes' | string;
   chapterNumber?: string;
@@ -26,6 +27,14 @@ export interface ServerDocument {
   tags?: string[];
   uploadCount?: number;
   updatedAt?: string;
+  // SuperAdmin Review System
+  status?: 'approved' | 'pending' | 'rejected';
+  pendingRename?: string;
+  pendingRenameBy?: string;
+  pendingRenameAt?: string;
+  reviewNotes?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
 }
 
 export interface PaperRequest {
@@ -249,45 +258,91 @@ export const api = {
   },
 
   async getUsers(): Promise<UserProfile[]> {
-    const res = await fetch(`${API_BASE}/auth/users`, {
-      headers: getAuthHeaders(false),
-    });
-    if (!res.ok) throw new Error('Failed to fetch user list');
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/auth/users`, {
+        headers: getAuthHeaders(false),
+      });
+      if (res.ok) {
+        const users = await res.json();
+        if (Array.isArray(users) && users.length > 0) return users;
+      }
+    } catch {}
+
+    // Fallback & real-time sync with Firebase Realtime Database
+    try {
+      const fbUsers = await firebaseUsers.getAllUsers();
+      if (Array.isArray(fbUsers) && fbUsers.length > 0) return fbUsers;
+    } catch {}
+
+    try {
+      const cached = localStorage.getItem('aether_cached_users');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
   },
 
   async updateUserRole(
     requesterEmail: string,
     targetEmail: string,
-    newRole: UserRole
+    newRole: UserRole,
+    standard?: string
   ): Promise<{ success: boolean; updatedUser: UserProfile }> {
-    const res = await fetch(`${API_BASE}/auth/users/role`, {
-      method: 'PUT',
-      headers: getAuthHeaders(true),
-      body: JSON.stringify({ requesterEmail, targetEmail, newRole }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to update user role');
-    }
-    return res.json();
+    // 1. Immediately push update to Firebase Realtime Database
+    await firebaseUsers.updateUserRole(targetEmail, newRole, standard);
+
+    // 2. Also notify Express backend if running
+    try {
+      const res = await fetch(`${API_BASE}/auth/users/role`, {
+        method: 'PUT',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify({ requesterEmail, targetEmail, newRole, standard }),
+      });
+      if (res.ok) {
+        return res.json();
+      }
+    } catch {}
+
+    const now = new Date().toISOString();
+    return {
+      success: true,
+      updatedUser: {
+        email: targetEmail,
+        role: newRole,
+        standard: standard || '12',
+        lastLogin: now,
+        lastActive: now,
+      },
+    };
   },
 
   async addAdminUser(
     requesterEmail: string,
     email: string,
-    role: UserRole = 'ADMIN'
+    role: UserRole = 'ADMIN',
+    standard?: string
   ): Promise<{ success: boolean; users: UserProfile[] }> {
-    const res = await fetch(`${API_BASE}/auth/users`, {
-      method: 'POST',
-      headers: getAuthHeaders(true),
-      body: JSON.stringify({ requesterEmail, email, role }),
+    // 1. Record directly to Firebase Realtime Database
+    await firebaseUsers.recordUser({
+      email,
+      role,
+      standard: standard || '12',
+      lastLogin: new Date().toISOString(),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to add user');
-    }
-    return res.json();
+
+    // 2. Also notify Express backend if available
+    try {
+      const res = await fetch(`${API_BASE}/auth/users`, {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify({ requesterEmail, email, role, standard }),
+      });
+      if (res.ok) {
+        return res.json();
+      }
+    } catch {}
+
+    const users = await this.getUsers();
+    return { success: true, users };
   },
 
   // 2. Test Papers & PYQ Vault API
@@ -618,10 +673,14 @@ export const api = {
     chapterTitle?: string,
     customFilter?: string,
     tags?: string[],
-    customDocName?: string
+    customDocName?: string,
+    isSuperAdmin?: boolean
   ): Promise<ServerDocument> {
     const targetStandard = standard || '12';
     const docId = 'doc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+    const isOwnerOrSuper =
+      isSuperAdmin === true ||
+      uploadedBy?.trim().toLowerCase() === 'bs.framework5253@gmail.com';
 
     // Compute effective name: custom name takes precedence, followed by chapter title, followed by file name
     const effectiveName = customDocName?.trim()
@@ -649,6 +708,7 @@ export const api = {
       size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
       uploadedAt: new Date().toISOString(),
       uploadedBy: uploadedBy || 'Faculty',
+      uploadedByRole: isOwnerOrSuper ? 'SUPER_ADMIN' : 'ADMIN',
       subject,
       standard: targetStandard,
       category: category || 'notes',
@@ -657,6 +717,9 @@ export const api = {
       customFilter: customFilter || '',
       tags: tags || [],
       uploadCount: 1,
+      // Regular admin uploads require SuperAdmin review; SuperAdmin uploads are auto-approved
+      status: isOwnerOrSuper ? 'approved' : 'pending',
+      reviewNotes: isOwnerOrSuper ? undefined : 'Admin upload awaiting SuperAdmin review',
     };
 
     // Ensure newly uploaded document and filename are not suppressed by old tombstones
@@ -665,6 +728,7 @@ export const api = {
     // Save locally immediately
     const local = api.getLocalDocuments();
     api.saveLocalDocuments([newDoc, ...local.filter((d) => d.id !== newDoc.id)]);
+    firebaseDocuments.saveDocument(newDoc).catch(() => {});
 
     // 2. Upload file binary & metadata to Edge Storage (Cloudflare D1 via server)
     try {
@@ -863,13 +927,49 @@ export const api = {
     }
   },
 
-  async updateDocument(id: string, updates: Partial<ServerDocument>): Promise<ServerDocument | null> {
+  async updateDocument(
+    id: string,
+    updates: Partial<ServerDocument>,
+    isSuperAdmin?: boolean,
+    requestedBy?: string
+  ): Promise<ServerDocument | null> {
     if (!id) return null;
+    const isOwnerOrSuper =
+      isSuperAdmin === true ||
+      requestedBy?.trim().toLowerCase() === 'bs.framework5253@gmail.com';
+
     const local = api.getLocalDocuments();
     let updatedDoc: ServerDocument | null = null;
     const nextDocs: ServerDocument[] = local.map((d) => {
       if (d.id === id) {
-        const next: ServerDocument = { ...d, ...updates, updatedAt: new Date().toISOString() };
+        let appliedUpdates: Partial<ServerDocument> = { ...updates };
+
+        // If not SuperAdmin and modifying the document's published name:
+        if (!isOwnerOrSuper && updates.name && updates.name.trim() !== d.name.trim()) {
+          const proposedName = updates.name.trim();
+          appliedUpdates = {
+            ...updates,
+            name: d.name, // Keep existing published name active until approved
+            originalName: d.originalName || d.name,
+            pendingRename: proposedName,
+            pendingRenameBy: requestedBy || 'Admin',
+            pendingRenameAt: new Date().toISOString(),
+            reviewNotes: `Rename to "${proposedName}" requested by ${requestedBy || 'Admin'}, awaiting SuperAdmin review`,
+          };
+        } else if (isOwnerOrSuper && updates.name) {
+          // Direct SuperAdmin update or SuperAdmin approving rename
+          appliedUpdates = {
+            ...updates,
+            name: updates.name.trim(),
+            originalName: updates.name.trim(),
+            pendingRename: undefined,
+            pendingRenameBy: undefined,
+            pendingRenameAt: undefined,
+            status: 'approved',
+          };
+        }
+
+        const next: ServerDocument = { ...d, ...appliedUpdates, updatedAt: new Date().toISOString() };
         updatedDoc = next;
         return next;
       }
@@ -887,6 +987,99 @@ export const api = {
     }
 
     return updatedDoc;
+  },
+
+  async approveDocumentUpload(id: string, reviewerEmail: string = 'bs.framework5253@gmail.com'): Promise<ServerDocument | null> {
+    return api.updateDocument(
+      id,
+      {
+        status: 'approved',
+        reviewedBy: reviewerEmail,
+        reviewedAt: new Date().toISOString(),
+        reviewNotes: undefined,
+      },
+      true,
+      reviewerEmail
+    );
+  },
+
+  async rejectDocumentUpload(
+    id: string,
+    reviewerEmail: string = 'bs.framework5253@gmail.com',
+    reason: string = 'Rejected by SuperAdmin'
+  ): Promise<boolean> {
+    const updated = await api.updateDocument(
+      id,
+      {
+        status: 'rejected',
+        reviewedBy: reviewerEmail,
+        reviewedAt: new Date().toISOString(),
+        reviewNotes: reason,
+      },
+      true,
+      reviewerEmail
+    );
+    return !!updated;
+  },
+
+  async approveDocumentRename(id: string, reviewerEmail: string = 'bs.framework5253@gmail.com'): Promise<ServerDocument | null> {
+    const local = api.getLocalDocuments();
+    const doc = local.find((d) => d.id === id);
+    if (!doc || !doc.pendingRename) return null;
+
+    const newName = doc.pendingRename;
+    return api.updateDocument(
+      id,
+      {
+        name: newName,
+        originalName: newName,
+        status: 'approved',
+        reviewedBy: reviewerEmail,
+        reviewedAt: new Date().toISOString(),
+        reviewNotes: undefined,
+      },
+      true,
+      reviewerEmail
+    );
+  },
+
+  async rejectDocumentRename(
+    id: string,
+    reviewerEmail: string = 'bs.framework5253@gmail.com',
+    reason?: string
+  ): Promise<ServerDocument | null> {
+    const local = api.getLocalDocuments();
+    let updatedDoc: ServerDocument | null = null;
+    const nextDocs = local.map((d) => {
+      if (d.id === id) {
+        const next: ServerDocument = {
+          ...d,
+          pendingRename: undefined,
+          pendingRenameBy: undefined,
+          pendingRenameAt: undefined,
+          reviewedBy: reviewerEmail,
+          reviewedAt: new Date().toISOString(),
+          reviewNotes: reason || 'Rename request rejected by SuperAdmin',
+          updatedAt: new Date().toISOString(),
+        };
+        updatedDoc = next;
+        return next;
+      }
+      return d;
+    });
+
+    if (updatedDoc) {
+      api.saveLocalDocuments(nextDocs);
+      firebaseDocuments.saveDocument(updatedDoc).catch(() => {});
+    }
+    return updatedDoc;
+  },
+
+  async getPendingReviews(): Promise<{ pendingUploads: ServerDocument[]; pendingRenames: ServerDocument[] }> {
+    const local = api.getLocalDocuments();
+    const pendingUploads = local.filter((d) => d.status === 'pending');
+    const pendingRenames = local.filter((d) => !!d.pendingRename);
+    return { pendingUploads, pendingRenames };
   },
 
   async batchUpdateDocuments(updates: Array<{ id: string; changes: Partial<ServerDocument> }>): Promise<ServerDocument[]> {

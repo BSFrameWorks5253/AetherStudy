@@ -89,11 +89,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         <div>
           {/* Header Brand */}
-          <div className="flex items-center justify-between p-4 border-b border-black/[0.06] dark:border-white/[0.08]">
-            <div className="flex items-center space-x-3 overflow-hidden">
-              <AetherLogo size={isCollapsed ? 'sm' : 'md'} animated />
+          <div
+            className={`border-b border-black/[0.06] dark:border-white/[0.08] transition-all ${
+              isCollapsed
+                ? 'flex flex-col items-center justify-center p-3 gap-2.5'
+                : 'flex items-center justify-between p-4'
+            }`}
+          >
+            <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 overflow-hidden min-w-0 flex-1'}`}>
+              <div className="shrink-0 flex items-center justify-center">
+                <AetherLogo size={isCollapsed ? 'sm' : 'md'} animated />
+              </div>
               {!isCollapsed && (
-                <div className="truncate">
+                <div className="truncate min-w-0">
                   <h1 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white leading-tight flex items-center gap-1.5">
                     AetherStudy
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300 border border-brand-500/25">
@@ -110,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleCollapse}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -266,8 +274,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
 
-          <div className="flex items-center justify-center text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-            {!isCollapsed ? <span>HSC Board Commerce</span> : <span>XII</span>}
+          <div className="flex flex-col items-center justify-center text-[10px] text-slate-400 dark:text-slate-500 font-medium space-y-0.5 pt-1">
+            {!isCollapsed ? (
+              <>
+                <span>HSC Board Commerce</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                  Made by <strong className="text-slate-700 dark:text-slate-200 font-bold">Burhanuddin Sounasath</strong>
+                </span>
+              </>
+            ) : (
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20"
+                title="Made by Burhanuddin Sounasath • Class 12 Commerce"
+              >
+                XII
+              </span>
+            )}
           </div>
         </div>
       </aside>

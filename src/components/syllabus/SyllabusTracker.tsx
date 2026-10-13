@@ -425,7 +425,7 @@ export const SyllabusTracker: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-y-auto p-3 sm:p-6 md:p-8 relative pb-28 md:pb-8">
       {/* Header and Summary stats */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 shrink-0">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8 shrink-0 animate-slide-up">
         <div>
           <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1">
             <FolderTree className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -584,10 +584,10 @@ export const SyllabusTracker: React.FC = () => {
             return (
               <div
                 key={topic.id}
-                className="ios-glass rounded-[24px] border border-black/[0.06] dark:border-white/[0.08] overflow-hidden transition-all shadow-xs hover:shadow-md"
+                className="ios-glass rounded-[24px] border border-black/[0.06] dark:border-white/[0.08] overflow-hidden transition-all shadow-xs hover:shadow-md animate-slide-up"
               >
                 {/* Topic Parent Node Bar */}
-                <div className="flex items-center justify-between p-4 border-b border-black/5 dark:border-white/5">
+                <div className="flex items-center justify-between p-4">
                   <div
                     onClick={() => handleToggleExpand(topic.id)}
                     className="flex items-center space-x-3 cursor-pointer flex-1 select-none"
@@ -643,7 +643,24 @@ export const SyllabusTracker: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Sub-tree Chapters */}
+                {/* Topic progress bar */}
+                <div className="px-4 pb-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                      {topicCompletedCount} / {topicTotalCount} chapters completed
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-brand-600 dark:text-brand-400">
+                      {topicPct}%
+                    </span>
+                  </div>
+                  <div className="progress-bar-track">
+                    <div
+                      className={`progress-bar-fill ${topicPct >= 100 ? 'is-complete' : ''}`}
+                      style={{ width: `${topicPct}%` }}
+                    />
+                  </div>
+                </div>
+
                 {topic.isExpanded && (
                   <div className="p-3.5 liquid-glass-subtle space-y-2">
                     {topic.chapters.length === 0 ? (
@@ -655,9 +672,9 @@ export const SyllabusTracker: React.FC = () => {
                       topic.chapters.map((chapter) => (
                         <div
                           key={chapter.id}
-                          className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border transition-all group ${
+                          className={`chapter-row flex items-center justify-between pl-4 pr-3 py-2.5 rounded-xl border transition-all group ${
                             chapter.isCompleted
-                              ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40 shadow-xs'
+                              ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40 shadow-xs is-active'
                               : 'liquid-glass border-slate-200/60 dark:border-slate-800/60 hover:border-brand-500/30'
                           }`}
                         >

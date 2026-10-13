@@ -6,8 +6,13 @@ import { SubjectRooms } from './SubjectRooms';
  * Markdown split-editor pane has been completely deprecated in favor of
  * focused, standard-scoped Subject Rooms with Textbook PDFs & Notes.
  */
-export const SplitWorkspace: React.FC = () => {
-  return <SubjectRooms />;
+export interface SplitWorkspaceProps {
+  initialSubject?: string | null;
+  onClearSubject?: () => void;
+}
+
+export const SplitWorkspace: React.FC<SplitWorkspaceProps> = ({ initialSubject, onClearSubject }) => {
+  return <SubjectRooms initialSubject={initialSubject} onClearSubject={onClearSubject} />;
 };
 
 export default SplitWorkspace;

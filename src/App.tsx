@@ -15,6 +15,7 @@ import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import { InAppNotificationToast } from './components/notifications/InAppNotificationToast';
 import { api } from './services/api';
+import { getSubjectSlug } from './components/workspace/SubjectRooms';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -49,30 +50,51 @@ export const App: React.FC = () => {
     api.syncLocalDocumentsToCloud().catch(() => {});
   }, []);
 
-  const handleTabChange = (tab: ActiveTab, subjectOverride?: string) => {
+  const [activeSubjectRoom, setActiveSubjectRoom] = useState<string | null>(null);
+
+  const handleTabChange = (tab: ActiveTab, subjectOverride?: string, docOverride?: string) => {
     if (subjectOverride && tab === 'workspace') {
+      const slug = getSubjectSlug(subjectOverride);
+      setActiveSubjectRoom(subjectOverride);
       try {
         sessionStorage.setItem('aether_initial_room', subjectOverride);
-        window.dispatchEvent(new CustomEvent('aether_switch_room', { detail: { subject: subjectOverride } }));
+        if (docOverride) {
+          sessionStorage.setItem('aether_initial_doc', docOverride);
+        } else {
+          sessionStorage.removeItem('aether_initial_doc');
+        }
+        window.dispatchEvent(
+          new CustomEvent('aether_switch_room', {
+            detail: { subject: subjectOverride, doc: docOverride, slug },
+          })
+        );
       } catch {}
-    }
 
-    setActiveTab(tab);
-    if (tab === 'home') {
-      if (window.location.pathname !== '/' && window.location.pathname !== '/home') {
-        window.history.pushState(null, '', '/home');
-      }
+      const targetUrl = docOverride
+        ? `/studyroom/${slug}/${encodeURIComponent(docOverride)}`
+        : `/studyroom/${slug}`;
+      window.history.pushState(null, '', targetUrl);
     } else if (tab === 'workspace') {
+      setActiveSubjectRoom(null);
       if (!window.location.pathname.startsWith('/studyroom')) {
         window.history.pushState(null, '', '/studyroom');
       }
-    } else if (tab === 'tests') {
-      window.history.pushState(null, '', '/tests');
-    } else if (tab === 'timetable') {
-      window.history.pushState(null, '', '/timetable');
-    } else if (tab === 'syllabus') {
-      window.history.pushState(null, '', '/syllabus');
+    } else {
+      setActiveSubjectRoom(null);
+      if (tab === 'home') {
+        if (window.location.pathname !== '/' && window.location.pathname !== '/home') {
+          window.history.pushState(null, '', '/home');
+        }
+      } else if (tab === 'tests') {
+        window.history.pushState(null, '', '/tests');
+      } else if (tab === 'timetable') {
+        window.history.pushState(null, '', '/timetable');
+      } else if (tab === 'syllabus') {
+        window.history.pushState(null, '', '/syllabus');
+      }
     }
+
+    setActiveTab(tab);
   };
 
   const getTitle = () => {
@@ -119,7 +141,12 @@ export const App: React.FC = () => {
                 }}
               />
             )}
-            {activeTab === 'workspace' && <SplitWorkspace />}
+            {activeTab === 'workspace' && (
+              <SplitWorkspace
+                initialSubject={activeSubjectRoom}
+                onClearSubject={() => setActiveSubjectRoom(null)}
+              />
+            )}
             {activeTab === 'tests' && <TestPapers />}
             {activeTab === 'timetable' && (
               isAuthenticated ? (

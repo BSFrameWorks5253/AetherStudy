@@ -336,7 +336,7 @@ export const FlashcardDeck: React.FC = () => {
   return (
     <div className="flex flex-col h-full overflow-y-auto p-4 md:p-8 max-w-5xl mx-auto w-full select-none">
       {/* Top Header & Mastery Metric */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shrink-0 animate-slide-up">
         <div>
           <div className="flex items-center space-x-2 text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-wider mb-1">
             <Sparkles className="w-4 h-4" />
@@ -350,20 +350,29 @@ export const FlashcardDeck: React.FC = () => {
           </p>
         </div>
 
-        {/* Global Mastery Pill */}
-        <div className="flex items-center gap-3 ios-glass p-3 rounded-[22px] border border-black/[0.06] dark:border-white/[0.08] shadow-xs shrink-0">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-sm">
-            {masteryPercentage}%
+        {/* Global Mastery Card */}
+        <div className="flex flex-col gap-2 ios-glass p-4 rounded-[22px] border border-black/[0.06] dark:border-white/[0.08] shadow-xs shrink-0 min-w-[200px] animate-slide-up stagger-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-sm border border-emerald-500/20">
+              {masteryPercentage}%
+            </div>
+            <div className="text-xs">
+              <div className="font-bold text-slate-900 dark:text-white">
+                {masteredCount} of {cards.length} Mastered
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+                <span className="text-rose-500 font-semibold">{learningCount} Learning</span>
+                <span>•</span>
+                <span className="text-amber-500 font-semibold">{reviewCount} Review</span>
+              </div>
+            </div>
           </div>
-          <div className="text-xs">
-            <div className="font-bold text-slate-900 dark:text-white">
-              {masteredCount} of {cards.length} Mastered
-            </div>
-            <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
-              <span className="text-rose-500 font-semibold">{learningCount} Learning</span>
-              <span>•</span>
-              <span className="text-amber-500 font-semibold">{reviewCount} Review</span>
-            </div>
+          {/* Mastery Progress Bar */}
+          <div className="progress-bar-track">
+            <div
+              className={`progress-bar-fill ${masteryPercentage >= 100 ? 'is-complete' : ''}`}
+              style={{ width: `${masteryPercentage}%` }}
+            />
           </div>
         </div>
       </div>
@@ -451,32 +460,33 @@ export const FlashcardDeck: React.FC = () => {
             </div>
           </div>
 
-          {/* The Flip Card Container */}
+          {/* The 3D Flip Card */}
           <div
             onClick={() => setIsFlipped(!isFlipped)}
-            className="relative min-h-[320px] sm:min-h-[360px] p-8 rounded-[32px] ios-glass border border-black/[0.08] dark:border-white/[0.12] shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer flex flex-col justify-between group overflow-hidden active:scale-[0.99]"
+            className="flip-card-scene cursor-pointer min-h-[340px] sm:min-h-[380px] group"
           >
-            {/* Subject & Topic Badge */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/20">
-                  {activeCard.subject}
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold truncate max-w-[220px]">
-                  {activeCard.topic}
-                </span>
-              </div>
-              <span className="text-[11px] text-brand-600 dark:text-brand-400 font-semibold flex items-center gap-1 group-hover:scale-105 transition-transform">
-                <RotateCw className="w-3 h-3" />
-                <span>{isFlipped ? 'Show Front' : 'Tap to Flip'}</span>
-              </span>
-            </div>
+            <div className={`flip-card-inner ${isFlipped ? 'is-flipped' : ''}`} style={{ minHeight: 'inherit' }}>
 
-            {/* Card Content Body */}
-            <div className="my-auto py-6">
-              {!isFlipped ? (
-                /* FRONT: QUESTION */
-                <div className="space-y-3">
+              {/* FRONT FACE */}
+              <div className="flip-card-face ios-glass border border-black/[0.08] dark:border-white/[0.12] rounded-[32px] shadow-xl hover:shadow-2xl p-7 sm:p-8 flex flex-col justify-between overflow-hidden transition-shadow duration-300">
+                {/* Badge row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/20">
+                      {activeCard.subject}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold truncate max-w-[200px]">
+                      {activeCard.topic}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-brand-600 dark:text-brand-400 font-semibold flex items-center gap-1 group-hover:scale-105 transition-transform">
+                    <RotateCw className="w-3 h-3" />
+                    <span>Tap to Flip</span>
+                  </span>
+                </div>
+
+                {/* Question body */}
+                <div className="my-auto py-6 space-y-3">
                   <div className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 dark:text-slate-500">
                     Question / Adjustment Rule
                   </div>
@@ -484,9 +494,34 @@ export const FlashcardDeck: React.FC = () => {
                     {activeCard.front}
                   </h2>
                 </div>
-              ) : (
-                /* BACK: ANSWER / FORMULA */
-                <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+
+                <div className="text-center pt-2 border-t border-black/[0.04] dark:border-white/[0.06]">
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+                    Click anywhere on card to reveal answer
+                  </span>
+                </div>
+              </div>
+
+              {/* BACK FACE */}
+              <div className="flip-card-face flip-card-face--back ios-glass border border-emerald-500/20 dark:border-emerald-500/15 rounded-[32px] shadow-xl p-7 sm:p-8 flex flex-col justify-between overflow-hidden">
+                {/* Badge row */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                      Answer
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold truncate max-w-[200px]">
+                      {activeCard.topic}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                    <RotateCw className="w-3 h-3" />
+                    <span>Show Front</span>
+                  </span>
+                </div>
+
+                {/* Answer body */}
+                <div className="my-auto py-6 space-y-4">
                   <div className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-600 dark:text-emerald-400">
                     Solution / Ledger Formula
                   </div>
@@ -496,20 +531,18 @@ export const FlashcardDeck: React.FC = () => {
                   {activeCard.tip && (
                     <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300 leading-snug flex items-start gap-2">
                       <Award className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold">Board Moderator Tip:</span> {activeCard.tip}
-                      </div>
+                      <div><span className="font-bold">Board Moderator Tip:</span> {activeCard.tip}</div>
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            {/* Bottom Tap Prompt */}
-            <div className="text-center pt-2 border-t border-black/[0.04] dark:border-white/[0.06]">
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-                {isFlipped ? 'Evaluate your recall below' : 'Click anywhere on card to reveal answer'}
-              </span>
+                <div className="text-center pt-2 border-t border-black/[0.04] dark:border-white/[0.06]">
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+                    Evaluate your recall below
+                  </span>
+                </div>
+              </div>
+
             </div>
           </div>
 
