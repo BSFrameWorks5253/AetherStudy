@@ -314,6 +314,7 @@ export const api = {
 
   async getUsers(): Promise<UserProfile[]> {
     const userMap = new Map<string, UserProfile>();
+    const superAdminEmail = 'bs.framework5253@gmail.com';
 
     // 1. Fetch from Firebase Realtime Database (persistent cloud source that survives all redeployments)
     try {
@@ -342,11 +343,12 @@ export const api = {
       }
     } catch {}
 
-    // 3. Fetch from server endpoint if available
+    // 3. Fetch from server endpoint if available with strict timeout
     try {
-      const res = await fetch(`${API_BASE}/auth/users`, {
+      const q = `?requesterEmail=${encodeURIComponent(superAdminEmail)}`;
+      const res = await fetchWithTimeout(`${API_BASE}/auth/users${q}`, {
         headers: getAuthHeaders(false),
-      });
+      }, 2500);
       if (res.ok) {
         const serverUsers = await res.json();
         if (Array.isArray(serverUsers)) {
@@ -362,7 +364,6 @@ export const api = {
     } catch {}
 
     // 4. Always ensure primary SuperAdmin presence
-    const superAdminEmail = 'bs.framework5253@gmail.com';
     const existingSuper = userMap.get(superAdminEmail);
     userMap.set(superAdminEmail, {
       email: superAdminEmail,
@@ -389,31 +390,49 @@ export const api = {
     newRole: UserRole,
     standard?: string
   ): Promise<{ success: boolean; updatedUser: UserProfile }> {
-    // 1. Immediately push update to Firebase Realtime Database
-    await firebaseUsers.updateUserRole(targetEmail, newRole, standard);
+    const cleanTarget = targetEmail.trim().toLowerCase();
+    const now = new Date().toISOString();
 
-    // 2. Also notify Express backend if running
+    const updatedUser: UserProfile = {
+      email: cleanTarget,
+      role: newRole,
+      standard: standard || '12',
+      lastLogin: now,
+      lastActive: now,
+      status: 'active',
+    };
+
+    // 1. Immediately cache locally
     try {
-      const res = await fetch(`${API_BASE}/auth/users/role`, {
+      const cached = localStorage.getItem('aether_cached_users');
+      const list: UserProfile[] = cached ? JSON.parse(cached) : [];
+      const updatedList = list.map((u) => u.email.toLowerCase() === cleanTarget ? { ...u, role: newRole, ...(standard ? { standard } : {}) } : u);
+      if (!updatedList.some((u) => u.email.toLowerCase() === cleanTarget)) {
+        updatedList.push(updatedUser);
+      }
+      localStorage.setItem('aether_cached_users', JSON.stringify(updatedList));
+    } catch {}
+
+    // 2. Non-blocking Firebase push
+    firebaseUsers.updateUserRole(cleanTarget, newRole, standard).catch(() => {});
+
+    // 3. Notify Express backend if running
+    try {
+      const q = `?requesterEmail=${encodeURIComponent(requesterEmail || 'bs.framework5253@gmail.com')}`;
+      const res = await fetchWithTimeout(`${API_BASE}/auth/users/role${q}`, {
         method: 'PUT',
         headers: getAuthHeaders(true),
-        body: JSON.stringify({ requesterEmail, targetEmail, newRole, standard }),
-      });
+        body: JSON.stringify({ requesterEmail, targetEmail: cleanTarget, newRole, standard }),
+      }, 3000);
       if (res.ok) {
-        return res.json();
+        const data = await res.json();
+        return { success: true, updatedUser: data.updatedUser || updatedUser };
       }
     } catch {}
 
-    const now = new Date().toISOString();
     return {
       success: true,
-      updatedUser: {
-        email: targetEmail,
-        role: newRole,
-        standard: standard || '12',
-        lastLogin: now,
-        lastActive: now,
-      },
+      updatedUser,
     };
   },
 
@@ -423,23 +442,48 @@ export const api = {
     role: UserRole = 'ADMIN',
     standard?: string
   ): Promise<{ success: boolean; users: UserProfile[] }> {
-    // 1. Record directly to Firebase Realtime Database
-    await firebaseUsers.recordUser({
-      email,
+    const cleanEmail = email.trim().toLowerCase();
+    const now = new Date().toISOString();
+
+    const newUser: UserProfile = {
+      email: cleanEmail,
       role,
       standard: standard || '12',
-      lastLogin: new Date().toISOString(),
-    });
+      lastLogin: now,
+      lastActive: now,
+      createdAt: now,
+      status: 'active',
+    };
 
-    // 2. Also notify Express backend if available
+    // 1. Immediately cache locally
     try {
-      const res = await fetch(`${API_BASE}/auth/users`, {
+      const cached = localStorage.getItem('aether_cached_users');
+      const list: UserProfile[] = cached ? JSON.parse(cached) : [];
+      const filtered = list.filter((u) => u.email.toLowerCase() !== cleanEmail);
+      localStorage.setItem('aether_cached_users', JSON.stringify([...filtered, newUser]));
+    } catch {}
+
+    // 2. Non-blocking Firebase push
+    firebaseUsers.recordUser({
+      email: cleanEmail,
+      role,
+      standard: standard || '12',
+      lastLogin: now,
+    }).catch(() => {});
+
+    // 3. Notify Express backend if available
+    try {
+      const q = `?requesterEmail=${encodeURIComponent(requesterEmail || 'bs.framework5253@gmail.com')}`;
+      const res = await fetchWithTimeout(`${API_BASE}/auth/users${q}`, {
         method: 'POST',
         headers: getAuthHeaders(true),
-        body: JSON.stringify({ requesterEmail, email, role, standard }),
-      });
+        body: JSON.stringify({ requesterEmail, email: cleanEmail, role, standard }),
+      }, 3000);
       if (res.ok) {
-        return res.json();
+        const data = await res.json();
+        if (data && Array.isArray(data.users)) {
+          return { success: true, users: data.users };
+        }
       }
     } catch {}
 

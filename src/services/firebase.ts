@@ -56,25 +56,42 @@ export const storage = getStorage(app);
 /**
  * Ensures a valid Firebase Auth session exists.
  * Falls back to anonymous sign-in so security rules checking `request.auth != null` succeed seamlessly.
+ * Protected by a strict 2500ms timeout so offline/slow states never hang the UI.
  */
 let authInitPromise: Promise<User | null> | null = null;
 export async function ensureFirebaseAuth(): Promise<User | null> {
   if (auth.currentUser) return auth.currentUser;
   if (!authInitPromise) {
     authInitPromise = new Promise((resolve) => {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        unsubscribe();
-        if (user) {
-          resolve(user);
-        } else {
-          signInAnonymously(auth)
-            .then((credential) => resolve(credential.user))
-            .catch((err) => {
-              console.warn('[Firebase Auth] Anonymous sign-in failed (continuing with offline/public mode):', err?.message || err);
-              resolve(null);
-            });
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(null);
         }
-      });
+      }, 2500);
+
+      try {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          unsubscribe();
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(timer);
+          if (user) {
+            resolve(user);
+          } else {
+            signInAnonymously(auth)
+              .then((credential) => resolve(credential.user))
+              .catch((err) => {
+                console.warn('[Firebase Auth] Anonymous sign-in failed (continuing with offline/public mode):', err?.message || err);
+                resolve(null);
+              });
+          }
+        });
+      } catch (e) {
+        clearTimeout(timer);
+        resolve(null);
+      }
     });
   }
   return authInitPromise;
@@ -1119,66 +1136,65 @@ export const firebaseUsers = {
     const isOwner = cleanEmail === 'bs.framework5253@gmail.com';
     const now = new Date().toISOString();
 
+    const profile: UserProfile = {
+      email: cleanEmail,
+      role: isOwner ? 'SUPER_ADMIN' : (user.role || 'USER'),
+      standard: user.standard || '12',
+      lastLogin: user.lastLogin || now,
+      lastActive: now,
+      createdAt: now,
+      name: user.name || cleanEmail.split('@')[0],
+      status: 'active',
+    };
+
+    // 1. Immediately cache locally so user is listed with 0ms latency
     try {
-      await ensureFirebaseAuth();
-      const userRef = ref(rtdb, `users/${safeKey}`);
-      let existing: Partial<UserProfile> = {};
+      const cached = localStorage.getItem('aether_cached_users');
+      const list: UserProfile[] = cached ? JSON.parse(cached) : [];
+      const filtered = list.filter((u) => u.email.toLowerCase() !== cleanEmail);
+      localStorage.setItem('aether_cached_users', JSON.stringify([...filtered, profile]));
+    } catch {}
+
+    // 2. Non-blocking cloud persistence
+    const cloudSave = async () => {
       try {
-        const snap = await get(userRef);
-        if (snap.exists()) {
-          existing = snap.val() || {};
-        }
-      } catch {}
+        await ensureFirebaseAuth();
+        const userRef = ref(rtdb, `users/${safeKey}`);
+        let existing: Partial<UserProfile> = {};
+        try {
+          const snap = await Promise.race([
+            get(userRef),
+            new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000)),
+          ]);
+          if (snap && snap.exists && snap.exists()) {
+            existing = snap.val() || {};
+          }
+        } catch {}
 
-      const profile: UserProfile = {
-        email: cleanEmail,
-        role: isOwner ? 'SUPER_ADMIN' : (user.role || existing.role || 'USER'),
-        standard: user.standard || existing.standard || '12',
-        lastLogin: user.lastLogin || existing.lastLogin || now,
-        lastActive: now,
-        createdAt: existing.createdAt || now,
-        name: user.name || existing.name || cleanEmail.split('@')[0],
-        status: 'active',
-      };
-
-      // 1. RTDB persistence
-      await set(userRef, profile);
-
-      // 2. Dual Firestore cloud backup
-      try {
-        await setDoc(doc(db, 'user_profiles', safeKey), profile, { merge: true });
-      } catch {}
-
-      // 3. Cache locally
-      try {
-        const cached = localStorage.getItem('aether_cached_users');
-        const list: UserProfile[] = cached ? JSON.parse(cached) : [];
-        const filtered = list.filter((u) => u.email.toLowerCase() !== cleanEmail);
-        localStorage.setItem('aether_cached_users', JSON.stringify([...filtered, profile]));
-      } catch {}
-
-      return true;
-    } catch (err) {
-      console.warn('[Firebase Record User Notice]:', err);
-      // Ensure local cache is updated even if network fails
-      try {
-        const profile: UserProfile = {
-          email: cleanEmail,
-          role: isOwner ? 'SUPER_ADMIN' : (user.role || 'USER'),
-          standard: user.standard || '12',
-          lastLogin: user.lastLogin || now,
-          lastActive: now,
-          createdAt: now,
-          name: user.name || cleanEmail.split('@')[0],
-          status: 'active',
+        const finalProfile: UserProfile = {
+          ...profile,
+          role: isOwner ? 'SUPER_ADMIN' : (user.role || existing.role || profile.role),
+          standard: user.standard || existing.standard || profile.standard,
+          lastLogin: user.lastLogin || existing.lastLogin || profile.lastLogin,
+          createdAt: existing.createdAt || profile.createdAt,
+          name: user.name || existing.name || profile.name,
         };
-        const cached = localStorage.getItem('aether_cached_users');
-        const list: UserProfile[] = cached ? JSON.parse(cached) : [];
-        const filtered = list.filter((u) => u.email.toLowerCase() !== cleanEmail);
-        localStorage.setItem('aether_cached_users', JSON.stringify([...filtered, profile]));
-      } catch {}
-      return false;
-    }
+
+        await Promise.race([
+          set(userRef, finalProfile),
+          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+        ]);
+
+        try {
+          await setDoc(doc(db, 'user_profiles', safeKey), finalProfile, { merge: true });
+        } catch {}
+      } catch (err) {
+        console.warn('[Firebase Record User non-fatal notice]:', err);
+      }
+    };
+
+    cloudSave().catch(() => {});
+    return true;
   },
 
   async updateUserRole(targetEmail: string, newRole: UserRole, standard?: string): Promise<boolean> {
@@ -1187,87 +1203,90 @@ export const firebaseUsers = {
     const safeKey = cleanEmail.replace(/[.#$[\]]/g, '_');
     const isOwner = cleanEmail === 'bs.framework5253@gmail.com';
     const finalRole: UserRole = isOwner ? 'SUPER_ADMIN' : newRole;
+    const now = new Date().toISOString();
 
+    const updated: UserProfile = {
+      email: cleanEmail,
+      role: finalRole,
+      lastLogin: now,
+      lastActive: now,
+      createdAt: now,
+      standard: standard || '12',
+      name: cleanEmail.split('@')[0],
+      status: 'active',
+    };
+
+    // 1. Immediately cache locally
     try {
-      await ensureFirebaseAuth();
-      const userRef = ref(rtdb, `users/${safeKey}`);
-      let existing: Partial<UserProfile> = {};
+      const cached = localStorage.getItem('aether_cached_users');
+      const list: UserProfile[] = cached ? JSON.parse(cached) : [];
+      const updatedList = list.map((u) => u.email.toLowerCase() === cleanEmail ? { ...u, role: finalRole, ...(standard ? { standard } : {}) } : u);
+      if (!updatedList.some((u) => u.email.toLowerCase() === cleanEmail)) {
+        updatedList.push(updated);
+      }
+      localStorage.setItem('aether_cached_users', JSON.stringify(updatedList));
+    } catch {}
+
+    // 2. Non-blocking cloud update
+    const cloudUpdate = async () => {
       try {
-        const snap = await get(userRef);
-        if (snap.exists()) {
-          existing = snap.val() || {};
-        }
-      } catch {}
+        await ensureFirebaseAuth();
+        const userRef = ref(rtdb, `users/${safeKey}`);
+        await Promise.race([
+          set(userRef, updated),
+          new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500)),
+        ]);
+        try {
+          await setDoc(doc(db, 'user_profiles', safeKey), updated, { merge: true });
+        } catch {}
+      } catch (err) {
+        console.warn('[Firebase Update User Role non-fatal notice]:', err);
+      }
+    };
 
-      const updated: UserProfile = {
-        email: cleanEmail,
-        role: finalRole,
-        lastLogin: existing.lastLogin || new Date().toISOString(),
-        lastActive: new Date().toISOString(),
-        createdAt: existing.createdAt || new Date().toISOString(),
-        standard: standard || existing.standard || '12',
-        name: existing.name || cleanEmail.split('@')[0],
-        status: existing.status || 'active',
-      };
-
-      await set(userRef, updated);
-
-      try {
-        await setDoc(doc(db, 'user_profiles', safeKey), updated, { merge: true });
-      } catch {}
-
-      // Update cache
-      try {
-        const cached = localStorage.getItem('aether_cached_users');
-        const list: UserProfile[] = cached ? JSON.parse(cached) : [];
-        const updatedList = list.map((u) => u.email.toLowerCase() === cleanEmail ? updated : u);
-        if (!updatedList.some((u) => u.email.toLowerCase() === cleanEmail)) {
-          updatedList.push(updated);
-        }
-        localStorage.setItem('aether_cached_users', JSON.stringify(updatedList));
-      } catch {}
-
-      return true;
-    } catch (err) {
-      console.warn('[Firebase Update User Role Notice]:', err);
-      return false;
-    }
+    cloudUpdate().catch(() => {});
+    return true;
   },
 
   async getAllUsers(): Promise<UserProfile[]> {
     const userMap = new Map<string, UserProfile>();
 
-    // 1. Fetch from Firebase Realtime Database
-    try {
-      await ensureFirebaseAuth();
-      const snap = await get(ref(rtdb, 'users'));
-      if (snap.exists()) {
-        const val = snap.val();
-        if (val && typeof val === 'object') {
-          const list: UserProfile[] = Object.values(val);
-          list.forEach((u) => {
-            if (u && u.email) userMap.set(u.email.toLowerCase().trim(), u);
-          });
-        }
-      }
-    } catch (err) {
-      console.warn('[Firebase GetAllUsers RTDB Notice]:', err);
-    }
-
-    // 2. Local cache fallback & reconciliation
+    // 1. Local cache first for instant response
     try {
       const cached = localStorage.getItem('aether_cached_users');
       if (cached) {
         const list: UserProfile[] = JSON.parse(cached);
         if (Array.isArray(list)) {
           list.forEach((u) => {
-            if (u && u.email && !userMap.has(u.email.toLowerCase().trim())) {
-              userMap.set(u.email.toLowerCase().trim(), u);
-            }
+            if (u && u.email) userMap.set(u.email.toLowerCase().trim(), u);
           });
         }
       }
     } catch {}
+
+    // 2. Fetch from Firebase Realtime Database with strict 2.5s timeout
+    try {
+      await ensureFirebaseAuth();
+      const snap = await Promise.race([
+        get(ref(rtdb, 'users')),
+        new Promise<any>((resolve) => setTimeout(() => resolve(null), 2500)),
+      ]);
+      if (snap && snap.exists && snap.exists()) {
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          const list: UserProfile[] = Object.values(val);
+          list.forEach((u) => {
+            if (u && u.email) {
+              const key = u.email.toLowerCase().trim();
+              const existing = userMap.get(key);
+              userMap.set(key, { ...(existing || {}), ...u });
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[Firebase GetAllUsers RTDB Notice]:', err);
+    }
 
     // 3. Always guarantee primary SuperAdmin presence
     const ownerEmail = 'bs.framework5253@gmail.com';

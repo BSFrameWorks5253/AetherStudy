@@ -186,8 +186,8 @@ app.use(
       }
       return callback(new Error('Cross-Origin Request Blocked by AetherStudy Security Policy'));
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-requester-email', 'x-user-role', 'x-user-standard'],
     credentials: true,
   })
 );
@@ -819,7 +819,7 @@ app.get('/api/auth/users', requireSuperAdmin, (req, res) => {
 
 // Add / Assign User Role directly by Super Admin
 app.post('/api/auth/users', requireSuperAdmin, (req, res) => {
-  const { email, role } = req.body || {};
+  const { email, role, standard } = req.body || {};
 
   if (!email || typeof email !== 'string' || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email address required.' });
@@ -827,49 +827,69 @@ app.post('/api/auth/users', requireSuperAdmin, (req, res) => {
 
   const normalized = email.trim().toLowerCase();
   const targetRole = role === 'ADMIN' ? 'ADMIN' : 'USER';
+  const targetStandard = standard || '12';
   const users = readJsonFile('users.json', initialUsers);
-  const existing = users.find((u) => u.email.toLowerCase() === normalized);
+  let userObj = users.find((u) => u.email.toLowerCase() === normalized);
 
-  if (existing) {
-    if (existing.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+  if (userObj) {
+    if (userObj.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
       return res.status(400).json({ error: 'Primary owner role cannot be altered.' });
     }
-    existing.role = targetRole;
+    userObj.role = targetRole;
+    if (standard) userObj.standard = targetStandard;
+    userObj.lastActive = new Date().toISOString();
   } else {
-    users.push({
+    userObj = {
       email: normalized,
       role: targetRole,
+      standard: targetStandard,
+      status: 'active',
       lastLogin: new Date().toISOString(),
-    });
+      lastActive: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    users.push(userObj);
   }
 
   writeJsonFile('users.json', users);
-  res.json({ success: true, users });
+  res.json({ success: true, user: userObj, users });
 });
 
 // Update User Role (Only permitted by SUPER_ADMIN)
 app.put('/api/auth/users/role', requireSuperAdmin, (req, res) => {
-  const { targetEmail, newRole } = req.body || {};
+  const { targetEmail, newRole, standard } = req.body || {};
 
   if (!targetEmail || !['ADMIN', 'USER'].includes(newRole)) {
     return res.status(400).json({ error: 'Invalid target email or role specification.' });
   }
 
+  const normalized = targetEmail.trim().toLowerCase();
   const users = readJsonFile('users.json', initialUsers);
-  const targetUser = users.find((u) => u.email.toLowerCase() === targetEmail.trim().toLowerCase());
+  let targetUser = users.find((u) => u.email.toLowerCase() === normalized);
 
-  if (!targetUser) {
-    return res.status(404).json({ error: 'Target user not found in database.' });
-  }
-
-  // Super admin cannot be demoted
-  if (targetUser.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+  if (targetUser && targetUser.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
     return res.status(400).json({ error: 'Super Admin privileges cannot be modified.' });
   }
 
-  targetUser.role = newRole;
+  if (!targetUser) {
+    targetUser = {
+      email: normalized,
+      role: newRole,
+      standard: standard || '12',
+      status: 'active',
+      lastLogin: new Date().toISOString(),
+      lastActive: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    users.push(targetUser);
+  } else {
+    targetUser.role = newRole;
+    if (standard) targetUser.standard = standard;
+    targetUser.lastActive = new Date().toISOString();
+  }
+
   writeJsonFile('users.json', users);
-  res.json({ success: true, updatedUser: targetUser });
+  res.json({ success: true, updatedUser: targetUser, users });
 });
 
 // 2. TEST PAPERS & PYQ VAULT (Subject + Year + Question PDF + Answer Key PDF)
